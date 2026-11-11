@@ -118,13 +118,16 @@ async function setOpen(open: boolean) {
   });
   changingStore.value = false;
 }
-const selected = computed(
-  () =>
-    nav.value.find(
-      (it) =>
-        route.path === it.key ||
-        (it.key !== "/" && route.path.startsWith(it.key + "/")),
-    )?.key ?? nav.value[0].key,
+const selected = computed(() =>
+  String(
+    route.meta.siteNav ??
+      nav.value.find(
+        (it) =>
+          route.path === it.key ||
+          (it.key !== "/" && route.path.startsWith(it.key + "/")),
+      )?.key ??
+      (role.value === "user" ? "" : nav.value[0].key),
+  ),
 );
 const go = (path: string) => router.push(path);
 </script>
@@ -142,6 +145,7 @@ const go = (path: string) => router.push(path);
       @update:model-value="go"
       @login="go('/login')"
       @cart="go('/checkout')"
+      @account="go('/me')"
     />
     <ScrollArea
       class="xz-site-page__body"

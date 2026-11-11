@@ -1,11 +1,6 @@
 import type { RouteRecordRaw } from "vue-router";
 export default [
   {
-    path: "/addresses",
-    component: () => import("./pages/Addresses.vue"),
-    meta: { role: "USER", protected: true, title: "收货地址" },
-  },
-  {
     path: "/",
     component: () => import("./pages/Home.vue"),
     meta: { role: "USER", protected: false, title: "附近商家" },
@@ -26,19 +21,32 @@ export default [
     meta: { role: "USER", protected: true, title: "确认订单" },
   },
   {
-    path: "/orders",
-    component: () => import("./pages/Orders.vue"),
-    meta: { role: "USER", protected: true, title: "订单" },
-  },
-  {
-    path: "/orders/:id",
-    component: () => import("./pages/OrderDetail.vue"),
-    meta: { role: "USER", protected: true, title: "订单详情" },
-  },
-  {
-    path: "/me",
-    component: () => import("./pages/Me.vue"),
-    meta: { role: "USER", protected: true, title: "我的" },
+    path: "/",
+    name: "user-account",
+    component: () => import("./components/AccountLayout.vue"),
+    meta: { role: "USER", protected: true, siteNav: "/orders" },
+    children: [
+      {
+        path: "orders",
+        component: () => import("./pages/Orders.vue"),
+        meta: { title: "我的订单", accountNav: "/orders" },
+      },
+      {
+        path: "orders/:id",
+        component: () => import("./pages/OrderDetail.vue"),
+        meta: { title: "订单详情", accountNav: "/orders" },
+      },
+      {
+        path: "addresses",
+        component: () => import("./pages/Addresses.vue"),
+        meta: { title: "收货地址", accountNav: "/addresses" },
+      },
+      {
+        path: "me",
+        component: () => import("./pages/Me.vue"),
+        meta: { title: "账号设置", accountNav: "/me", siteNav: "/me" },
+      },
+    ],
   },
   {
     path: "/login",

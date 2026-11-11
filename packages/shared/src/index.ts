@@ -1,5 +1,6 @@
 export * from "./device";
 export * from "./userOrders";
+export * from "./userOrderDetail";
 
 export type Role = "USER" | "MERCHANT" | "ADMIN";
 export type Tone =

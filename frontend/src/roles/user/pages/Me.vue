@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ListCell, ListCellGroup } from "@waimai/ui";
+import { Button } from "@waimai/ui";
+import PageHeader from "../../../components/PageHeader.vue";
+import InfoList from "../../../components/InfoList.vue";
+import { phoneTail } from "@waimai/shared";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../../common/auth";
 import { switchDevice } from "../../../common/device";
-import { run } from "../../../common/feedback";
+import { run, busy } from "../../../common/feedback";
 const auth = useAuth(),
   router = useRouter();
 const role = "USER" as const;
@@ -16,29 +19,34 @@ async function logout() {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">{{ auth.accounts[role]?.name }}</h1>
-    <p class="body-sm app-muted">
-      尾号 {{ auth.accounts[role]?.phone.slice(-4) }}
-    </p>
-    <ListCellGroup
-      ><ListCell
-        title="我的订单"
-        icon="order"
-        arrow
-        @click="router.push('/orders')" /><ListCell
-        title="手机版"
-        icon="grid"
-        arrow
-        @click="switchDevice(true)" /><ListCell
-        title="退出登录"
-        danger
-        arrow
-        @click="logout"
-    /></ListCellGroup>
-    <div class="app-row body-sm">
-      <RouterLink to="/">用户首页</RouterLink
-      ><RouterLink to="/merchant">商家中心</RouterLink
-      ><RouterLink to="/admin">运营后台</RouterLink>
+    <PageHeader title="账号设置">
+      <template #actions
+        ><Button variant="outline" @click="switchDevice(true)"
+          >手机版</Button
+        ></template
+      >
+    </PageHeader>
+    <section class="app-card app-stack" aria-label="账号信息">
+      <h2 class="title-sm">账号信息</h2>
+      <InfoList
+        :items="[
+          { label: '昵称', value: auth.accounts[role]?.name },
+          {
+            label: '手机号',
+            value: phoneTail(auth.accounts[role]?.phone ?? ''),
+          },
+          { label: '账号身份', value: '用户' },
+        ]"
+      />
+      <div class="app-row">
+        <Button variant="danger-outline" :disabled="busy" @click="logout"
+          >退出登录</Button
+        >
+      </div>
+    </section>
+    <div class="app-card app-row body-md">
+      <RouterLink to="/merchant">商家中心</RouterLink>
+      <RouterLink to="/admin">运营后台</RouterLink>
     </div>
   </div>
 </template>

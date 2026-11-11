@@ -34,6 +34,8 @@ const {
         v-for="order in list"
         :key="order.id"
         :title="order.store.name"
+        title-clickable
+        @open="router.push('/orders/' + order.id)"
         :status="order.status"
         :items="
           order.items.map((it) => ({ name: it.nameSnapshot, qty: it.qty }))

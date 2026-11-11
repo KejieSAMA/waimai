@@ -11,6 +11,7 @@ const emit = defineEmits<{
   "update:modelValue": [value: string];
   login: [];
   cart: [];
+  account: [];
 }>();
 const { theme, toggle } = useTheme();
 </script>
@@ -60,7 +61,17 @@ const { theme, toggle } = useTheme();
           class="xz-site__badge caption"
           >{{ cartCount }}</span
         ></button
-      ><span v-if="user" class="xz-site__user body-md">{{ user.name }}</span
+      ><button
+        v-if="user"
+        type="button"
+        class="xz-site__user body-md app-site-account"
+        :aria-current="modelValue === '/me' ? 'page' : undefined"
+        aria-label="账号设置"
+        @click="emit('account')"
+      >
+        <span class="xz-logo xz-site__avatar" aria-hidden="true"
+          ><span class="title">{{ user.name.slice(0, 1) }}</span></span
+        >{{ user.name }}</button
       ><Button v-else variant="secondary" size="sm" @click="emit('login')"
         >登录</Button
       >
@@ -74,5 +85,13 @@ const { theme, toggle } = useTheme();
   justify-content: center;
   width: var(--size-button-md);
   padding: 0;
+}
+.app-site-account {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--size-button-md);
 }
 </style>

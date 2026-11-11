@@ -18,9 +18,11 @@ const props = withDefaults(
     note?: string;
     count?: number;
     actions?: Action[];
+    titleClickable?: boolean;
   }>(),
   { view: "user" },
 );
+const emit = defineEmits<{ open: [] }>();
 const state = computed(
   () =>
     orderStatuses[props.status.toUpperCase() as OrderStatus] ?? {
@@ -35,7 +37,13 @@ const quantity = computed(() =>
 <template>
   <div :class="['xz-order', 'xz-order--' + view]">
     <div class="xz-order__head">
-      <div class="xz-order__title title-sm">
+      <component
+        :is="titleClickable ? 'button' : 'div'"
+        :type="titleClickable ? 'button' : undefined"
+        :aria-label="titleClickable ? '查看' + title + '的订单' : undefined"
+        class="xz-order__title title-sm"
+        @click="titleClickable && emit('open')"
+      >
         <span v-if="serial != null" class="xz-order__serial title"
           >#{{ serial }}</span
         ><span class="xz-order__title-text">{{ title }}</span
@@ -45,7 +53,7 @@ const quantity = computed(() =>
           :size="16"
           class="xz-order__chev"
         />
-      </div>
+      </component>
       <span :class="['xz-order__status', 'body-sm', 'tone-' + state.tone]">{{
         statusText || state.label
       }}</span>
@@ -108,3 +116,13 @@ const quantity = computed(() =>
     </div>
   </div>
 </template>
+<style scoped>
+button.xz-order__title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+</style>

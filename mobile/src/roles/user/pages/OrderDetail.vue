@@ -1,45 +1,45 @@
 <script setup lang="ts">
 import { Button, Input, OrderCard, Select, Tag } from "@waimai/ui";
-import { nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
-import { type Order, orderStatuses, money, time } from "@waimai/shared";
+import { orderStatuses, money, time, useUserOrderDetail } from "@waimai/shared";
 import { api } from "../../../common/api";
-import { run, busy } from "../../../common/feedback";
-const route = useRoute(),
-  order = ref<Order>(),
-  reason = ref(""),
-  rating = ref("5"),
-  content = ref(""),
-  reviewed = ref(false);
-async function load() {
-  order.value = await api<Order>("/user/orders/" + route.params.id);
-  reviewed.value = !!order.value.review;
-  if (route.hash === "#review") {
-    await nextTick();
-    document.getElementById("review")?.scrollIntoView({ block: "start" });
-  }
-}
-onMounted(() => run(load));
-async function act(action: string) {
-  await run(async () => {
-    await api(`/user/orders/${route.params.id}/${action}`, {
-      method: "POST",
-      body: { reason: reason.value },
-    });
-    await load();
-  });
-}
-async function review() {
-  await run(async () => {
-    await api(`/user/orders/${route.params.id}/review`, {
-      method: "POST",
-      body: { rating: Number(rating.value), content: content.value },
-    });
-    reviewed.value = true;
-  });
-}
+const route = useRoute();
+const {
+  order,
+  pending,
+  processing: busy,
+  error,
+  reason,
+  rating,
+  content,
+  reviewed,
+  load,
+  act,
+  review,
+} = useUserOrderDetail(
+  api,
+  computed(() => String(route.params.id)),
+);
+watch(
+  [() => order.value?.id, () => route.hash],
+  async () => {
+    if (route.hash === "#review" && order.value) {
+      await nextTick();
+      document.getElementById("review")?.scrollIntoView({ block: "start" });
+    }
+  },
+  { flush: "post" },
+);
 </script>
 <template>
+  <div v-if="error" class="app-error body-sm" role="alert">
+    {{ error
+    }}<Button size="sm" variant="text" :disabled="pending || busy" @click="load"
+      >重试</Button
+    >
+  </div>
+  <p v-if="pending && !order" class="app-empty body-sm" role="status">加载中</p>
   <div v-if="order" class="app-stack">
     <div class="app-card app-stack">
       <h1 class="title-lg">{{ orderStatuses[order.status].label }}</h1>
@@ -53,7 +53,8 @@ async function review() {
           order.items.map((it) => ({
             name: it.nameSnapshot,
             qty: it.qty,
-            price: it.priceCentsSnapshot / 100,
+            price:
+              it.lineTotalCents == null ? undefined : it.lineTotalCents / 100,
           }))
         "
         :total="order.payCents / 100"
@@ -128,9 +129,14 @@ async function review() {
         v-model="rating"
         label="评分"
         :options="['5', '4', '3', '2', '1']"
-      /><Input v-model="content" label="评价内容" multiline required /><Button
-        type="submit"
+      /><Input
+        v-model="content"
+        label="评价内容"
+        multiline
+        required
+        maxlength="1000"
         :disabled="busy"
+      /><Button type="submit" :disabled="busy || !content.trim()"
         >提交评价</Button
       >
     </form>

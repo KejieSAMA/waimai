@@ -12,7 +12,9 @@
 | `/store/:id` | 店铺点餐 | DeskUserStore |
 | `/checkout` | 确认订单（地址、配送 / 自提、备注、金额明细、模拟支付） | 沿用 CartPanel + InfoList + Input |
 | `/orders` | 我的订单 | DeskUserOrders |
-| `/orders/:id` | 订单详情（状态进度、明细、操作） | InfoList + OrderCard |
+| `/orders/:id` | 订单详情（状态、明细、操作） | PageHeader + InfoList + DataTable |
+| `/addresses` | 收货地址，新增 / 编辑弹窗 | PageHeader + ListCell + Dialog |
+| `/me` | 账号设置 | PageHeader + InfoList |
 | `/login` | 用户登录（手机号 + 验证码） |  |
 | `/merchant` → `/merchant/dashboard` | 工作台 | DeskMerchantDashboard |
 | `/merchant/orders` | 订单看板 | DeskMerchantOrders |
@@ -30,6 +32,8 @@
 | `/admin/categories` | 平台类目管理 | DataTable + modal |
 | `/admin/login` | 管理员登录（账号 + 密码） |  |
 | `/__ui` | 组件画廊（仅开发环境） |  |
+
+PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路由布局和账号侧栏，地址及设置切换后保留导航；订单详情仍选中我的订单。登录保护继承父路由，原有路径不变。我的评价和优惠券尚无独立接口，继续禁用入口。
 
 ### 手机端（mobile，Vite base `/mobile/`）
 
