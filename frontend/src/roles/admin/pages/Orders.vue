@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FilterBar from "../../../components/FilterBar.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import {
   Button,
@@ -24,6 +25,7 @@ import { run, busy } from "../../../common/feedback";
 const disputes = false;
 const list = ref<Order[]>([]),
   keyword = ref(""),
+  appliedKeyword = ref(""),
   status = ref(""),
   page = ref(1),
   total = ref(0),
@@ -40,7 +42,7 @@ const columns = [
 async function load() {
   await run(async () => {
     const result = await api<Page<Order>>(
-      `/admin/${disputes ? "disputes" : "orders"}?status=${status.value}&keyword=${encodeURIComponent(keyword.value)}&page=${page.value}`,
+      `/admin/${disputes ? "disputes" : "orders"}?status=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${page.value}`,
       {},
       "ADMIN",
     );
@@ -79,15 +81,27 @@ async function resolve(approve: boolean) {
           label: s.label,
         })),
       ]"
-    /><SearchBar
-      v-model="keyword"
-      placeholder="搜索订单号"
-      action="查询"
-      @action="
+    /><FilterBar
+      @search="
+        appliedKeyword = keyword;
         page = 1;
         load();
       "
-    /><DataTable :rows="list" :columns="columns"
+      @reset="
+        keyword = appliedKeyword = '';
+        page = 1;
+        load();
+      "
+      ><SearchBar
+        v-model="keyword"
+        placeholder="搜索订单号"
+        @action="
+          appliedKeyword = keyword;
+          page = 1;
+          load();
+        "
+    /></FilterBar>
+    <DataTable :rows="list" :columns="columns"
       ><template #store="{ row }">{{ row.store.name }}</template
       ><template #status="{ row }"
         ><Tag :tone="orderStatuses[row.status].tone">{{
@@ -105,12 +119,13 @@ async function resolve(approve: boolean) {
           "
           >查看详情</Button
         ></template
-      ></DataTable
-    ><Pagination
-      v-model="page"
-      :total="total"
-      @update:model-value="load"
-    /><Dialog
+      ><template #footer
+        ><Pagination
+          v-model="page"
+          :total="total"
+          @update:model-value="load" /></template
+    ></DataTable>
+    <Dialog
       :open="!!detail"
       title="订单详情"
       variant="drawer"
@@ -125,7 +140,8 @@ async function resolve(approve: boolean) {
             detail.items.map((i) => ({
               name: i.nameSnapshot,
               qty: i.qty,
-              price: i.priceCentsSnapshot / 100,
+              price:
+                i.lineTotalCents == null ? undefined : i.lineTotalCents / 100,
             }))
           "
           :total="detail.payCents / 100"

@@ -169,7 +169,8 @@ async function accept(id: string) {
           o.items.map((i) => ({
             name: i.nameSnapshot,
             qty: i.qty,
-            price: (i.lineTotalCents ?? i.priceCentsSnapshot) / 100,
+            price:
+              i.lineTotalCents == null ? undefined : i.lineTotalCents / 100,
           }))
         "
         :total="o.payCents / 100"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FilterBar from "../../../components/FilterBar.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input, SearchBar, Tabs, Tag } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
@@ -16,6 +17,7 @@ import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const list = ref<Product[]>([]),
   keyword = ref(""),
+  appliedKeyword = ref(""),
   status = ref(new URLSearchParams(location.search).get("status") || ""),
   page = ref(1),
   total = ref(0),
@@ -31,7 +33,7 @@ const columns = [
 async function load() {
   await run(async () => {
     const result = await api<Page<Product>>(
-      `/admin/products?status=${status.value}&keyword=${encodeURIComponent(keyword.value)}&page=${page.value}`,
+      `/admin/products?status=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${page.value}`,
       {},
       "ADMIN",
     );
@@ -76,15 +78,27 @@ async function send(id: string, action: string) {
           label: s.label,
         })),
       ]"
-    /><SearchBar
-      v-model="keyword"
-      placeholder="搜索商品"
-      action="查询"
-      @action="
+    /><FilterBar
+      @search="
+        appliedKeyword = keyword;
         page = 1;
         load();
       "
-    /><DataTable :rows="list" :columns="columns"
+      @reset="
+        keyword = appliedKeyword = '';
+        page = 1;
+        load();
+      "
+      ><SearchBar
+        v-model="keyword"
+        placeholder="搜索商品"
+        @action="
+          appliedKeyword = keyword;
+          page = 1;
+          load();
+        "
+    /></FilterBar>
+    <DataTable :rows="list" :columns="columns"
       ><template #name="{ row }"
         ><DataTableMedia
           :name="row.name"
@@ -114,12 +128,13 @@ async function send(id: string, action: string) {
             >强制下架</Button
           >
         </div></template
-      ></DataTable
-    ><Pagination
-      v-model="page"
-      :total="total"
-      @update:model-value="load"
-    /><Dialog
+      ><template #footer
+        ><Pagination
+          v-model="page"
+          :total="total"
+          @update:model-value="load" /></template
+    ></DataTable>
+    <Dialog
       :open="!!pending"
       title="填写原因"
       variant="modal"

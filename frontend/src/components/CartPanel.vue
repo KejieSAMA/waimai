@@ -6,7 +6,7 @@ defineProps<{
     id: string;
     name: string;
     qty: number;
-    price: number;
+    price?: number;
     max?: number;
   }[];
   quote: Quote | null;
@@ -47,7 +47,12 @@ const emit = defineEmits<{
           :max="it.max"
           :collapse="false"
           @update:model-value="emit('quantity', it.id, $event)"
-        /><Price :value="it.price" size="sm" tone="ink" />
+        /><Price
+          v-if="it.price != null"
+          :value="it.price"
+          size="sm"
+          tone="ink"
+        /><span v-else class="body-sm app-muted">—</span>
       </div>
     </ScrollArea>
     <div v-else class="xz-cartpanel__empty body-md">

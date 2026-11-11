@@ -71,7 +71,7 @@ async function resolve(approve: boolean) {
         o.items.map((i) => ({
           name: i.nameSnapshot,
           qty: i.qty,
-          price: i.priceCentsSnapshot / 100,
+          price: i.lineTotalCents == null ? undefined : i.lineTotalCents / 100,
         }))
       "
       :total="o.payCents / 100"
@@ -118,7 +118,8 @@ async function resolve(approve: boolean) {
             detail.items.map((i) => ({
               name: i.nameSnapshot,
               qty: i.qty,
-              price: i.priceCentsSnapshot / 100,
+              price:
+                i.lineTotalCents == null ? undefined : i.lineTotalCents / 100,
             }))
           "
           :total="detail.payCents / 100"

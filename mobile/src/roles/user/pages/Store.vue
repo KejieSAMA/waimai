@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { CategoryNav, DishCard, Tag, Thumb, Tabs, Button } from "@waimai/ui";
-import { computed, onMounted, ref, watch } from "vue";
+import {
+  CategoryNav,
+  DishCard,
+  Tag,
+  Thumb,
+  Tabs,
+  Button,
+  Dialog,
+  SearchBar,
+} from "@waimai/ui";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import {
   type Store,
@@ -12,16 +21,28 @@ import {
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";
 import { useAuth } from "../../../common/auth";
-import { run } from "../../../common/feedback";
+import PageSlot from "../../../components/PageSlot.vue";
+import NavBarIcon from "../../../components/NavBarIcon.vue";
 const route = useRoute(),
   cart = useCart(),
   auth = useAuth();
 const store = ref<Store>(),
   category = ref("");
+const keyword = ref(""),
+  searchOpen = ref(false),
+  dishList = ref<HTMLElement>();
+watch([category, keyword], () => dishList.value?.scrollTo({ top: 0 }), {
+  flush: "post",
+});
 const products = computed(
   () =>
     store.value?.products?.filter(
-      (p) => !category.value || p.dishCategoryId === category.value,
+      (p) =>
+        (!category.value || p.dishCategoryId === category.value) &&
+        (!keyword.value.trim() ||
+          (p.name + " " + p.description)
+            .toLocaleLowerCase()
+            .includes(keyword.value.trim().toLocaleLowerCase())),
     ) ?? [],
 );
 const selected = (p: Product) =>
@@ -30,13 +51,6 @@ function set(p: Product, qty: number) {
   cart.set(p, qty);
 }
 
-onMounted(() =>
-  run(async () => {
-    store.value = await api<Store>("/public/stores/" + route.params.id);
-    cart.storeOpen = store.value.status === "OPEN";
-    if (auth.tokens.USER && cart.count) await cart.refresh();
-  }),
-);
 watch(
   () => cart.payload,
   () => {
@@ -50,20 +64,42 @@ const reviews = ref<
   >([]),
   reviewPage = ref(1),
   reviewTotal = ref(0),
-  reviewLoading = ref(false);
+  reviewLoading = ref(false),
+  reviewError = ref("");
+let reviewVersion = 0;
+onScopeDispose(() => {
+  ++reviewVersion;
+});
 async function loadReviews() {
-  if (reviewLoading.value) return;
+  const current = ++reviewVersion,
+    target = String(route.params.id),
+    page = reviewPage.value;
   reviewLoading.value = true;
-  await run(async () => {
+  reviewError.value = "";
+  try {
     const result = await api<{ list: typeof reviews.value; total: number }>(
-      `/public/stores/${route.params.id}/reviews?page=${reviewPage.value}`,
+      `/public/stores/${target}/reviews?page=${page}`,
     );
+    if (current !== reviewVersion) return false;
     reviews.value =
-      reviewPage.value === 1 ? result.list : [...reviews.value, ...result.list];
+      page === 1 ? result.list : [...reviews.value, ...result.list];
     reviewTotal.value = result.total;
-  });
-  reviewLoading.value = false;
+    return true;
+  } catch (cause) {
+    if (current === reviewVersion)
+      reviewError.value =
+        cause instanceof Error ? cause.message : "评价加载失败";
+    return false;
+  } finally {
+    if (current === reviewVersion) reviewLoading.value = false;
+  }
 }
+async function moreReviews() {
+  const requested = ++reviewPage.value;
+  if (!(await loadReviews()) && reviewPage.value === requested)
+    reviewPage.value = Math.max(1, requested - 1);
+}
+
 watch(view, (value) => {
   if (value === "reviews") {
     reviewPage.value = 1;
@@ -75,8 +111,77 @@ const groups = computed(() =>
     ? (store.value?.dishCategories ?? []).filter((c) => c.id === category.value)
     : (store.value?.dishCategories ?? []),
 );
+const storeReload = ref(0);
+const storeLoading = ref(false),
+  storeError = ref("");
+watch(
+  [() => route.params.id, storeReload],
+  async ([id], _old, cleanup) => {
+    let active = true;
+    cleanup(() => {
+      active = false;
+    });
+    store.value = undefined;
+    category.value = "";
+    view.value = "dishes";
+    ++reviewVersion;
+    reviewLoading.value = false;
+    reviewError.value = "";
+    reviews.value = [];
+    reviewPage.value = 1;
+    reviewTotal.value = 0;
+    storeLoading.value = true;
+    storeError.value = "";
+    try {
+      const result = await api<Store>("/public/stores/" + id);
+      if (!active) return;
+      store.value = result;
+      cart.storeOpen = result.status === "OPEN";
+      if (auth.tokens.USER && cart.count) await cart.refresh();
+    } catch (cause) {
+      if (active)
+        storeError.value =
+          cause instanceof Error ? cause.message : "店铺加载失败";
+    } finally {
+      if (active) storeLoading.value = false;
+    }
+  },
+  { immediate: true },
+);
 </script>
 <template>
+  <PageSlot name="right"
+    ><NavBarIcon name="search" label="搜索菜品" @click="searchOpen = true"
+  /></PageSlot>
+  <Dialog
+    :open="searchOpen"
+    title="搜索菜品"
+    variant="sheet"
+    @close="searchOpen = false"
+    ><SearchBar
+      v-model="keyword"
+      placeholder="搜索菜品名称、描述"
+      action="搜索"
+      @action="searchOpen = false"
+    /><template #actions
+      ><Button
+        size="lg"
+        variant="outline"
+        @click="
+          keyword = '';
+          searchOpen = false;
+        "
+        >重置</Button
+      ><Button size="lg" @click="searchOpen = false">查看结果</Button></template
+    ></Dialog
+  >
+  <p v-if="storeLoading && !store" class="app-empty body-sm" role="status">
+    加载中
+  </p>
+  <p v-if="storeError" class="app-error body-sm" role="alert">
+    {{ storeError
+    }}<Button variant="text" size="sm" @click="storeReload++">重试</Button>
+  </p>
   <div v-if="store" class="sc-fill">
     <div class="sc-head">
       <Thumb kind="logo" size="lg" :src="store.logo" :name="store.name" />
@@ -86,11 +191,7 @@ const groups = computed(() =>
           <Tag :tone="storeStatuses[store.status].tone">{{
             storeStatuses[store.status].label
           }}</Tag
-          ><span>{{ store.rating }} 分 · 月售 {{ store.monthlySales }}+</span
-          ><span
-            >起送 {{ money(store.minOrderCents) }} · 配送
-            {{ money(store.deliveryFeeCents) }}</span
-          >
+          ><span>{{ store.rating }} 分 · 月售 {{ store.monthlySales }}+</span>
         </div>
         <div class="app-store-promotions">
           <Tag
@@ -102,7 +203,6 @@ const groups = computed(() =>
             {{ money(promotion.discountCents) }}</Tag
           >
         </div>
-        <p class="body-sm app-muted">{{ store.notice }}</p>
       </div>
     </div>
     <Tabs
@@ -124,8 +224,12 @@ const groups = computed(() =>
           })),
         ]"
       />
-      <div class="sc-split__list">
-        <template v-for="group in groups" :key="group.id"
+      <div ref="dishList" class="sc-split__list">
+        <template
+          v-for="group in groups.filter((g) =>
+            products.some((p) => p.dishCategoryId === g.id),
+          )"
+          :key="group.id"
           ><div class="sc-group body-sm">{{ group.name }}</div>
           <DishCard
             v-for="p in products.filter((p) => p.dishCategoryId === group.id)"
@@ -147,6 +251,9 @@ const groups = computed(() =>
             @update:model-value="set(p, $event)"
           />
         </template>
+        <p v-if="!products.length" class="app-empty body-sm">
+          暂无符合条件的菜品
+        </p>
       </div>
     </div>
     <div v-if="view === 'reviews'" class="app-store-section">
@@ -157,17 +264,24 @@ const groups = computed(() =>
           商家回复：{{ review.reply }}
         </p>
       </article>
-      <p v-if="!reviews.length" class="app-empty body-sm">
+      <div v-if="reviewError" class="app-error body-sm" role="alert">
+        {{ reviewError
+        }}<Button
+          variant="text"
+          size="sm"
+          :disabled="reviewLoading"
+          @click="loadReviews"
+          >重试</Button
+        >
+      </div>
+      <p v-if="!reviews.length && !reviewError" class="app-empty body-sm">
         {{ reviewLoading ? "加载中" : "暂无评价" }}
       </p>
       <Button
         v-if="reviews.length < reviewTotal"
         :disabled="reviewLoading"
         variant="text"
-        @click="
-          reviewPage++;
-          loadReviews();
-        "
+        @click="moreReviews"
         >加载更多</Button
       >
     </div>
@@ -175,6 +289,10 @@ const groups = computed(() =>
       <h2 class="title-sm">商家信息</h2>
       <p class="body-sm">门店地址 {{ store.address }}</p>
       <p class="body-sm">营业时间 {{ store.openHours }}</p>
+      <p class="body-sm">
+        起送 {{ money(store.minOrderCents) }} · 配送
+        {{ money(store.deliveryFeeCents) }}
+      </p>
       <p class="body-sm">{{ store.notice || "暂无公告" }}</p>
     </div>
     <p v-if="cart.quoteError" class="body-sm app-muted">

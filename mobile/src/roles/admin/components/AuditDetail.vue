@@ -11,24 +11,49 @@ import {
 } from "@waimai/ui";
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { type Store, storeStatuses, phoneTail, money } from "@waimai/shared";
+import {
+  type Store,
+  storeStatuses,
+  phoneTail,
+  money,
+  time,
+} from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import PageSlot from "../../../components/PageSlot.vue";
+import { usePageChrome } from "../../../common/pageChrome";
+const chrome = usePageChrome();
 const route = useRoute(),
   router = useRouter(),
   detail = ref<Store>(),
   reason = ref(""),
   rejecting = ref(false);
 watch(
+  () => detail.value,
+  (value) => {
+    chrome.title = "入驻审核";
+    chrome.subtitle = value?.createdAt ? "创建于 " + time(value.createdAt) : "";
+  },
+);
+watch(
   () => route.params.id,
-  (id) =>
-    run(async () => {
-      detail.value = await api<Store>("/admin/merchants/" + id, {}, "ADMIN");
-    }),
+  (id, _old, cleanup) => {
+    let active = true;
+    cleanup(() => {
+      active = false;
+    });
+    detail.value = undefined;
+    reason.value = "";
+    rejecting.value = false;
+    void run(async () => {
+      const value = await api<Store>("/admin/merchants/" + id, {}, "ADMIN");
+      if (active) detail.value = value;
+    });
+  },
   { immediate: true },
 );
+
 async function send(action: "approve" | "reject") {
   await run(async () => {
     await api(

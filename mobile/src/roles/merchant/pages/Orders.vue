@@ -2,28 +2,56 @@
 import PageSlot from "../../../components/PageSlot.vue";
 import NavBarIcon from "../../../components/NavBarIcon.vue";
 import { Button, Dialog, Input, OrderCard, Switch, Tabs } from "@waimai/ui";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
 import { type Order, type Page, orderStatuses, time } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 import { useOrderStream } from "../../../common/events";
 const toolsOpen = ref(false),
-  keyword = ref("");
+  keyword = ref(""),
+  appliedKeyword = ref("");
+const loading = ref(true),
+  loadError = ref("");
+let version = 0;
+onScopeDispose(() => {
+  ++version;
+});
+async function search(reset = false) {
+  if (reset) keyword.value = "";
+  appliedKeyword.value = keyword.value;
+  page.value = 1;
+  if (await load()) toolsOpen.value = false;
+}
+async function more() {
+  const requested = ++page.value;
+  if (!(await load(true)) && page.value === requested)
+    page.value = Math.max(1, requested - 1);
+}
 const counts = ref<Record<string, number>>({});
 const list = ref<Order[]>([]),
-  status = ref(new URLSearchParams(location.search).get("status") || "PENDING"),
+  status = ref(
+    ["PENDING", "PREPARING", "DELIVERING", "REFUNDING"].includes(
+      new URLSearchParams(location.search).get("status") ?? "",
+    )
+      ? new URLSearchParams(location.search).get("status")!
+      : "PENDING",
+  ),
   page = ref(1),
   total = ref(0),
   reason = ref(""),
   pending = ref<{ id: string; action: string } | null>(null);
 const filtered = computed(() => list.value);
 async function load(append = false) {
-  await run(async () => {
+  const current = ++version;
+  loading.value = true;
+  loadError.value = "";
+  try {
     const result = await api<Page<Order>>(
-      `/merchant/orders?stage=${status.value}&keyword=${encodeURIComponent(keyword.value)}&page=${page.value}`,
+      `/merchant/orders?stage=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${page.value}`,
       {},
       "MERCHANT",
     );
+    if (current !== version) return false;
     list.value = append
       ? [
           ...list.value.filter(
@@ -42,13 +70,21 @@ async function load(append = false) {
         ),
       ),
     );
+    if (current !== version) return false;
     counts.value = Object.fromEntries(
       ["PENDING", "PREPARING", "DELIVERING", "REFUNDING"].map((stage, i) => [
         stage,
         groups[i].total,
       ]),
     );
-  });
+    return true;
+  } catch (cause) {
+    if (current === version)
+      loadError.value = cause instanceof Error ? cause.message : "订单加载失败";
+    return false;
+  } finally {
+    if (current === version) loading.value = false;
+  }
 }
 const stream = useOrderStream(load);
 onMounted(load);
@@ -93,12 +129,12 @@ async function send(id: string, action: string) {
         @update:model-value="stream.toggle"
       /><template #actions
         ><Button
-          @click="
-            page = 1;
-            load();
-            toolsOpen = false;
-          "
-          >查询订单</Button
+          size="lg"
+          variant="outline"
+          :disabled="loading"
+          @click="search(true)"
+          >重置</Button
+        ><Button size="lg" :disabled="loading" @click="search()">查询</Button>
         ></template
       ></Dialog
     >
@@ -126,7 +162,13 @@ async function send(id: string, action: string) {
         },
       ]"
     />
-    <div class="xz-list sc-page-list">
+    <div v-if="loadError" class="app-error body-sm" role="alert">
+      {{ loadError
+      }}<Button size="sm" variant="text" :disabled="loading" @click="load()"
+        >重试</Button
+      >
+    </div>
+    <div class="xz-list sc-page-list" :aria-busy="loading">
       <section
         v-for="column in [
           {
@@ -155,7 +197,8 @@ async function send(id: string, action: string) {
             o.items.map((i) => ({
               name: i.nameSnapshot,
               qty: i.qty,
-              price: (i.lineTotalCents ?? i.priceCentsSnapshot) / 100,
+              price:
+                i.lineTotalCents == null ? undefined : i.lineTotalCents / 100,
             }))
           "
           :total="o.payCents / 100"
@@ -199,15 +242,11 @@ async function send(id: string, action: string) {
         >
       </section>
     </div>
-    <p v-if="!list.length" class="app-empty body">暂无订单</p>
+    <p v-if="!list.length && !loadError" class="app-empty body">
+      {{ loading ? "加载中" : "暂无订单" }}
+    </p>
     <div v-if="list.length < total" class="sc-full-actions">
-      <Button
-        variant="text"
-        :disabled="busy"
-        @click="
-          page++;
-          load(true);
-        "
+      <Button variant="text" :disabled="busy || loading" @click="more"
         >加载更多</Button
       >
     </div>

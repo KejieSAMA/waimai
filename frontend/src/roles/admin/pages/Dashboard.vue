@@ -31,7 +31,7 @@ const todos = computed(() =>
         },
         {
           label: "退款纠纷",
-          count: stats.value.refundPending,
+          count: stats.value.disputesPending,
           tone: "danger" as const,
           icon: "alert" as const,
           path: "/admin/disputes",

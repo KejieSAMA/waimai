@@ -16,7 +16,7 @@ import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import Pagination from "../../../components/Pagination.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   type Store,
@@ -25,6 +25,8 @@ import {
   storeStatuses,
   phoneTail,
   time,
+  money,
+  auditActionLabel,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
@@ -32,6 +34,26 @@ const route = useRoute(),
   router = useRouter();
 const auditOnly = computed(() => route.path.startsWith("/admin/audit"));
 const counts = ref<Record<string, number>>({});
+const cities = ref<string[]>([]),
+  loading = ref(true),
+  loadError = ref("");
+const applied = ref({ keyword: "", category: "", city: "" });
+let listVersion = 0,
+  detailVersion = 0;
+onScopeDispose(() => {
+  ++listVersion;
+  ++detailVersion;
+});
+async function applyFilters(reset = false) {
+  if (reset) keyword.value = category.value = city.value = "";
+  applied.value = {
+    keyword: keyword.value,
+    category: category.value,
+    city: city.value,
+  };
+  page.value = 1;
+  return load();
+}
 const list = ref<Store[]>([]),
   categories = ref<Category[]>([]),
   status = ref(auditOnly.value ? "PENDING" : ""),
@@ -51,35 +73,54 @@ const columns = [
   { key: "category", title: "类目" },
   { key: "city", title: "城市" },
   { key: "owner", title: "负责人" },
-  { key: "createdAt", title: auditOnly.value ? "提交时间" : "入驻时间" },
+  { key: "createdAt", title: "创建时间" },
   { key: "rating", title: "评分", num: true, align: "right" as const },
   { key: "status", title: "状态" },
   { key: "monthlySales", title: "月订单", num: true, align: "right" as const },
   { key: "actions", title: "操作" },
 ];
 async function load() {
-  await run(async () => {
+  const current = ++listVersion;
+  loading.value = true;
+  loadError.value = "";
+  try {
     const result = await api<Page<Store>>(
-      `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(keyword.value)}&categoryId=${category.value}&city=${encodeURIComponent(city.value)}&page=${page.value}`,
+      `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(applied.value.keyword)}&categoryId=${applied.value.category}&city=${encodeURIComponent(applied.value.city)}&page=${page.value}`,
       {},
       "ADMIN",
     );
+    if (current !== listVersion) return false;
     list.value = result.list;
     total.value = result.total;
     counts.value = result.counts ?? {};
-  });
+    cities.value = result.filterOptions?.cities ?? [];
+    return true;
+  } catch (cause) {
+    if (current === listVersion)
+      loadError.value = cause instanceof Error ? cause.message : "商家加载失败";
+    return false;
+  } finally {
+    if (current === listVersion) loading.value = false;
+  }
 }
 async function open(id: string) {
+  const current = ++detailVersion;
   await run(async () => {
-    detail.value = await api<Store>("/admin/merchants/" + id, {}, "ADMIN");
-    logs.value = await api(
-      "/admin/audit-logs?targetType=Store&targetId=" + id,
-      {},
-      "ADMIN",
-    );
+    const [store, history] = await Promise.all([
+      api<Store>("/admin/merchants/" + id, {}, "ADMIN"),
+      api<typeof logs.value>(
+        "/admin/audit-logs?targetType=Store&targetId=" + id,
+        {},
+        "ADMIN",
+      ),
+    ]);
+    if (current !== detailVersion) return;
+    detail.value = store;
+    logs.value = history;
   });
 }
 function close() {
+  ++detailVersion;
   detail.value = null;
   if (route.params.id) void router.push("/admin/audit");
 }
@@ -94,6 +135,11 @@ watch(
   () => route.params.id,
   (id) => {
     if (typeof id === "string") void open(id);
+    else {
+      ++detailVersion;
+      detail.value = null;
+      pending.value = null;
+    }
   },
 );
 watch(status, () => {
@@ -116,7 +162,7 @@ async function send(id: string, action: string) {
       "ADMIN",
     );
     pending.value = null;
-    if (detail.value?.id === id) detail.value = null;
+    if (detail.value?.id === id) close();
     await load();
   });
 }
@@ -137,46 +183,40 @@ async function send(id: string, action: string) {
         { key: 'FROZEN', label: '已冻结', count: counts.FROZEN },
       ]"
     />
-    <FilterBar
-      @search="
-        page = 1;
-        load();
-      "
-      @reset="
-        keyword = category = city = '';
-        page = 1;
-        load();
-      "
-    >
+    <FilterBar @search="applyFilters()" @reset="applyFilters(true)">
       <SearchBar
         v-model="keyword"
-        placeholder="搜索商家"
-        action="查询"
-        @action="
-          page = 1;
-          load();
-        "
-      /><Select
+        placeholder="搜索商家名称"
+        @action="applyFilters()"
+      />
+      <Select
         v-model="category"
         label="类目"
         :options="[
           { value: '', label: '全部类目' },
           ...categories.map((c) => ({ value: c.id, label: c.name })),
         ]"
-        @update:model-value="
-          page = 1;
-          load();
-        "
-      /><Input v-model="city" label="城市" /><Button
-        variant="outline"
-        @click="
-          page = 1;
-          load();
-        "
-        >查询商家</Button
-      >
+      />
+      <Select
+        v-model="city"
+        label="城市"
+        :options="[
+          { value: '', label: '全部城市' },
+          ...cities.map((value) => ({ value, label: value })),
+        ]"
+      />
     </FilterBar>
-    <DataTable :rows="list" :columns="columns" :active-key="detail?.id"
+    <div v-if="loadError" class="app-error body-sm" role="alert">
+      {{ loadError
+      }}<Button variant="text" size="sm" :disabled="loading" @click="load"
+        >重试</Button
+      >
+    </div>
+    <DataTable
+      :rows="list"
+      :columns="columns"
+      :active-key="detail?.id"
+      :aria-busy="loading"
       ><template #name="{ row }"
         ><DataTableMedia
           :name="row.name"
@@ -211,12 +251,16 @@ async function send(id: string, action: string) {
             >解冻</Button
           >
         </div></template
-      ></DataTable
-    ><Pagination
-      v-model="page"
-      :total="total"
-      @update:model-value="load"
-    /><Dialog
+      ><template #empty>{{
+        loading ? "加载中" : loadError ? "商家加载失败" : "暂无商家"
+      }}</template
+      ><template #footer
+        ><Pagination
+          v-model="page"
+          :total="total"
+          @update:model-value="load" /></template
+    ></DataTable>
+    <Dialog
       :open="!!detail"
       :title="auditOnly ? '入驻审核' : '商家详情'"
       variant="drawer"
@@ -243,6 +287,13 @@ async function send(id: string, action: string) {
             { label: '门店地址', value: detail.address },
             { label: '营业时间', value: detail.openHours },
             {
+              label: '起送 / 配送',
+              value:
+                money(detail.minOrderCents) +
+                ' / ' +
+                money(detail.deliveryFeeCents),
+            },
+            {
               label: '负责人',
               value:
                 (detail.owner?.name || '') +
@@ -267,7 +318,13 @@ async function send(id: string, action: string) {
               class="app-image"
             />
             <p v-else class="body-sm app-muted">尚未上传</p>
-            <p class="body-sm">{{ detail.licenseExpireAt?.slice(0, 10) }}</p>
+            <p class="body-sm">
+              {{
+                detail.licenseExpireAt
+                  ? "有效期至 " + detail.licenseExpireAt.slice(0, 10)
+                  : "未提供到期日期"
+              }}
+            </p>
           </div>
           <div class="ds-doc">
             <h3 class="title-sm">食品经营许可证</h3>
@@ -279,12 +336,19 @@ async function send(id: string, action: string) {
               class="app-image"
             />
             <p v-else class="body-sm app-muted">尚未上传</p>
-            <p class="body-sm">{{ detail.permitExpireAt?.slice(0, 10) }}</p>
+            <p class="body-sm">
+              {{
+                detail.permitExpireAt
+                  ? "有效期至 " + detail.permitExpireAt.slice(0, 10)
+                  : "未提供到期日期"
+              }}
+            </p>
           </div>
         </div>
         <h3 class="title-sm">审核记录</h3>
         <p v-for="log in logs" :key="log.id" class="body-sm app-muted">
-          {{ time(log.createdAt) }} · {{ log.action }} {{ log.reason }}
+          {{ time(log.createdAt) }} · {{ auditActionLabel(log.action) }}
+          {{ log.reason }}
         </p>
         <p v-if="!logs.length" class="body-sm app-muted">暂无审核记录</p>
       </div>

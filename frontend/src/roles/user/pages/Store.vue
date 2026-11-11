@@ -9,7 +9,7 @@ import {
   ScrollArea,
 } from "@waimai/ui";
 import CartPanel from "../../../components/CartPanel.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   type Store,
@@ -21,7 +21,6 @@ import {
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";
 import { useAuth } from "../../../common/auth";
-import { run } from "../../../common/feedback";
 const route = useRoute(),
   router = useRouter(),
   cart = useCart(),
@@ -48,12 +47,7 @@ async function checkout() {
   }
   await router.push("/checkout");
 }
-onMounted(() =>
-  run(async () => {
-    store.value = await api<Store>("/public/stores/" + route.params.id);
-    if (auth.tokens.USER && cart.count) await cart.refresh();
-  }),
-);
+
 watch(
   () => cart.payload,
   () => {
@@ -67,20 +61,42 @@ const reviews = ref<
   >([]),
   reviewPage = ref(1),
   reviewTotal = ref(0),
-  reviewLoading = ref(false);
+  reviewLoading = ref(false),
+  reviewError = ref("");
+let reviewVersion = 0;
+onScopeDispose(() => {
+  ++reviewVersion;
+});
 async function loadReviews() {
-  if (reviewLoading.value) return;
+  const current = ++reviewVersion,
+    target = String(route.params.id),
+    page = reviewPage.value;
   reviewLoading.value = true;
-  await run(async () => {
+  reviewError.value = "";
+  try {
     const result = await api<{ list: typeof reviews.value; total: number }>(
-      `/public/stores/${route.params.id}/reviews?page=${reviewPage.value}`,
+      `/public/stores/${target}/reviews?page=${page}`,
     );
+    if (current !== reviewVersion) return false;
     reviews.value =
-      reviewPage.value === 1 ? result.list : [...reviews.value, ...result.list];
+      page === 1 ? result.list : [...reviews.value, ...result.list];
     reviewTotal.value = result.total;
-  });
-  reviewLoading.value = false;
+    return true;
+  } catch (cause) {
+    if (current === reviewVersion)
+      reviewError.value =
+        cause instanceof Error ? cause.message : "评价加载失败";
+    return false;
+  } finally {
+    if (current === reviewVersion) reviewLoading.value = false;
+  }
 }
+async function moreReviews() {
+  const requested = ++reviewPage.value;
+  if (!(await loadReviews()) && reviewPage.value === requested)
+    reviewPage.value = Math.max(1, requested - 1);
+}
+
 watch(view, (value) => {
   if (value === "reviews") {
     reviewPage.value = 1;
@@ -92,8 +108,52 @@ const groups = computed(() =>
     ? (store.value?.dishCategories ?? []).filter((c) => c.id === category.value)
     : (store.value?.dishCategories ?? []),
 );
+const storeReload = ref(0);
+const storeLoading = ref(false),
+  storeError = ref("");
+watch(
+  [() => route.params.id, storeReload],
+  async ([id], _old, cleanup) => {
+    let active = true;
+    cleanup(() => {
+      active = false;
+    });
+    store.value = undefined;
+    category.value = "";
+    view.value = "dishes";
+    ++reviewVersion;
+    reviewLoading.value = false;
+    reviewError.value = "";
+    reviews.value = [];
+    reviewPage.value = 1;
+    reviewTotal.value = 0;
+    storeLoading.value = true;
+    storeError.value = "";
+    try {
+      const result = await api<Store>("/public/stores/" + id);
+      if (!active) return;
+      store.value = result;
+      cart.storeOpen = result.status === "OPEN";
+      if (auth.tokens.USER && cart.count) await cart.refresh();
+    } catch (cause) {
+      if (active)
+        storeError.value =
+          cause instanceof Error ? cause.message : "店铺加载失败";
+    } finally {
+      if (active) storeLoading.value = false;
+    }
+  },
+  { immediate: true },
+);
 </script>
 <template>
+  <p v-if="storeLoading && !store" class="app-empty body-sm" role="status">
+    加载中
+  </p>
+  <p v-if="storeError" class="app-error body-sm" role="alert">
+    {{ storeError
+    }}<Button variant="text" size="sm" @click="storeReload++">重试</Button>
+  </p>
   <div v-if="store" class="app-stack app-store-page">
     <div class="ds-storehead">
       <Button
@@ -111,11 +171,7 @@ const groups = computed(() =>
           <Tag :tone="storeStatuses[store.status].tone">{{
             storeStatuses[store.status].label
           }}</Tag
-          ><span>{{ store.rating }} 分 · 月售 {{ store.monthlySales }}+</span
-          ><span
-            >起送 {{ money(store.minOrderCents) }} · 配送
-            {{ money(store.deliveryFeeCents) }}</span
-          >
+          ><span>{{ store.rating }} 分 · 月售 {{ store.monthlySales }}+</span>
         </div>
         <div class="app-store-promotions">
           <Tag
@@ -127,7 +183,6 @@ const groups = computed(() =>
             {{ money(promotion.discountCents) }}</Tag
           >
         </div>
-        <p class="body-sm app-muted">{{ store.notice }}</p>
       </div>
       <div class="ds-storehead__kv">
         <div>
@@ -154,18 +209,21 @@ const groups = computed(() =>
       ]"
     />
     <div v-if="view === 'dishes'" class="ds-storelayout">
-      <CategoryNav
-        v-model="category"
-        :items="[
-          { key: '', label: '全部菜品' },
-          ...(store.dishCategories ?? []).map((c) => ({
-            key: c.id,
-            label: c.name,
-          })),
-        ]"
-      />
+      <div class="ds-catcard">
+        <CategoryNav
+          v-model="category"
+          :items="[
+            { key: '', label: '全部菜品' },
+            ...(store.dishCategories ?? []).map((c) => ({
+              key: c.id,
+              label: c.name,
+            })),
+          ]"
+        />
+      </div>
       <ScrollArea
         ref="dishes"
+        scrollbar-placement="outside"
         class="ds-dishes"
         label="商品列表"
         content-class="ds-dishes__content"
@@ -201,7 +259,13 @@ const groups = computed(() =>
           cart.lines.map((it) => ({
             id: it.product.id,
             name: it.product.name,
-            price: it.product.priceCents / 100,
+            price:
+              cart.quote?.items.find((line) => line.productId === it.product.id)
+                ?.lineTotalCents == null
+                ? undefined
+                : cart.quote.items.find(
+                    (line) => line.productId === it.product.id,
+                  )!.lineTotalCents / 100,
             qty: it.qty,
             max: Math.min(
               it.product.stock,
@@ -237,17 +301,24 @@ const groups = computed(() =>
           商家回复：{{ review.reply }}
         </p>
       </article>
-      <p v-if="!reviews.length" class="app-empty body-sm">
+      <div v-if="reviewError" class="app-error body-sm" role="alert">
+        {{ reviewError
+        }}<Button
+          variant="text"
+          size="sm"
+          :disabled="reviewLoading"
+          @click="loadReviews"
+          >重试</Button
+        >
+      </div>
+      <p v-if="!reviews.length && !reviewError" class="app-empty body-sm">
         {{ reviewLoading ? "加载中" : "暂无评价" }}
       </p>
       <Button
         v-if="reviews.length < reviewTotal"
         :disabled="reviewLoading"
         variant="text"
-        @click="
-          reviewPage++;
-          loadReviews();
-        "
+        @click="moreReviews"
         >加载更多</Button
       >
     </ScrollArea>
@@ -294,7 +365,7 @@ const groups = computed(() =>
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
 }
-.ds-storelayout > .xz-catnav {
+.ds-storelayout > .ds-catcard {
   width: 100%;
   min-height: 0;
 }
@@ -351,5 +422,12 @@ const groups = computed(() =>
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
+}
+</style>
+
+<style scoped>
+.ds-catcard :deep(.xz-catnav) {
+  width: 100%;
+  height: 100%;
 }
 </style>

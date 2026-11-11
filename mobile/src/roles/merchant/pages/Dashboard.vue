@@ -116,7 +116,7 @@ watch(store, (value) => {
       <StatCard
         size="sm"
         label="有效订单"
-        :value="stats.orders"
+        :value="stats.validOrders"
         unit="单"
       /><StatCard
         size="sm"

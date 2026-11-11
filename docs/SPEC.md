@@ -81,6 +81,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `POST /auth/user/code`、`POST /auth/user/login`、`POST /auth/refresh`、`POST /auth/logout`
 - `GET|POST|PUT|DELETE /user/addresses`
 - `POST /user/orders/preview` 后端计算金额（小计、配送费、满减、实付）
+- 报价的 `items` 包含 `productId`、`qty`、`name`、`priceCents`、`lineTotalCents`；行小计由后端计算，前端按商品 ID 匹配，等待报价时保留已显示金额。
 - `POST /user/orders` 下单（扣库存，事务）→ `POST /user/orders/:id/pay`（模拟支付）
 - `GET /user/orders?status`、`GET /user/orders/:id`
 - 用户列表另支持 `tab=all|ongoing|unreviewed|refund`：进行中包括待支付到待自提；待评价仅已完成且无评价；退款仅退款中。与 status 条件取交集后统一分页和计数；列表及详情返回 `review: { id } | null`。
@@ -95,6 +96,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `GET|POST|PUT|DELETE /merchant/dish-categories`
 - `GET /merchant/products?status&keyword&categoryId&stock=low|soldout&page`
 - 商品列表可选 `group=on|off|review`，review 包含 REVIEW 与 REJECTED；原 status 条件保留并取交集。
+- 商品列表响应增加 `counts: { ON, OFF, REVIEW }`，按相同商家归属、关键词、店内分类和库存范围计数，忽略当前状态和分组；REVIEW 包含审核中及驳回。
 - `POST /merchant/products`、`PUT /merchant/products/:id`、`PUT /merchant/products/:id/listing`（上架 / 下架）
 - `POST /merchant/products/batch`（批量上架 / 下架 / 改库存）
 - `GET /merchant/orders?status`、`GET /merchant/orders/stream`（SSE 新订单推送）
@@ -108,6 +110,8 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `GET /admin/stats/overview`、`GET /admin/stats/trend?days=14`、`GET /admin/stats/ranking`、`GET /admin/todos`
 - `GET /admin/merchants?status&keyword&categoryId&city&page`、`GET /admin/merchants/:id`
 - 管理列表附带 `counts`（同类目／城市／关键词范围内各状态及 all 数量），管理资料附带负责人姓名，公开列表不提供管理状态计数或负责人信息。
+- 管理商家列表另返回 `filterOptions.cities`，来自完整管理范围的真实非空城市，独立于分页及当前筛选；公开列表不返回此字段。
+- 总览统计另返回 `disputesPending`，仅计算退款中且已申诉的待处理纠纷，区别于全部退款申请 `refundPending`；导航角标使用实际待处理数量。
 - `POST /admin/merchants/:id/approve|reject|freeze|unfreeze`（reject、freeze 必须带 reason）
 - `GET /admin/products?status&keyword`、`POST /admin/products/:id/approve|reject|force-off`
 - `GET /admin/orders?status&keyword`、`GET /admin/disputes`、`POST /admin/disputes/:id/resolve`

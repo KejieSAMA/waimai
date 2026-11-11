@@ -3,7 +3,7 @@ import PageSlot from "../../../components/PageSlot.vue";
 import NavBarIcon from "../../../components/NavBarIcon.vue";
 import { Button, Dialog, Input, SearchBar, Select, Tabs } from "@waimai/ui";
 import MerchantRow from "../../../components/MerchantRow.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { type Store, type Category, type Page } from "@waimai/shared";
 import { api } from "../../../common/api";
@@ -13,6 +13,24 @@ const route = useRoute(),
 const auditOnly = computed(() => route.path.startsWith("/admin/audit"));
 const filters = ref(false);
 const counts = ref<Record<string, number>>({});
+const cities = ref<string[]>([]),
+  loading = ref(true),
+  loadError = ref("");
+const applied = ref({ keyword: "", category: "", city: "" });
+let listVersion = 0;
+onScopeDispose(() => {
+  ++listVersion;
+});
+async function applyFilters(reset = false) {
+  if (reset) keyword.value = category.value = city.value = "";
+  applied.value = {
+    keyword: keyword.value,
+    category: category.value,
+    city: city.value,
+  };
+  page.value = 1;
+  return load();
+}
 const list = ref<Store[]>([]),
   categories = ref<Category[]>([]),
   status = ref(auditOnly.value ? "PENDING" : ""),
@@ -24,12 +42,16 @@ const list = ref<Store[]>([]),
   reason = ref(""),
   pending = ref<{ id: string; action: string } | null>(null);
 async function load(append = false) {
-  await run(async () => {
+  const current = ++listVersion;
+  loading.value = true;
+  loadError.value = "";
+  try {
     const result = await api<Page<Store>>(
-      `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(keyword.value)}&categoryId=${category.value}&city=${encodeURIComponent(city.value)}&page=${page.value}`,
+      `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(applied.value.keyword)}&categoryId=${applied.value.category}&city=${encodeURIComponent(applied.value.city)}&page=${page.value}`,
       {},
       "ADMIN",
     );
+    if (current !== listVersion) return false;
     list.value = append
       ? [
           ...list.value.filter(
@@ -40,8 +62,23 @@ async function load(append = false) {
       : result.list;
     total.value = result.total;
     counts.value = result.counts ?? {};
-  });
+    cities.value = result.filterOptions?.cities ?? [];
+    return true;
+  } catch (cause) {
+    if (current === listVersion)
+      loadError.value = cause instanceof Error ? cause.message : "商家加载失败";
+    return false;
+  } finally {
+    if (current === listVersion) loading.value = false;
+  }
 }
+async function more() {
+  if (loading.value) return;
+  const requested = ++page.value;
+  if (!(await load(true)) && page.value === requested)
+    page.value = Math.max(1, requested - 1);
+}
+
 async function open(id: string) {
   await router.push(
     "/admin/audit/" + id + (auditOnly.value ? "" : "?from=merchants"),
@@ -86,12 +123,8 @@ async function send(id: string, action: string) {
     <div class="sc-strip app-merchant-search">
       <SearchBar
         v-model="keyword"
-        placeholder="搜索商家"
-        action="查询"
-        @action="
-          page = 1;
-          load();
-        "
+        placeholder="搜索商家名称"
+        @action="applyFilters()"
       />
     </div>
     <Tabs
@@ -117,30 +150,54 @@ async function send(id: string, action: string) {
             { value: '', label: '全部类目' },
             ...categories.map((c) => ({ value: c.id, label: c.name })),
           ]"
-          @update:model-value="
-            page = 1;
-            load();
-          "
-        /><Input v-model="city" label="城市" /><Button
-          variant="outline"
-          @click="
-            page = 1;
-            load();
-          "
-          >查询商家</Button
-        >
+        />
+        <Select
+          v-model="city"
+          label="城市"
+          :options="[
+            { value: '', label: '全部城市' },
+            ...cities.map((value) => ({ value, label: value })),
+          ]"
+        />
+        <p v-if="loadError" class="app-error body-sm" role="alert">
+          {{ loadError }}
+        </p>
       </div>
       <template #actions
         ><Button
+          size="lg"
+          variant="outline"
+          :disabled="loading"
           @click="
-            page = 1;
-            load();
-            filters = false;
+            applyFilters(true).then((ok) => {
+              if (ok) filters = false;
+            })
+          "
+          >重置</Button
+        ><Button
+          size="lg"
+          :disabled="loading"
+          @click="
+            applyFilters().then((ok) => {
+              if (ok) filters = false;
+            })
           "
           >查询</Button
         ></template
-      ></Dialog
-    >
+      >
+    </Dialog>
+    <div v-if="loadError" class="app-error body-sm" role="alert">
+      {{ loadError
+      }}<Button variant="text" size="sm" :disabled="loading" @click="load()"
+        >重试</Button
+      >
+    </div>
+    <p v-if="loading && !list.length" class="app-empty body-sm" role="status">
+      加载中
+    </p>
+    <p v-else-if="!list.length && !loadError" class="app-empty body-sm">
+      暂无商家
+    </p>
     <div class="xz-list sc-page-list">
       <MerchantRow
         v-for="s in list"
@@ -193,13 +250,7 @@ async function send(id: string, action: string) {
       />
     </div>
     <div v-if="list.length < total" class="sc-full-actions">
-      <Button
-        variant="text"
-        :disabled="busy"
-        @click="
-          page++;
-          load(true);
-        "
+      <Button variant="text" :disabled="busy || loading" @click="more"
         >加载更多</Button
       >
     </div>
