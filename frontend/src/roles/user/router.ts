@@ -13,7 +13,12 @@ export default [
   {
     path: "/store/:id",
     component: () => import("./pages/Store.vue"),
-    meta: { role: "USER", protected: false, title: "店铺点餐" },
+    meta: {
+      role: "USER",
+      protected: false,
+      title: "店铺点餐",
+      containedScroll: true,
+    },
   },
   {
     path: "/checkout",

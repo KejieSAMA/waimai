@@ -2,6 +2,9 @@
 import Button from "./Button.vue";
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import type { Action } from "@waimai/shared";
+import ScrollArea from "./ScrollArea.vue";
+import { useOverlayScrollbars } from "./scrollbarContext";
+const overlay = useOverlayScrollbars();
 const props = withDefaults(
   defineProps<{
     open?: boolean;
@@ -17,10 +20,12 @@ let previous: HTMLElement | null = null;
 function keydown(event: KeyboardEvent) {
   if (event.key === "Escape") emit("close");
   if (event.key !== "Tab") return;
-  const nodes = panel.value?.querySelectorAll<HTMLElement>(
-    'button:not(:disabled),input,select,textarea,a[href],[tabindex="0"]',
-  );
-  if (!nodes?.length) {
+  const nodes = Array.from(
+    panel.value?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled),input,select,textarea,a[href],[tabindex="0"]',
+    ) ?? [],
+  ).filter((node) => node.getClientRects().length > 0);
+  if (!nodes.length) {
     event.preventDefault();
     return;
   }
@@ -60,7 +65,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
       <div
         ref="panel"
         tabindex="-1"
-        :class="['xz-dialog', 'xz-dialog--' + variant]"
+        :class="[
+          'xz-dialog',
+          'xz-dialog--' + variant,
+          { 'xz-dialog--overlay': overlay },
+        ]"
         role="dialog"
         aria-modal="true"
         :aria-label="title"
@@ -75,7 +84,13 @@ onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
           />
         </div>
         <h2 v-else-if="title" class="xz-dialog__title title">{{ title }}</h2>
-        <div class="xz-dialog__body body"><slot /></div>
+        <ScrollArea
+          class="xz-dialog__body body"
+          axis="both"
+          :label="title || '弹窗内容'"
+          contain
+          ><slot
+        /></ScrollArea>
         <div v-if="actions || $slots.actions" class="xz-dialog__actions">
           <slot name="actions"
             ><Button
@@ -91,3 +106,23 @@ onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
     </div></Teleport
   >
 </template>
+<style scoped>
+.xz-dialog--overlay {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - var(--space-8));
+  min-height: 0;
+}
+.xz-dialog--overlay.xz-dialog--drawer {
+  max-height: 100dvh;
+}
+.xz-dialog--overlay > .xz-dialog__head,
+.xz-dialog--overlay > .xz-dialog__title,
+.xz-dialog--overlay > .xz-dialog__actions {
+  flex: none;
+}
+.xz-dialog--overlay > .xz-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+</style>

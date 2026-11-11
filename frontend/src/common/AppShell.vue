@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button } from "@waimai/ui";
+import { Button, ScrollArea } from "@waimai/ui";
 import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
 import { computed } from "vue";
@@ -19,6 +19,7 @@ const role = computed(
       "user" | "merchant" | "admin",
 );
 const account = computed(() => auth.accounts[role.value.toUpperCase() as Role]);
+const containedScroll = computed(() => route.meta.containedScroll === true);
 const menus: Record<string, NavItem[]> = {
   user: [
     { key: "/", label: "首页", icon: "home" },
@@ -74,6 +75,7 @@ if (
       role === 'user' || route.path.endsWith('/login') || route.path === '/__ui'
     "
     class="xz-site-page xz-desk"
+    :class="{ 'app-contained-store': containedScroll }"
   >
     <SiteHeader
       :user="account"
@@ -82,9 +84,14 @@ if (
       @login="go('/login')"
       @cart="go('/checkout')"
     />
-    <div class="xz-site-page__body">
+    <ScrollArea
+      class="xz-site-page__body"
+      axis="both"
+      label="页面内容"
+      :disabled="containedScroll"
+    >
       <div class="xz-container"><RouterView /></div>
-    </div>
+    </ScrollArea>
   </div>
   <DesktopShell
     v-else

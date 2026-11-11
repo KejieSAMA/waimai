@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Icon, Price, Stepper } from "@waimai/ui";
+import { Button, Icon, Price, Stepper, ScrollArea } from "@waimai/ui";
 import type { Quote } from "@waimai/shared";
 defineProps<{
   items: {
@@ -32,9 +32,16 @@ const emit = defineEmits<{
         >清空</Button
       >
     </div>
-    <div v-if="items.length" class="xz-cartpanel__list">
+    <ScrollArea
+      v-if="items.length"
+      class="xz-cartpanel__list"
+      content-class="xz-cartpanel__items"
+      label="购物车商品列表"
+      contain
+    >
       <div v-for="it in items" :key="it.id" class="xz-cartpanel__item">
-        <span class="xz-cartpanel__name body-md">{{ it.name }}</span
+        <span class="xz-cartpanel__name"
+          ><span class="body-md" :title="it.name">{{ it.name }}</span></span
         ><Stepper
           :model-value="it.qty"
           :max="it.max"
@@ -42,7 +49,7 @@ const emit = defineEmits<{
           @update:model-value="emit('quantity', it.id, $event)"
         /><Price :value="it.price" size="sm" tone="ink" />
       </div>
-    </div>
+    </ScrollArea>
     <div v-else class="xz-cartpanel__empty body-md">
       <Icon name="cart" :size="32" />还没有选购商品
     </div>
@@ -74,3 +81,35 @@ const emit = defineEmits<{
     </div>
   </aside>
 </template>
+<style scoped>
+.xz-cartpanel {
+  --cart-row-height: calc(var(--space-6) * 2 + 1px);
+  min-height: 0;
+  max-height: 100%;
+  align-self: start;
+}
+.xz-cartpanel__head,
+.xz-cartpanel__sum,
+.xz-cartpanel__foot {
+  flex: none;
+}
+.xz-cartpanel__list {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: calc(var(--cart-row-height) * 5.5);
+  padding: 0;
+}
+:deep(.xz-cartpanel__items) {
+  padding: 0 var(--space-4);
+}
+.xz-cartpanel__item {
+  box-sizing: border-box;
+  flex: none;
+  height: var(--cart-row-height);
+  min-height: var(--cart-row-height);
+}
+.xz-cartpanel__empty {
+  min-height: 0;
+  overflow: hidden;
+}
+</style>

@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { normItems, type NavItem } from "./types";
 import { useValue } from "./useValue";
+import ScrollArea from "./ScrollArea.vue";
 const props = withDefaults(
   defineProps<{
     items: (string | NavItem)[];
@@ -20,7 +21,13 @@ const value = useValue(
 );
 </script>
 <template>
-  <nav class="xz-catnav" aria-label="菜品分类">
+  <ScrollArea
+    as="nav"
+    class="xz-catnav"
+    aria-label="菜品分类"
+    label="菜品分类"
+    contain
+  >
     <button
       v-for="it in options"
       :key="it.key"
@@ -34,5 +41,5 @@ const value = useValue(
         it.count
       }}</span>
     </button>
-  </nav>
+  </ScrollArea>
 </template>

@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { useValue } from "./useValue";
+import { ref, watch } from "vue";
+import ScrollBars from "./ScrollBars.vue";
+import { useOverlayScrollbars } from "./scrollbarContext";
+const overlay = useOverlayScrollbars();
+const textarea = ref<HTMLTextAreaElement>();
+const bars = ref<InstanceType<typeof ScrollBars>>();
 defineOptions({ inheritAttrs: false });
 const props = withDefaults(
   defineProps<{
@@ -22,6 +28,7 @@ const value = useValue(
   props.defaultValue ?? "",
   (v) => emit("update:modelValue", String(v)),
 );
+watch(value, () => bars.value?.refresh(), { flush: "post" });
 </script>
 <template>
   <label
@@ -43,7 +50,25 @@ const value = useValue(
       ]"
       ><span v-if="prefix || $slots.prefix" class="xz-field__affix body"
         ><slot name="prefix">{{ prefix }}</slot></span
+      ><span v-if="multiline && overlay" class="xz-field__textarea">
+        <textarea
+          ref="textarea"
+          v-bind="$attrs"
+          :rows="3"
+          :required="required"
+          class="xz-field__input body xz-overlay-viewport"
+          :value="value"
+          :aria-invalid="!!error"
+          @input="value = ($event.target as HTMLTextAreaElement).value"
+        />
+        <ScrollBars
+          ref="bars"
+          :target="textarea"
+          :label="label || '文本输入'"
+          axis="both"
+        /> </span
       ><component
+        v-else
         :is="multiline ? 'textarea' : 'input'"
         v-bind="$attrs"
         :rows="multiline ? 3 : undefined"
@@ -62,3 +87,15 @@ const value = useValue(
     ></label
   >
 </template>
+<style scoped>
+.xz-field__textarea {
+  position: relative;
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+.xz-field__textarea textarea {
+  display: block;
+  width: 100%;
+}
+</style>

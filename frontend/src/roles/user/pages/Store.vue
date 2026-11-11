@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Button, CategoryNav, DishCard, Tag, Thumb } from "@waimai/ui";
+import {
+  Button,
+  CategoryNav,
+  DishCard,
+  Tag,
+  Thumb,
+  ScrollArea,
+} from "@waimai/ui";
 import CartPanel from "../../../components/CartPanel.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -20,6 +27,8 @@ const route = useRoute(),
   auth = useAuth();
 const store = ref<Store>(),
   category = ref("");
+const dishes = ref<InstanceType<typeof ScrollArea>>();
+watch(category, () => dishes.value?.scrollTo({ top: 0 }), { flush: "post" });
 const products = computed(
   () =>
     store.value?.products?.filter(
@@ -53,7 +62,7 @@ watch(
 );
 </script>
 <template>
-  <div v-if="store" class="app-stack">
+  <div v-if="store" class="app-stack app-store-page">
     <div class="ds-storehead">
       <Button
         variant="text"
@@ -89,7 +98,13 @@ watch(
           })),
         ]"
       />
-      <div class="ds-dishes">
+      <ScrollArea
+        ref="dishes"
+        class="ds-dishes"
+        label="商品列表"
+        content-class="ds-dishes__content"
+        contain
+      >
         <DishCard
           v-for="p in products"
           :key="p.id"
@@ -109,7 +124,7 @@ watch(
           :max="Math.min(p.stock, p.limitPerOrder ?? p.stock)"
           @update:model-value="set(p, $event)"
         />
-      </div>
+      </ScrollArea>
       <CartPanel
         :items="
           cart.lines.map((it) => ({
@@ -143,3 +158,36 @@ watch(
     </p>
   </div>
 </template>
+<style scoped>
+.app-store-page {
+  flex: 1;
+  min-height: 0;
+}
+.ds-storehead {
+  flex: none;
+}
+.ds-storelayout {
+  flex: 1 1 0%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+.ds-storelayout > .xz-catnav {
+  width: 100%;
+  min-height: 0;
+}
+.ds-dishes {
+  min-height: 0;
+  margin-bottom: 0;
+}
+:deep(.ds-dishes__content) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-content: start;
+}
+.app-store-page > p {
+  flex: none;
+  margin: 0;
+}
+</style>

@@ -18,4 +18,6 @@ export { default as StatCard } from "./StatCard.vue";
 export { default as StoreCard } from "./StoreCard.vue";
 export { default as DishCard } from "./DishCard.vue";
 export { default as OrderCard } from "./OrderCard.vue";
+export { default as ScrollArea } from "./ScrollArea.vue";
+export { overlayScrollbarsKey } from "./scrollbarContext";
 export * from "./types";

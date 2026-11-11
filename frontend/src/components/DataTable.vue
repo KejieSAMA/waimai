@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="R extends object">
-import { Button, Checkbox } from "@waimai/ui";
+import { Button, Checkbox, ScrollArea } from "@waimai/ui";
 import { computed } from "vue";
 import type { Action } from "@waimai/shared";
 const props = withDefaults(
@@ -55,7 +55,7 @@ function toggle(id: string) {
         >取消选择</Button
       >
     </div>
-    <div class="xz-table__scroll">
+    <ScrollArea class="xz-table__scroll" axis="x" label="表格内容">
       <table>
         <thead>
           <tr>
@@ -126,7 +126,7 @@ function toggle(id: string) {
           </tr>
         </tbody>
       </table>
-    </div>
+    </ScrollArea>
     <div v-if="$slots.footer" class="xz-table__foot">
       <slot name="footer" />
     </div>

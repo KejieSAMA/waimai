@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Icon } from "@waimai/ui";
+import { Icon, ScrollArea } from "@waimai/ui";
 import type { NavGroup } from "@waimai/ui";
 defineProps<{
   role?: string;
@@ -11,7 +11,10 @@ defineProps<{
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 </script>
 <template>
-  <nav
+  <ScrollArea
+    as="nav"
+    content-class="app-sidenav-content"
+    label="主导航"
     :class="[
       'xz-sidenav',
       {
@@ -52,5 +55,15 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
     <div v-if="$slots.footer" class="xz-sidenav__footer">
       <slot name="footer" />
     </div>
-  </nav>
+  </ScrollArea>
 </template>
+<style scoped>
+.xz-sidenav--admin {
+  --scrollbar-ink: var(--on-chrome-muted);
+}
+:deep(.app-sidenav-content) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+</style>

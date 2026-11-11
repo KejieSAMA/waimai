@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SearchBar, Thumb } from "@waimai/ui";
+import { SearchBar, Thumb, ScrollArea } from "@waimai/ui";
 import SideNav from "./SideNav.vue";
 import type { NavGroup } from "@waimai/ui";
 defineProps<{
@@ -38,7 +38,13 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
           >
         </div>
       </header>
-      <main class="xz-shell__content"><slot /></main>
+      <ScrollArea
+        as="main"
+        class="xz-shell__content"
+        label="后台页面内容"
+        axis="both"
+        ><slot
+      /></ScrollArea>
     </div>
     <slot name="overlay" />
   </div>

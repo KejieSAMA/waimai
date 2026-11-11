@@ -366,3 +366,15 @@ body,
 #app {
   height: 100%;
 }
+
+.app-contained-store .xz-site-page__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-contained-store .xz-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}

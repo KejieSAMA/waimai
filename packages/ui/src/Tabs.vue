@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { normItems, type NavItem } from "./types";
 import { useValue } from "./useValue";
+import ScrollArea from "./ScrollArea.vue";
 const props = withDefaults(
   defineProps<{
     items: (string | NavItem)[];
@@ -20,7 +21,13 @@ const value = useValue(
 );
 </script>
 <template>
-  <div :class="['xz-tabs', 'xz-tabs--' + variant]" role="tablist">
+  <ScrollArea
+    :class="['xz-tabs', 'xz-tabs--' + variant]"
+    role="tablist"
+    axis="x"
+    label="页面选项"
+    content-class="xz-tabs__items"
+  >
     <button
       v-for="it in options"
       :key="it.key"
@@ -41,5 +48,11 @@ const value = useValue(
         >{{ it.count }}</span
       >
     </button>
-  </div>
+  </ScrollArea>
 </template>
+<style scoped>
+:deep(.xz-tabs__items) {
+  display: flex;
+  min-width: 100%;
+}
+</style>
