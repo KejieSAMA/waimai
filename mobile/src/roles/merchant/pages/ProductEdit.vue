@@ -64,7 +64,8 @@ onMounted(() =>
   }),
 );
 const categoryDialog = ref(false),
-  categoryPicker = ref(false);
+  categoryPicker = ref(false),
+  settingsOpen = ref(false);
 const images = computed<string[]>(() => JSON.parse(form.images));
 const locked = computed(() => busy.value || store.value?.status === "FROZEN");
 async function image(files: File[]) {
@@ -208,17 +209,24 @@ async function save(listed = form.listed) {
               aria-label="保存后立即上架"
               :disabled="locked" /></template></ListCell
       ></ListCellGroup>
-      <details class="body-sm app-muted">
-        <summary>更多设置</summary>
+      <Button variant="text" @click="settingsOpen = true">更多设置</Button>
+      <Dialog
+        :open="settingsOpen"
+        title="更多设置"
+        variant="sheet"
+        @close="settingsOpen = false"
+      >
         <Input
           layout="horizontal"
           v-model="form.lowStock"
+          form="product-editor"
           label="预警库存"
           type="number"
           min="0"
         /><Input
           layout="horizontal"
           v-model="form.limit"
+          form="product-editor"
           label="每单限购"
           type="number"
           min="1"
@@ -226,7 +234,12 @@ async function save(listed = form.listed) {
         /><Button variant="text" @click="categoryDialog = true"
           >新增分类</Button
         >
-      </details>
+        <template #actions
+          ><Button size="lg" @click="settingsOpen = false"
+            >完成</Button
+          ></template
+        ></Dialog
+      >
     </div>
     <PageSlot name="actions"
       ><div class="sc-actions">

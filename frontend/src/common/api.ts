@@ -1,4 +1,9 @@
-import { createApi, ApiError, type Role } from "@waimai/shared";
+import {
+  createApi,
+  ApiError,
+  invalidateRoleData,
+  type Role,
+} from "@waimai/shared";
 import { useAuth } from "./auth";
 export async function api<T>(
   path: string,
@@ -7,18 +12,29 @@ export async function api<T>(
 ): Promise<T> {
   const auth = useAuth();
   const request = createApi(fetch, () => auth.tokens[role] ?? null);
-  try {
-    return await request<T>(path, options);
-  } catch (error) {
-    if (
-      error instanceof ApiError &&
-      error.code === 401 &&
-      !path.startsWith("/auth/") &&
-      (await auth.refresh(role))
-    )
-      return request<T>(path, options);
-    throw error;
+  async function execute() {
+    try {
+      return await request<T>(path, options);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.code === 401 &&
+        !path.startsWith("/auth/") &&
+        (await auth.refresh(role))
+      )
+        return request<T>(path, options);
+      throw error;
+    }
   }
+  const result = await execute();
+  if (
+    options.method &&
+    options.method !== "GET" &&
+    options.method !== "HEAD" &&
+    !path.endsWith("/preview")
+  )
+    invalidateRoleData(role);
+  return result;
 }
 export async function upload(
   file: File,

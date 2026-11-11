@@ -84,7 +84,7 @@ export async function todos(storeId?: string) {
         },
         {
           label: "退款纠纷",
-          count: data.refundPending,
+          count: data.disputesPending,
           path: "/admin/disputes",
         },
         {

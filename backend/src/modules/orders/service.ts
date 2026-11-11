@@ -46,7 +46,13 @@ export async function quoteOrder(
       `${p.name} 超出限购数量`,
     );
     itemsCents += p.priceCents * qty;
-    items.push({ productId, qty, name: p.name, priceCents: p.priceCents });
+    items.push({
+      productId,
+      qty,
+      name: p.name,
+      priceCents: p.priceCents,
+      lineTotalCents: p.priceCents * qty,
+    });
   }
   assert(
     input.type === "PICKUP" || itemsCents >= store.minOrderCents,
@@ -412,31 +418,39 @@ export async function orderStats(
     storeId,
     createdAt: { gte: start, ...(end ? { lt: end } : {}) },
   };
-  const [orders, revenue, pending, refunds, refundPending, badReviews] =
-    await Promise.all([
-      db.order.count({ where }),
-      db.order.aggregate({
-        where: {
-          ...where,
-          paidAt: { not: null },
-          status: { notIn: ["CANCELLED", "REFUNDING"] },
-        },
-        _sum: { payCents: true },
-        _count: { id: true },
-      }),
-      db.order.count({ where: { storeId, status: "PENDING" } }),
-      db.order.count({
-        where: {
-          ...where,
-          OR: [
-            { status: "REFUNDING" },
-            { status: "CANCELLED", refundReason: { not: null } },
-          ],
-        },
-      }),
-      db.order.count({ where: { storeId, status: "REFUNDING" } }),
-      db.review.count({ where: { storeId, rating: { lte: 2 }, reply: null } }),
-    ]);
+  const [
+    orders,
+    revenue,
+    pending,
+    refunds,
+    refundPending,
+    badReviews,
+    disputesPending,
+  ] = await Promise.all([
+    db.order.count({ where }),
+    db.order.aggregate({
+      where: {
+        ...where,
+        paidAt: { not: null },
+        status: { notIn: ["CANCELLED", "REFUNDING"] },
+      },
+      _sum: { payCents: true },
+      _count: { id: true },
+    }),
+    db.order.count({ where: { storeId, status: "PENDING" } }),
+    db.order.count({
+      where: {
+        ...where,
+        OR: [
+          { status: "REFUNDING" },
+          { status: "CANCELLED", refundReason: { not: null } },
+        ],
+      },
+    }),
+    db.order.count({ where: { storeId, status: "REFUNDING" } }),
+    db.review.count({ where: { storeId, rating: { lte: 2 }, reply: null } }),
+    db.order.count({ where: { storeId, status: "REFUNDING", disputed: true } }),
+  ]);
   return {
     orders,
     validOrders: revenue._count.id,
@@ -444,6 +458,7 @@ export async function orderStats(
     pending,
     refunds,
     refundPending,
+    disputesPending,
     badReviews,
     refundRate: orders ? Number(((refunds / orders) * 100).toFixed(1)) : 0,
   };

@@ -132,6 +132,12 @@ describe("订单金额、库存和权限", () => {
     expect(quote.discountCents).toBe(500);
     expect(quote.payCents).toBe(5200);
     expect(quote.items).toHaveLength(1);
+    expect(quote.items[0]).toMatchObject({
+      productId,
+      qty: 2,
+      priceCents: 2850,
+      lineTotalCents: 5700,
+    });
   });
   it("配送订单必须使用本人地址", async () => {
     const response = await request(app)
@@ -716,5 +722,165 @@ describe("订单金额、库存和权限", () => {
     await expect(
       orderService.listOrders(actor, { tab: "invalid" }),
     ).rejects.toThrow();
+  });
+  it("商品计数按同一筛选范围统计且不受页码和当前分组影响", async () => {
+    const base = await db.product.findUniqueOrThrow({
+      where: { id: productId },
+    });
+    const other = await db.product.findUniqueOrThrow({
+      where: { id: otherProductId },
+    });
+    const ids: string[] = [];
+    try {
+      for (const [index, status] of [
+        "ON",
+        "OFF",
+        "REVIEW",
+        "REJECTED",
+        "ON",
+      ].entries()) {
+        const product = await db.product.create({
+          data: {
+            storeId: index === 4 ? otherStoreId : storeId,
+            dishCategoryId:
+              index === 4 ? other.dishCategoryId : base.dishCategoryId,
+            name: "round3-count-" + index,
+            priceCents: 100,
+            stock: 3,
+            status,
+          },
+        });
+        ids.push(product.id);
+      }
+      const response = await request(app)
+        .get(
+          `/api/v1/merchant/products?group=off&keyword=round3-count&stock=low&categoryId=${base.dishCategoryId}&pageSize=1`,
+        )
+        .auth(merchantToken, { type: "bearer" });
+      expect(response.status).toBe(200);
+      expect(response.body.data.total).toBe(1);
+      expect(response.body.data.counts).toEqual({ ON: 1, OFF: 1, REVIEW: 2 });
+      expect(response.body.data.list[0].storeId).toBe(storeId);
+      const empty = await request(app)
+        .get("/api/v1/merchant/products?keyword=round3-not-found")
+        .auth(merchantToken, { type: "bearer" });
+      expect(empty.body.data.counts).toEqual({ ON: 0, OFF: 0, REVIEW: 0 });
+    } finally {
+      await db.product.deleteMany({ where: { id: { in: ids } } });
+    }
+  });
+  it("单行库存和批量库存共用归属、冻结与事务保护", async () => {
+    const original = await db.product.findUniqueOrThrow({
+      where: { id: productId },
+    });
+    try {
+      const denied = await request(app)
+        .post("/api/v1/merchant/products/batch")
+        .auth(merchantToken, { type: "bearer" })
+        .send({ ids: [productId, otherProductId], action: "stock", stock: 0 });
+      expect(denied.status).toBe(404);
+      expect(
+        (await db.product.findUniqueOrThrow({ where: { id: productId } }))
+          .stock,
+      ).toBe(original.stock);
+      const single = await request(app)
+        .post("/api/v1/merchant/products/batch")
+        .auth(merchantToken, { type: "bearer" })
+        .send({ ids: [productId], action: "stock", stock: 0 });
+      expect(single.status).toBe(200);
+      expect(single.body.data.updated).toBe(1);
+      expect(
+        (
+          await request(app)
+            .get("/api/v1/merchant/products/" + productId)
+            .auth(merchantToken, { type: "bearer" })
+        ).body.data.displayStatus,
+      ).toBe("SOLDOUT");
+      expect(
+        (
+          await request(app)
+            .post("/api/v1/merchant/products/batch")
+            .auth(merchantToken, { type: "bearer" })
+            .send({ ids: [productId], action: "stock", stock: -1 })
+        ).status,
+      ).toBe(400);
+      await db.store.update({
+        where: { id: storeId },
+        data: { status: "FROZEN" },
+      });
+      expect(
+        (
+          await request(app)
+            .post("/api/v1/merchant/products/batch")
+            .auth(merchantToken, { type: "bearer" })
+            .send({ ids: [productId], action: "stock", stock: 9 })
+        ).status,
+      ).toBe(403);
+    } finally {
+      await db.product.update({
+        where: { id: productId },
+        data: { stock: original.stock },
+      });
+      await db.store.update({
+        where: { id: storeId },
+        data: { status: "OPEN" },
+      });
+    }
+  });
+  it("城市选项来自完整商家数据且不暴露给公开列表", async () => {
+    const auth = await import("../auth/service");
+    const admin = await db.user.create({
+      data: { phone: "13944444444", name: "城市测试", role: "ADMIN" },
+    });
+    const session = await auth.issueSession(admin);
+    const expected = (
+      await db.store.findMany({
+        select: { city: true },
+        distinct: ["city"],
+        orderBy: { city: "asc" },
+      })
+    )
+      .map((store) => store.city)
+      .filter(Boolean);
+    const response = await request(app)
+      .get("/api/v1/admin/merchants?pageSize=1&keyword=不存在的商家")
+      .auth(session.accessToken, { type: "bearer" });
+    expect(response.status).toBe(200);
+    expect(response.body.data.total).toBe(0);
+    expect(response.body.data.filterOptions.cities).toEqual(expected);
+    const publicList = await request(app).get("/api/v1/public/stores");
+    expect(publicList.body.data).not.toHaveProperty("filterOptions");
+  });
+  it("待处理纠纷与普通退款分别计数", async () => {
+    const ids: string[] = [];
+    try {
+      for (const disputed of [false, true]) {
+        const order = await db.order.create({
+          data: {
+            orderNo: "round3-dispute-" + String(disputed),
+            serialOfDay: 99,
+            userId,
+            storeId,
+            type: "PICKUP",
+            status: "REFUNDING",
+            disputed,
+            itemsCents: 100,
+            deliveryFeeCents: 0,
+            discountCents: 0,
+            payCents: 100,
+          },
+        });
+        ids.push(order.id);
+      }
+      const stats = await orderService.orderStats(storeId);
+      expect(stats.disputesPending).toBe(
+        await db.order.count({
+          where: { storeId, status: "REFUNDING", disputed: true },
+        }),
+      );
+      expect(stats.refundPending).toBeGreaterThan(stats.disputesPending);
+    } finally {
+      await db.order.deleteMany({ where: { id: { in: ids } } });
+    }
   });
 });

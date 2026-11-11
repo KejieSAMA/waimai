@@ -88,7 +88,16 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
     all: groups.reduce((sum, group) => sum + group._count.id, 0),
   };
   for (const group of groups) counts[group.status] = group._count.id;
-  return { ...result, counts };
+  const cities = await db.store.findMany({
+    select: { city: true },
+    distinct: ["city"],
+    orderBy: { city: "asc" },
+  });
+  return {
+    ...result,
+    counts,
+    filterOptions: { cities: cities.map((s) => s.city).filter(Boolean) },
+  };
 }
 export async function storeDetail(id: string, admin = false) {
   const store = await db.store.findUnique({

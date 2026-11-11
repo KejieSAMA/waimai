@@ -1,6 +1,9 @@
 export * from "./device";
 export * from "./userOrders";
 export * from "./userOrderDetail";
+export * from "./merchantProducts";
+export * from "./pagedColumns";
+export * from "./roleNotices";
 
 export type Role = "USER" | "MERCHANT" | "ADMIN";
 export type Tone =
@@ -128,6 +131,7 @@ export interface Order {
   refundRejected: boolean;
 }
 export interface Page<T> {
+  filterOptions?: { cities: string[] };
   counts?: Record<string, number>;
   list: T[];
   total: number;
@@ -140,9 +144,16 @@ export interface Quote {
   discountCents: number;
   payCents: number;
   count: number;
-  items: { name: string; qty: number; priceCents: number }[];
+  items: {
+    productId: string;
+    name: string;
+    qty: number;
+    priceCents: number;
+    lineTotalCents: number;
+  }[];
 }
 export interface Stats {
+  disputesPending: number;
   validOrders: number;
   refunds: number;
   refundPending: number;
@@ -179,6 +190,21 @@ export const dashboardMoney = (cents: number) =>
     maximumFractionDigits: 2,
   });
 export const phoneTail = (phone: string) => `尾号 ${phone.slice(-4)}`;
+export function auditActionLabel(action: string): string {
+  return (
+    (
+      {
+        approve: "审核通过",
+        reject: "审核驳回",
+        freeze: "冻结商家",
+        unfreeze: "解冻商家",
+        "force-off": "强制下架",
+        "refund-approve": "同意退款",
+        "refund-reject": "拒绝退款",
+      } as Record<string, string>
+    )[action] ?? "处理记录"
+  );
+}
 export const time = (value: string | Date) =>
   new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",

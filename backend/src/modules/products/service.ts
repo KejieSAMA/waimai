@@ -22,25 +22,8 @@ export async function listProducts(
 ) {
   const p = pagination(query);
   const group = z.enum(["on", "off", "review"]).optional().parse(query.group);
-  const where: Prisma.ProductWhereInput = {
+  const baseWhere: Prisma.ProductWhereInput = {
     storeId,
-    AND: group
-      ? {
-          status: {
-            in:
-              group === "on"
-                ? ["ON"]
-                : group === "off"
-                  ? ["OFF"]
-                  : ["REVIEW", "REJECTED"],
-          },
-        }
-      : {},
-    ...(p.status === "SOLDOUT"
-      ? { status: "ON", stock: 0 }
-      : p.status
-        ? { status: p.status }
-        : {}),
     ...(p.keyword ? { name: { contains: p.keyword } } : {}),
     ...(typeof query.categoryId === "string" && query.categoryId
       ? { dishCategoryId: query.categoryId }
@@ -51,6 +34,25 @@ export async function listProducts(
         ? { stock: { lte: db.product.fields.lowStock } }
         : {}),
   };
+  const constraints: Prisma.ProductWhereInput[] = [];
+  if (group)
+    constraints.push({
+      status: {
+        in:
+          group === "on"
+            ? ["ON"]
+            : group === "off"
+              ? ["OFF"]
+              : ["REVIEW", "REJECTED"],
+      },
+    });
+  if (p.status)
+    constraints.push(
+      p.status === "SOLDOUT"
+        ? { status: "ON", stock: 0 }
+        : { status: p.status },
+    );
+  const where: Prisma.ProductWhereInput = { ...baseWhere, AND: constraints };
   const [list, total] = await Promise.all([
     db.product.findMany({
       where,
@@ -60,7 +62,23 @@ export async function listProducts(
     }),
     db.product.count({ where }),
   ]);
-  return pageResult(list.map(displayProduct), total, p);
+  const groups = await db.product.groupBy({
+    by: ["status"],
+    where: baseWhere,
+    _count: { id: true },
+  });
+  const count = (states: string[]) =>
+    groups
+      .filter((g) => states.includes(g.status))
+      .reduce((sum, g) => sum + g._count.id, 0);
+  return {
+    ...pageResult(list.map(displayProduct), total, p),
+    counts: {
+      ON: count(["ON"]),
+      OFF: count(["OFF"]),
+      REVIEW: count(["REVIEW", "REJECTED"]),
+    },
+  };
 }
 export async function saveProduct(
   storeId: string,

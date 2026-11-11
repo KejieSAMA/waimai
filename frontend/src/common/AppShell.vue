@@ -6,7 +6,8 @@ import { computed, watch, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "@waimai/tokens";
 import type { NavItem, NavGroup } from "@waimai/ui";
-import type { Role, Store, Stats } from "@waimai/shared";
+import type { Role, Store } from "@waimai/shared";
+import { useRoleNotices } from "@waimai/shared";
 import { api } from "./api";
 import { merchantStore } from "./merchantStatus";
 import { run } from "./feedback";
@@ -48,7 +49,15 @@ const menus: Record<string, NavItem[]> = {
     { key: "/admin/me", label: "我的", icon: "user" },
   ],
 };
-const nav = computed(() => menus[role.value]);
+const { badges, notices } = useRoleNotices(
+  (path, target) => api(path, {}, target),
+  computed(() => role.value.toUpperCase() as Role),
+  computed(() => account.value?.id),
+  computed(() => role.value !== "merchant" || !!merchantStore.value),
+);
+const nav = computed(() =>
+  menus[role.value].map((item) => ({ ...item, badge: badges.value[item.key] })),
+);
 const groups = computed<NavGroup[]>(() =>
   role.value === "merchant"
     ? [
@@ -65,25 +74,6 @@ const groups = computed<NavGroup[]>(() =>
       : [{ items: nav.value }],
 );
 const changingStore = ref(false);
-const notices = ref(0);
-watch([() => route.path, merchantStore], async () => {
-  if (
-    !["merchant", "admin"].includes(role.value) ||
-    route.path.endsWith("/login") ||
-    (role.value === "merchant" && !merchantStore.value)
-  )
-    return;
-  await run(async () => {
-    const stats = await api<Stats>(
-      role.value === "merchant"
-        ? "/merchant/stats/today"
-        : "/admin/stats/overview",
-      {},
-      role.value === "merchant" ? "MERCHANT" : "ADMIN",
-    );
-    notices.value = stats.pending;
-  });
-});
 watch(
   [role, () => account.value?.id],
   async ([value, accountId], _old, cleanup) => {

@@ -31,7 +31,15 @@ const firstQuote: Quote = {
   discountCents: 0,
   payCents: 3100,
   count: 1,
-  items: [{ name: "牛肉面", qty: 1, priceCents: 2800 }],
+  items: [
+    {
+      productId: "dish-1",
+      name: "牛肉面",
+      qty: 1,
+      priceCents: 2800,
+      lineTotalCents: 2800,
+    },
+  ],
 };
 const secondQuote: Quote = {
   itemsCents: 5600,
@@ -39,7 +47,15 @@ const secondQuote: Quote = {
   discountCents: 500,
   payCents: 5400,
   count: 2,
-  items: [{ name: "牛肉面", qty: 2, priceCents: 2800 }],
+  items: [
+    {
+      productId: "dish-1",
+      name: "牛肉面",
+      qty: 2,
+      priceCents: 2800,
+      lineTotalCents: 5600,
+    },
+  ],
 };
 
 function deferredQuote() {

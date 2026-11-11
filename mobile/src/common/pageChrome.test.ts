@@ -17,9 +17,11 @@ describe("手机页面导航状态", () => {
     const current = page();
     current.chrome.title = "商家店名";
     current.chrome.subtitle = "今日经营";
+    current.chrome.actions = true;
     current.scope.stop();
     expect(pageChrome.title).toBe("");
     expect(pageChrome.subtitle).toBe("");
+    expect(pageChrome.actions).toBe(false);
   });
   it("旧页面延后卸载不会清空新页面的导航", () => {
     const old = page();

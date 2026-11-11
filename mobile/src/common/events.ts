@@ -1,3 +1,4 @@
+import { invalidateRoleData } from "@waimai/shared";
 import { onBeforeUnmount, ref } from "vue";
 import { useAuth } from "./auth";
 export function useOrderStream(reload: () => Promise<unknown>) {
@@ -36,6 +37,7 @@ export function useOrderStream(reload: () => Promise<unknown>) {
       if (!response.ok || !response.body) throw new Error("连接失败");
       connected.value = true;
       await reload();
+      invalidateRoleData("MERCHANT");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -50,6 +52,7 @@ export function useOrderStream(reload: () => Promise<unknown>) {
           if (event.startsWith("event: order")) {
             sound();
             await reload();
+            invalidateRoleData("MERCHANT");
           }
           boundary = buffer.indexOf("\n\n");
         }

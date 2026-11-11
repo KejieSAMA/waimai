@@ -8,6 +8,9 @@ import TabBar from "../components/TabBar.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { pageChrome } from "./pageChrome";
+import { useRoleNotices, type Role } from "@waimai/shared";
+import { api } from "./api";
+import { useAuth } from "./auth";
 import type { NavItem } from "@waimai/ui";
 
 const route = useRoute(),
@@ -21,6 +24,7 @@ const isAuditDetail = computed(() =>
 );
 const actionPage = computed(
   () =>
+    pageChrome.actions ||
     isProductEdit.value ||
     isAuditDetail.value ||
     ["/checkout", "/merchant/store", "/merchant/apply", "/addresses"].includes(
@@ -94,7 +98,16 @@ const menus: Record<string, NavItem[]> = {
     { key: "/admin/me", label: "我的", icon: "user" },
   ],
 };
-const nav = computed(() => menus[role.value]);
+const auth = useAuth();
+const { badges } = useRoleNotices(
+  (path, target) => api(path, {}, target),
+  computed(() => role.value.toUpperCase() as Role),
+  computed(() => auth.accounts[role.value.toUpperCase() as Role]?.id),
+  computed(() => true),
+);
+const nav = computed(() =>
+  menus[role.value].map((item) => ({ ...item, badge: badges.value[item.key] })),
+);
 
 const selected = computed(
   () =>

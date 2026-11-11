@@ -9,29 +9,55 @@ import {
   Tabs,
   Tag,
 } from "@waimai/ui";
+import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
+import {
+  useMerchantProducts,
+  productStatuses,
+  firstImage,
+  money,
+  type Product,
+} from "@waimai/shared";
 import FilterBar from "../../../components/FilterBar.vue";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import Pagination from "../../../components/Pagination.vue";
-import { onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import {
-  type Product,
-  type Page,
-  type Category,
-  type Store,
-  productStatuses,
-  firstImage,
-  money,
-} from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
+const router = useRouter();
+const {
+  list,
+  categories,
+  store,
+  status,
+  page,
+  total,
+  counts,
+  selected,
+  loading,
+  mutating,
+  error,
+  filters,
+  load,
+  retry,
+  apply,
+  batch,
+} = useMerchantProducts(
+  (path, options) => api(path, options, "MERCHANT"),
+  new URLSearchParams(location.search).get("stock") ?? "",
+);
+const locked = computed(
+  () => loading.value || mutating.value || store.value?.status === "FROZEN",
+);
 const categoryDialog = ref(false),
   newCategory = ref("");
+const pending = ref<Product>(),
+  stockIds = ref<string[]>([]),
+  batchStock = ref("0");
 async function addCategory() {
   await run(async () => {
-    const result = await api<Category>(
+    const result = await api<{ id: string; name: string; sort: number }>(
       "/merchant/dish-categories",
       { method: "POST", body: { name: newCategory.value } },
       "MERCHANT",
@@ -41,116 +67,46 @@ async function addCategory() {
     categoryDialog.value = false;
   });
 }
-const counts = ref<Record<string, number>>({});
-const router = useRouter(),
-  list = ref<Product[]>([]),
-  categories = ref<Category[]>([]),
-  store = ref<Store>(),
-  status = ref("ON"),
-  keyword = ref(""),
-  category = ref(""),
-  stock = ref(new URLSearchParams(location.search).get("stock") || ""),
-  page = ref(1),
-  total = ref(0),
-  selected = ref<string[]>([]),
-  pending = ref<Product | null>(null),
-  batchStock = ref("20");
-async function load() {
-  await run(async () => {
-    const result = await api<Page<Product>>(
-      `/merchant/products?status=${status.value === "REVIEW" ? "" : status.value}${status.value === "REVIEW" ? "&group=review" : ""}&keyword=${encodeURIComponent(keyword.value)}&categoryId=${category.value}&stock=${stock.value}&page=${page.value}`,
-      {},
-      "MERCHANT",
-    );
-    list.value = result.list;
-    total.value = result.total;
-    const groups = await Promise.all(
-      ["status=ON", "status=OFF", "group=review"].map((filter) =>
-        api<Page<Product>>(
-          "/merchant/products?pageSize=1&" + filter,
-          {},
-          "MERCHANT",
-        ),
-      ),
-    );
-    counts.value = {
-      ON: groups[0].total,
-      OFF: groups[1].total,
-      REVIEW: groups[2].total,
-    };
-    selected.value = [];
-  });
+function change(product: Product, listed: boolean) {
+  if (!listed) pending.value = product;
+  else void batch("on", [product.id]);
 }
-onMounted(async () => {
-  await run(async () => {
-    categories.value = await api<Category[]>(
-      "/merchant/dish-categories",
-      {},
-      "MERCHANT",
-    );
-    store.value = await api<Store>("/merchant/store", {}, "MERCHANT");
-  });
-  await load();
-});
-watch(status, () => {
-  page.value = 1;
-  void load();
-});
-async function toggle(p: Product, listed: boolean) {
-  if (!listed) {
-    pending.value = p;
-    return;
-  }
-  await listing(p, true);
+function editStock(ids: string[], value = 0) {
+  stockIds.value = [...ids];
+  batchStock.value = String(value);
 }
-async function listing(p: Product, listed: boolean) {
-  await run(async () => {
-    await api(
-      "/merchant/products/" + p.id + "/listing",
-      { method: "PUT", body: { listed } },
-      "MERCHANT",
-    );
-    pending.value = null;
-    await load();
-  });
-}
-async function batch(action: string) {
-  await run(async () => {
-    await api(
-      "/merchant/products/batch",
-      {
-        method: "POST",
-        body: { ids: selected.value, action, stock: Number(batchStock.value) },
-      },
-      "MERCHANT",
-    );
-    await load();
-  });
+async function saveStock() {
+  if (await batch("stock", stockIds.value, Number(batchStock.value)))
+    stockIds.value = [];
 }
 const columns = [
   { key: "name", title: "商品" },
-  { key: "priceCents", title: "价格", align: "right" as const, num: true },
-  { key: "monthlySales", title: "月售", num: true, align: "right" as const },
-  { key: "listed", title: "上架" },
+  { key: "priceCents", title: "售价", align: "right" as const, num: true },
+  { key: "monthlySales", title: "月售", align: "right" as const, num: true },
   { key: "stock", title: "库存", align: "right" as const, num: true },
   { key: "displayStatus", title: "状态" },
-  { key: "actions", title: "操作" },
+  { key: "listed", title: "上架" },
+  { key: "actions", title: "操作", width: 140 },
 ];
 </script>
 <template>
   <div class="app-stack">
     <PageHeader title="商品管理"
       ><template #actions
-        ><Button variant="outline" @click="categoryDialog = true"
+        ><Button
+          variant="outline"
+          :disabled="locked"
+          @click="categoryDialog = true"
           >分类管理</Button
         ><Button
           icon="plus"
-          :disabled="store?.status === 'FROZEN'"
+          :disabled="locked"
           @click="router.push('/merchant/products/new')"
           >新增商品</Button
         ></template
       ></PageHeader
-    ><Tabs
+    >
+    <Tabs
       v-model="status"
       :items="[
         { key: 'ON', label: '在售', count: counts.ON },
@@ -158,109 +114,121 @@ const columns = [
         { key: 'REVIEW', label: '审核中', count: counts.REVIEW },
       ]"
     />
-    <FilterBar
-      @search="
-        page = 1;
-        load();
-      "
-      @reset="
-        keyword = category = stock = '';
-        page = 1;
-        load();
-      "
-    >
+    <FilterBar @search="apply()" @reset="apply(true)">
       <SearchBar
-        v-model="keyword"
-        placeholder="搜索商品"
-        action="查询"
-        @action="
-          page = 1;
-          load();
-        "
-      /><Select
-        v-model="category"
+        v-model="filters.keyword"
+        placeholder="搜索商品名称"
+        @action="apply()"
+      />
+      <Select
+        v-model="filters.category"
         label="分类"
         :options="[
           { value: '', label: '全部分类' },
           ...categories.map((c) => ({ value: c.id, label: c.name })),
         ]"
-        @update:model-value="
-          page = 1;
-          load();
-        "
-      /><Select
-        v-model="stock"
+      />
+      <Select
+        v-model="filters.stock"
         label="库存"
         :options="[
           { value: '', label: '全部库存' },
           { value: 'low', label: '库存预警' },
           { value: 'soldout', label: '已售罄' },
         ]"
-        @update:model-value="
-          page = 1;
-          load();
-        "
       />
     </FilterBar>
+    <div v-if="error" class="app-error body-sm" role="alert">
+      {{ error
+      }}<Button variant="text" size="sm" :disabled="loading" @click="retry()"
+        >重试</Button
+      >
+    </div>
     <DataTable
       :columns="columns"
       :rows="list"
       selectable
       :selected="selected"
+      :aria-busy="loading"
       @select="selected = $event"
-      ><template #name="{ row }"
+    >
+      <template #batchActions
+        ><Button
+          size="sm"
+          variant="outline"
+          :disabled="locked"
+          @click="batch('off')"
+          >批量下架</Button
+        ><Button
+          size="sm"
+          variant="outline"
+          :disabled="locked"
+          @click="batch('on')"
+          >批量上架</Button
+        ><Button
+          size="sm"
+          variant="outline"
+          :disabled="locked"
+          @click="editStock(selected)"
+          >批量改库存</Button
+        ></template
+      >
+      <template #name="{ row }"
         ><DataTableMedia
           :name="row.name"
           :src="firstImage(row.images)"
-          :sub="row.rejectReason || undefined" /></template
-      ><template #stock="{ row }"
-        ><span :class="{ 'tone-warning': row.stock <= row.lowStock }">{{
+          :sub="
+            row.rejectReason ||
+            categories.find((c) => c.id === row.dishCategoryId)?.name
+          "
+      /></template>
+      <template #priceCents="{ row }">{{ money(row.priceCents) }}</template>
+      <template #monthlySales="{ row }"
+        >{{ row.monthlySales.toLocaleString("en-US") }}+</template
+      >
+      <template #stock="{ row }"
+        ><b :class="{ 'tone-warning': row.stock <= row.lowStock }">{{
           row.stock
-        }}</span></template
-      ><template #priceCents="{ row }">{{ money(row.priceCents) }}</template
-      ><template #displayStatus="{ row }"
+        }}</b></template
+      >
+      <template #displayStatus="{ row }"
         ><Tag :tone="productStatuses[row.displayStatus].tone">{{
           productStatuses[row.displayStatus].label
         }}</Tag></template
-      ><template #listed="{ row }">
-        <Switch
+      >
+      <template #listed="{ row }"
+        ><Switch
           :model-value="row.status === 'ON'"
           :disabled="
+            locked ||
             row.forcedOff ||
-            row.status === 'REVIEW' ||
-            store?.status === 'FROZEN'
+            ['REVIEW', 'REJECTED'].includes(row.status)
           "
-          aria-label="上架"
-          @update:model-value="toggle(row, $event)" /></template
-      ><template #actions="{ row }"
+          :aria-label="'上架 ' + row.name"
+          @update:model-value="change(row, $event)"
+      /></template>
+      <template #actions="{ row }"
         ><div class="app-table-actions">
           <Button
             size="sm"
             variant="text"
             @click="router.push('/merchant/products/' + row.id + '/edit')"
             >编辑</Button
-          >
-        </div></template
-      >
-      <template #toolbar
-        ><div v-if="selected.length" class="app-row">
-          <Button
-            variant="outline"
-            :disabled="busy || store?.status === 'FROZEN'"
-            @click="batch('off')"
-            >批量下架</Button
           ><Button
-            variant="outline"
-            :disabled="busy || store?.status === 'FROZEN'"
-            @click="batch('on')"
-            >批量上架</Button
-          ><Input v-model="batchStock" type="number" label="库存" /><Button
-            :disabled="busy || store?.status === 'FROZEN'"
-            @click="batch('stock')"
-            >修改库存</Button
+            size="sm"
+            variant="text"
+            :disabled="locked"
+            @click="editStock([row.id], row.stock)"
+            >改库存</Button
           >
         </div></template
       >
+      <template #empty>{{
+        loading ? "加载中" : error ? "商品加载失败" : "暂无商品"
+      }}</template>
+      <template #footer
+        ><Pagination v-model="page" :total="total" @update:model-value="load()"
+      /></template>
     </DataTable>
     <Dialog
       :open="categoryDialog"
@@ -270,22 +238,59 @@ const columns = [
         {{ categories.map((c) => c.name).join(" · ") }}
       </p>
       <Input v-model="newCategory" label="新增分类" /><template #actions
-        ><Button :disabled="busy || !newCategory.trim()" @click="addCategory"
+        ><Button
+          :disabled="busy || locked || !newCategory.trim()"
+          @click="addCategory"
           >新增分类</Button
         ></template
       ></Dialog
     >
-    <p v-if="!list.length" class="app-empty body">暂无商品</p>
-    <Pagination
-      v-model="page"
-      :total="total"
-      @update:model-value="load"
-    /><Dialog :open="!!pending" title="确认下架" @close="pending = null"
+    <Dialog
+      :open="!!pending"
+      title="确认下架"
+      @close="!mutating && (pending = undefined)"
       ><p>下架后用户将无法购买该商品</p>
       <template #actions
-        ><Button variant="outline" @click="pending = null">取消</Button
-        ><Button :disabled="busy" @click="pending && listing(pending, false)"
+        ><Button
+          variant="outline"
+          :disabled="mutating"
+          @click="pending = undefined"
+          >取消</Button
+        ><Button
+          :disabled="mutating"
+          @click="
+            pending &&
+            batch('off', [pending.id]).then((ok) => {
+              if (ok) pending = undefined;
+            })
+          "
           >确认下架</Button
+        ></template
+      ></Dialog
+    >
+    <Dialog
+      :open="!!stockIds.length"
+      title="修改库存"
+      @close="!mutating && (stockIds = [])"
+      ><form id="product-stock" class="app-form" @submit.prevent="saveStock">
+        <p class="body-sm">将更新 {{ stockIds.length }} 个商品的库存</p>
+        <Input
+          v-model="batchStock"
+          label="库存"
+          type="number"
+          min="0"
+          max="1000000"
+          step="1"
+          required
+          :disabled="mutating"
+        />
+        <p v-if="error" class="app-error body-sm" role="alert">{{ error }}</p>
+      </form>
+      <template #actions
+        ><Button variant="outline" :disabled="mutating" @click="stockIds = []"
+          >取消</Button
+        ><Button type="submit" form="product-stock" :disabled="mutating"
+          >修改库存</Button
         ></template
       ></Dialog
     >
