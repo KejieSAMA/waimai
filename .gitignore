@@ -1,14 +1,66 @@
+# Dependencies and package-manager caches
 node_modules/
+.pnpm-store/
+.npm/
+
+# Build output, tooling caches and test reports
 dist/
 coverage/
+.nyc_output/
+.vite/
+.cache/
+.turbo/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# Local environment and credentials; keep shareable templates
 .env
 .env.*
 !.env.example
+!.env.*.example
+.envrc
+.netrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# Local SQLite data and sidecar files; keep Prisma schema and migrations
 *.db
-*.db-journal
-*.db-shm
-*.db-wal
-backend/uploads/*
-!backend/uploads/.gitkeep
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Runtime uploads; keep the empty directory in the repository
+/backend/uploads/*
+!/backend/uploads/.gitkeep
+
+# Logs and process files
 *.log
+*-debug.log*
+*-error.log*
+*.pid
+*.pid.lock
+
+# Editor, agent and operating-system local files
+.idea/
+.vscode/
+.vs/
+.history/
+.codex/
+*.swp
+*.swo
+*~
+*.tmp
+*.temp
+*.bak
 .DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
