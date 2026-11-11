@@ -20,4 +20,5 @@ export { default as DishCard } from "./DishCard.vue";
 export { default as OrderCard } from "./OrderCard.vue";
 export { default as ScrollArea } from "./ScrollArea.vue";
 export { overlayScrollbarsKey } from "./scrollbarContext";
+export { selectPresentationKey } from "./selectContext";
 export * from "./types";

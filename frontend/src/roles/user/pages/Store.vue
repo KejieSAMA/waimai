@@ -65,6 +65,7 @@ watch(
   <div v-if="store" class="app-stack app-store-page">
     <div class="ds-storehead">
       <Button
+        class="app-store-back"
         variant="text"
         icon="back"
         aria-label="返回商家列表"
@@ -165,6 +166,18 @@ watch(
 }
 .ds-storehead {
   flex: none;
+}
+.app-store-back {
+  flex: 0 0 var(--size-button-md);
+  align-self: flex-start;
+  width: var(--size-button-md);
+  height: var(--size-button-md);
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+}
+.app-store-back:active {
+  background: var(--surface-sunken);
 }
 .ds-storelayout {
   flex: 1 1 0%;
