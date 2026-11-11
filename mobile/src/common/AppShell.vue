@@ -78,6 +78,7 @@ const tabs = computed(() =>
     ><template #navBar
       ><NavBar
         :title="String(route.meta.title || '盟信')"
+        :bordered="route.path !== '/orders'"
         :tone="
           role === 'admin' ? 'admin' : route.path === '/' ? 'brand' : 'light'
         "
@@ -87,14 +88,19 @@ const tabs = computed(() =>
           route.path === '/checkout'
         "
         @back="router.back()"
-        ><template #right
+        ><template v-if="route.path !== '/orders'" #right
           ><Button size="sm" variant="text" @click="toggle"
             >主题</Button
           ></template
         ></NavBar
       ></template
     >
-    <div class="app-content"><RouterView /></div>
+    <div
+      class="app-content"
+      :class="{ 'app-content--orders': route.path === '/orders' }"
+    >
+      <RouterView />
+    </div>
     <template #bottom>
       <CartBar
         v-if="role === 'user' && route.path.startsWith('/store/')"

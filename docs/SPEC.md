@@ -78,6 +78,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `POST /user/orders/preview` 后端计算金额（小计、配送费、满减、实付）
 - `POST /user/orders` 下单（扣库存，事务）→ `POST /user/orders/:id/pay`（模拟支付）
 - `GET /user/orders?status`、`GET /user/orders/:id`
+- 用户列表另支持 `tab=all|ongoing|unreviewed|refund`：进行中包括待支付到待自提；待评价仅已完成且无评价；退款仅退款中。与 status 条件取交集后统一分页和计数；列表及详情返回 `review: { id } | null`。
 - `POST /user/orders/:id/cancel`、`POST /user/orders/:id/refund`、`POST /user/orders/:id/review`
 
 商家 `merchant`

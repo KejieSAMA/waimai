@@ -1,4 +1,5 @@
 export * from "./device";
+export * from "./userOrders";
 
 export type Role = "USER" | "MERCHANT" | "ADMIN";
 export type Tone =
@@ -101,6 +102,7 @@ export interface OrderItem {
   spec?: string | null;
 }
 export interface Order {
+  review?: { id: string } | null;
   id: string;
   orderNo: string;
   serialOfDay: number;

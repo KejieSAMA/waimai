@@ -20,7 +20,11 @@ import { recordAudit } from "../audit/service";
 import { orderSchema } from "./schema";
 import { notifyOrder } from "./events";
 type OrderInput = z.infer<typeof orderSchema>;
-const include = { items: true, store: true } satisfies Prisma.OrderInclude;
+const include = {
+  items: true,
+  store: true,
+  review: { select: { id: true } },
+} satisfies Prisma.OrderInclude;
 export async function quoteOrder(
   body: unknown,
   tx: Prisma.TransactionClient = db,
@@ -156,11 +160,36 @@ export async function listOrders(
   disputes = false,
 ) {
   const p = pagination(query);
+  const tab = z
+    .enum(["all", "ongoing", "unreviewed", "refund"])
+    .default("all")
+    .parse(query.tab);
+  const userFilter: Prisma.OrderWhereInput =
+    actor.role !== "USER"
+      ? {}
+      : tab === "ongoing"
+        ? {
+            status: {
+              in: [
+                "PENDING_PAY",
+                "PENDING",
+                "PREPARING",
+                "DELIVERING",
+                "PICKUP",
+              ],
+            },
+          }
+        : tab === "unreviewed"
+          ? { status: "DONE", review: { is: null } }
+          : tab === "refund"
+            ? { status: "REFUNDING" }
+            : {};
   const where: Prisma.OrderWhereInput = {
     ...scopedWhere(actor, storeId),
     ...(disputes ? { disputed: true, status: "REFUNDING" } : {}),
     ...(p.status ? { status: p.status } : {}),
     ...(p.keyword ? { orderNo: { contains: p.keyword } } : {}),
+    AND: userFilter,
   };
   const [list, total] = await Promise.all([
     db.order.findMany({

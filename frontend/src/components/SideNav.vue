@@ -39,6 +39,8 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
           v-for="it in group.items"
           :key="it.key"
           type="button"
+          :disabled="it.disabled"
+          :title="it.disabled ? '暂未开放' : it.label"
           :class="['xz-sidenav__item', { 'is-active': modelValue === it.key }]"
           :aria-current="modelValue === it.key ? 'page' : undefined"
           @click="emit('update:modelValue', it.key)"
@@ -58,6 +60,10 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
   </ScrollArea>
 </template>
 <style scoped>
+.xz-sidenav__item:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+}
 .xz-sidenav--admin {
   --scrollbar-ink: var(--on-chrome-muted);
 }

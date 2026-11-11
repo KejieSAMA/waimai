@@ -1,44 +1,35 @@
 <script setup lang="ts">
-import { Button, OrderCard, Tabs } from "@waimai/ui";
-import { onMounted, ref, watch } from "vue";
+import { Button, Dialog, OrderCard, Tabs } from "@waimai/ui";
 import { useRouter } from "vue-router";
-import { type Order, type Page, orderStatuses, time } from "@waimai/shared";
+import { orderTime, userOrderTabs, useUserOrders } from "@waimai/shared";
 import { api } from "../../../common/api";
-import { run } from "../../../common/feedback";
-const router = useRouter(),
-  status = ref(""),
-  list = ref<Order[]>([]),
-  page = ref(1),
-  total = ref(0);
-async function load() {
-  await run(async () => {
-    const result = await api<Page<Order>>(
-      `/user/orders?status=${status.value}&page=${page.value}`,
-    );
-    list.value = result.list;
-    total.value = result.total;
-  });
-}
-onMounted(load);
-watch(status, () => {
-  page.value = 1;
-  void load();
-});
+import { useCart } from "../../../common/cart";
+const router = useRouter();
+
+const {
+  tab,
+  list,
+  page,
+  total,
+  pending,
+  error,
+  replacement,
+  reordering,
+  load,
+  reorder,
+  actions,
+} = useUserOrders(api, useCart(), (path) => router.push(path), true);
 </script>
 <template>
-  <div class="app-stack">
-    <h1 class="title-lg">我的订单</h1>
-    <Tabs
-      v-model="status"
-      :items="[
-        { key: '', label: '全部订单' },
-        ...Object.entries(orderStatuses).map(([key, s]) => ({
-          key,
-          label: s.label,
-        })),
-      ]"
-    />
-    <div class="xz-list">
+  <section class="app-user-orders" aria-label="订单">
+    <Tabs v-model="tab" :items="userOrderTabs" />
+    <div class="xz-list app-user-orders__list" :aria-busy="pending">
+      <div v-if="error" class="app-error body-sm" role="alert">
+        {{ error
+        }}<Button variant="text" size="sm" :disabled="pending" @click="load"
+          >重试</Button
+        >
+      </div>
       <OrderCard
         v-for="order in list"
         :key="order.id"
@@ -48,32 +39,44 @@ watch(status, () => {
           order.items.map((it) => ({ name: it.nameSnapshot, qty: it.qty }))
         "
         :total="order.payCents / 100"
-        :time="time(order.createdAt)"
-        :actions="[
-          {
-            label: '查看订单',
-            onClick: () => router.push('/orders/' + order.id),
-          },
-        ]"
+        :time="orderTime(order.createdAt)"
+        :actions="actions(order)"
       />
-    </div>
-    <p v-if="!list.length" class="app-empty body">暂无订单</p>
-    <div class="app-row">
+      <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
+      <p v-else-if="!list.length && !error" class="app-empty body">暂无订单</p>
       <Button
-        :disabled="page <= 1"
-        @click="
-          page--;
-          load();
-        "
-        >上一页</Button
-      ><Button
-        :disabled="page * 20 >= total"
-        @click="
-          page++;
-          load();
-        "
-        >下一页</Button
+        v-if="list.length < total && !error"
+        variant="text"
+        :disabled="pending"
+        @click="page++"
+        >加载更多</Button
       >
     </div>
-  </div>
+    <Dialog
+      :open="!!replacement"
+      title="重新选购"
+      @close="replacement = undefined"
+    >
+      再来一单将替换当前购物车中的商品，是否继续？
+      <p v-if="error" class="app-error body-sm" role="alert">{{ error }}</p>
+      <template #actions
+        ><Button
+          variant="outline"
+          :disabled="reordering"
+          @click="replacement = undefined"
+          >保留购物车</Button
+        ><Button
+          :disabled="reordering"
+          @click="replacement && reorder(replacement)"
+          >重新选购</Button
+        ></template
+      >
+    </Dialog>
+  </section>
 </template>
+<style scoped>
+.app-user-orders__list {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+</style>

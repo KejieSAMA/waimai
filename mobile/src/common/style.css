@@ -267,6 +267,9 @@ p {
 .app-content {
   padding: var(--space-3);
 }
+.app-content--orders {
+  padding: 0;
+}
 .app-grid {
   gap: var(--space-2);
 }

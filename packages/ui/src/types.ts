@@ -31,6 +31,7 @@ export type IconName =
   | "sun"
   | "moon";
 export interface NavItem {
+  disabled?: boolean;
   key: string;
   label: string;
   icon?: IconName;

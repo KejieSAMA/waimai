@@ -436,4 +436,82 @@ describe("订单金额、库存和权限", () => {
         );
     await db.product.update({ where: { id: productId }, data: { stock: 100 } });
   });
+  it("用户订单按设计分组筛选，待评价排除已评价，分页总数与归属一致", async () => {
+    const customer = await db.user.create({
+      data: { phone: "13922223333", name: "分组测试", role: "USER" },
+    });
+    const actor = { id: customer.id, role: "USER" };
+    const fixtures: { id: string }[] = [];
+    for (const [i, status] of [
+      "PENDING_PAY",
+      "PENDING",
+      "PREPARING",
+      "DELIVERING",
+      "PICKUP",
+      "DONE",
+      "DONE",
+      "REFUNDING",
+      "CANCELLED",
+    ].entries()) {
+      fixtures.push(
+        await db.order.create({
+          data: {
+            orderNo: "filter-test-" + i,
+            serialOfDay: i + 1,
+            userId: customer.id,
+            storeId,
+            type: "PICKUP",
+            status,
+            itemsCents: 2800,
+            deliveryFeeCents: 0,
+            discountCents: 0,
+            payCents: 2800,
+            ...(i === 6
+              ? {
+                  review: {
+                    create: {
+                      userId: customer.id,
+                      storeId,
+                      rating: 5,
+                      content: "已评价",
+                    },
+                  },
+                }
+              : {}),
+          },
+        }),
+      );
+    }
+    const ongoing = await orderService.listOrders(actor, {
+      tab: "ongoing",
+      pageSize: 2,
+    });
+    expect(ongoing.total).toBe(5);
+    expect(ongoing.list).toHaveLength(2);
+    expect(ongoing.list.every((order) => order.userId === customer.id)).toBe(
+      true,
+    );
+    const unreviewed = await orderService.listOrders(actor, {
+      tab: "unreviewed",
+    });
+    expect(unreviewed.total).toBe(1);
+    expect(unreviewed.list[0].id).toBe(fixtures[5].id);
+    expect(unreviewed.list[0].review).toBeNull();
+    const refund = await orderService.listOrders(actor, { tab: "refund" });
+    expect(refund.total).toBe(1);
+    expect(refund.list[0].id).toBe(fixtures[7].id);
+    const all = await orderService.listOrders(actor, { tab: "all" });
+    expect(all.total).toBe(9);
+    expect(
+      all.list.find((order) => order.id === fixtures[6].id)?.review,
+    ).toBeTruthy();
+    const combined = await orderService.listOrders(actor, {
+      tab: "ongoing",
+      status: "DONE",
+    });
+    expect(combined.total).toBe(0);
+    await expect(
+      orderService.listOrders(actor, { tab: "invalid" }),
+    ).rejects.toThrow();
+  });
 });

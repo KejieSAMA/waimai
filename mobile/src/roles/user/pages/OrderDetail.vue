@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button, Input, OrderCard, Select, Tag } from "@waimai/ui";
-import { onMounted, ref } from "vue";
+import { nextTick, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { type Order, orderStatuses, money, time } from "@waimai/shared";
 import { api } from "../../../common/api";
@@ -13,6 +13,11 @@ const route = useRoute(),
   reviewed = ref(false);
 async function load() {
   order.value = await api<Order>("/user/orders/" + route.params.id);
+  reviewed.value = !!order.value.review;
+  if (route.hash === "#review") {
+    await nextTick();
+    document.getElementById("review")?.scrollIntoView({ block: "start" });
+  }
 }
 onMounted(() => run(load));
 async function act(action: string) {
@@ -113,6 +118,7 @@ async function review() {
       >
     </div>
     <form
+      id="review"
       v-if="order.status === 'DONE' && !reviewed"
       class="app-card app-form"
       @submit.prevent="review"
