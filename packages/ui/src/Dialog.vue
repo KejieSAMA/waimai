@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import Button from "./Button.vue";
-import { nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { dialogPresentationKey } from "./dialogContext";
+import { dialogStack } from "./overlayStack";
 import type { Action } from "@waimai/shared";
 import ScrollArea from "./ScrollArea.vue";
 import { useOverlayScrollbars } from "./scrollbarContext";
@@ -12,17 +14,27 @@ const props = withDefaults(
     actions?: Action[];
     variant?: "center" | "sheet" | "modal" | "drawer";
   }>(),
-  { open: false, variant: "center" },
+  { open: false },
 );
 const emit = defineEmits<{ close: [] }>();
+const presentation = inject(dialogPresentationKey, "center");
+const variant = computed(() => props.variant ?? presentation);
 const panel = ref<HTMLElement>();
+const key = Symbol("dialog");
+const depth = ref(0);
 let previous: HTMLElement | null = null;
 function keydown(event: KeyboardEvent) {
-  if (event.key === "Escape") emit("close");
+  if (!dialogStack.isTop(key)) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    emit("close");
+    return;
+  }
   if (event.key !== "Tab") return;
   const nodes = Array.from(
     panel.value?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled),input,select,textarea,a[href],[tabindex="0"]',
+      'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
     ) ?? [],
   ).filter((node) => node.getClientRects().length > 0);
   if (!nodes.length) {
@@ -31,7 +43,10 @@ function keydown(event: KeyboardEvent) {
   }
   const first = nodes[0],
     last = nodes[nodes.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
+  if (
+    event.shiftKey &&
+    (document.activeElement === first || document.activeElement === panel.value)
+  ) {
     event.preventDefault();
     last.focus();
   } else if (!event.shiftKey && document.activeElement === last) {
@@ -39,28 +54,51 @@ function keydown(event: KeyboardEvent) {
     first.focus();
   }
 }
+function close() {
+  if (dialogStack.isTop(key)) emit("close");
+}
+function containFocus(event: FocusEvent) {
+  if (!dialogStack.isTop(key) || !props.open || !panel.value) return;
+  const target = event.target as HTMLElement | null;
+  if (
+    target &&
+    !panel.value.contains(target) &&
+    !target.closest(".xz-select__menu")
+  )
+    panel.value.focus({ preventScroll: true });
+}
+function cleanup() {
+  const wasTop = dialogStack.isTop(key);
+  dialogStack.remove(key);
+  document.removeEventListener("keydown", keydown);
+  document.removeEventListener("focusin", containFocus);
+  if (wasTop && previous?.isConnected) previous.focus({ preventScroll: true });
+}
 watch(
   () => props.open,
   async (open) => {
     if (open) {
       previous = document.activeElement as HTMLElement;
+      depth.value = dialogStack.size;
+      dialogStack.push(key);
       document.addEventListener("keydown", keydown);
+      document.addEventListener("focusin", containFocus);
       await nextTick();
-      panel.value?.focus();
-    } else {
-      document.removeEventListener("keydown", keydown);
-      previous?.focus();
-    }
+      if (props.open && dialogStack.isTop(key))
+        panel.value?.focus({ preventScroll: true });
+    } else cleanup();
   },
+  { immediate: true },
 );
-onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
+onBeforeUnmount(cleanup);
 </script>
 <template>
   <Teleport to="body"
     ><div
       v-if="open"
       :class="['xz-dialog-scrim', 'xz-dialog-scrim--' + variant]"
-      @click.self="emit('close')"
+      :style="{ zIndex: 50 + depth * 2 }"
+      @click.self="close"
     >
       <div
         ref="panel"
@@ -80,7 +118,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
             variant="text"
             aria-label="关闭"
             icon="close"
-            @click="emit('close')"
+            @click="close"
           />
         </div>
         <h2 v-else-if="title" class="xz-dialog__title title">{{ title }}</h2>
@@ -96,7 +134,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
             ><Button
               v-for="(a, i) in actions"
               :key="i"
-              :variant="a.variant || 'outline'"
+              :variant="
+                a.variant || (i === actions!.length - 1 ? 'primary' : 'outline')
+              "
+              :size="variant === 'sheet' ? 'lg' : 'md'"
+              :block="variant === 'center' || variant === 'sheet'"
               @click="a.onClick?.()"
               >{{ a.label }}</Button
             ></slot
@@ -107,22 +149,33 @@ onBeforeUnmount(() => document.removeEventListener("keydown", keydown));
   >
 </template>
 <style scoped>
-.xz-dialog--overlay {
+.xz-dialog-scrim {
+  position: fixed;
+}
+.xz-dialog {
   display: flex;
   flex-direction: column;
   max-height: calc(100dvh - var(--space-8));
   min-height: 0;
 }
-.xz-dialog--overlay.xz-dialog--drawer {
+.xz-dialog--drawer {
   max-height: 100dvh;
 }
-.xz-dialog--overlay > .xz-dialog__head,
-.xz-dialog--overlay > .xz-dialog__title,
-.xz-dialog--overlay > .xz-dialog__actions {
+.xz-dialog > .xz-dialog__head,
+.xz-dialog > .xz-dialog__title,
+.xz-dialog > .xz-dialog__actions {
   flex: none;
 }
-.xz-dialog--overlay > .xz-dialog__body {
+.xz-dialog > .xz-dialog__body {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+}
+.xz-dialog--sheet {
+  max-height: calc(100dvh - var(--space-6));
+}
+.xz-dialog--center .xz-dialog__actions > *,
+.xz-dialog--sheet .xz-dialog__actions > * {
+  flex: 1;
 }
 </style>

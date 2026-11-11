@@ -3,7 +3,11 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import { makeRouter } from "./router";
 import { startDeviceRouting } from "./common/device";
-import { overlayScrollbarsKey, selectPresentationKey } from "@waimai/ui";
+import {
+  overlayScrollbarsKey,
+  selectPresentationKey,
+  dialogPresentationKey,
+} from "@waimai/ui";
 import "@waimai/tokens/style.css";
 import "./common/style.css";
 const deviceRouting = startDeviceRouting();
@@ -13,6 +17,7 @@ if (!deviceRouting.redirected) {
   app.onUnmount(deviceRouting.stop);
   app.provide(overlayScrollbarsKey, true);
   app.provide(selectPresentationKey, "dropdown");
+  app.provide(dialogPresentationKey, "modal");
   app.use(createPinia());
   app.use(makeRouter());
   app.mount("#app");

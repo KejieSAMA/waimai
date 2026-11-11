@@ -9,6 +9,7 @@ const props = withDefaults(
     modelValue?: string;
     defaultValue?: string;
     variant?: "line" | "chip";
+    wrap?: boolean;
   }>(),
   { variant: "line" },
 );
@@ -22,9 +23,10 @@ const value = useValue(
 </script>
 <template>
   <ScrollArea
-    :class="['xz-tabs', 'xz-tabs--' + variant]"
+    :class="['xz-tabs', 'xz-tabs--' + variant, { 'xz-tabs--wrap': wrap }]"
     role="tablist"
     axis="x"
+    :disabled="wrap"
     label="页面选项"
     content-class="xz-tabs__items"
   >
@@ -54,5 +56,12 @@ const value = useValue(
 :deep(.xz-tabs__items) {
   display: flex;
   min-width: 100%;
+}
+.xz-tabs--chip :deep(.xz-tabs__items) {
+  gap: var(--space-2);
+}
+.xz-tabs--wrap {
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 </style>

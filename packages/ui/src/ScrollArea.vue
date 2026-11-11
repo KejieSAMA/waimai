@@ -11,8 +11,9 @@ withDefaults(
     contentClass?: string;
     disabled?: boolean;
     contain?: boolean;
+    scrollbarPlacement?: "inside" | "outside";
   }>(),
-  { as: "div", axis: "y", label: "滚动内容" },
+  { as: "div", axis: "y", label: "滚动内容", scrollbarPlacement: "inside" },
 );
 const overlay = useOverlayScrollbars();
 const root = ref<HTMLElement>(),
@@ -31,7 +32,11 @@ defineExpose({
     ref="root"
     :class="
       overlay && !disabled
-        ? ['xz-scroll-area', 'xz-scroll-area--' + axis]
+        ? [
+            'xz-scroll-area',
+            'xz-scroll-area--' + axis,
+            { 'xz-scroll-area--outside': scrollbarPlacement === 'outside' },
+          ]
         : undefined
     "
   >
@@ -53,6 +58,7 @@ defineExpose({
         :content="content"
         :axis="axis"
         :label="label"
+        :placement="scrollbarPlacement"
       />
     </div>
     <slot v-else />
@@ -75,6 +81,9 @@ defineExpose({
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+}
+.xz-scroll-area--outside {
+  overflow: visible;
 }
 .xz-scroll-area__viewport {
   flex: 1 1 auto;

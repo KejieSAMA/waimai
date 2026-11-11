@@ -44,7 +44,7 @@ function toggle(id: string) {
     </div>
     <div v-if="selectable && selected.length" class="xz-table__batch body-md">
       <span class="xz-table__count">已选 {{ selected.length }} 项</span
-      ><Button
+      ><slot name="batchActions" /><Button
         v-for="a in batchActions"
         :key="a.label"
         size="sm"

@@ -62,6 +62,7 @@ const emit = defineEmits<{
         class="xz-shell__content"
         label="后台页面内容"
         axis="both"
+        scrollbar-placement="outside"
         ><slot
       /></ScrollArea>
     </div>

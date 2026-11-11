@@ -6,6 +6,17 @@ export interface ScrollbarMetrics {
   travel: number;
 }
 
+// The caller selects an existing gutter; placement never changes viewport size.
+export function scrollbarTrackOffset(
+  placement: "inside" | "outside",
+  gutter: number,
+  trackWidth: number,
+): number {
+  if (placement === "inside") return 0;
+  const width = Number.isFinite(trackWidth) ? Math.max(0, trackWidth) : 12;
+  return -Math.max(width, Number.isFinite(gutter) ? gutter : 16);
+}
+
 export function scrollbarMetrics(
   viewportSize: number,
   contentSize: number,

@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { scrollbarMetrics, scrollOffsetFromThumb } from "./scrollbar";
+import {
+  scrollbarMetrics,
+  scrollOffsetFromThumb,
+  scrollbarTrackOffset,
+} from "./scrollbar";
 
 describe("覆盖式滚动条几何计算", () => {
+  it("外置轨道完整进入已有间隙，内外置不改变滚动映射", () => {
+    expect(scrollbarTrackOffset("inside", 16, 12)).toBe(0);
+    expect(scrollbarTrackOffset("outside", 16, 12)).toBe(-16);
+    expect(scrollbarTrackOffset("outside", 8, 12)).toBe(-12);
+    expect(scrollbarTrackOffset("outside", NaN, NaN)).toBe(-16);
+    const metrics = scrollbarMetrics(200, 800, 300);
+    for (const placement of ["inside", "outside"] as const) {
+      const right = scrollbarTrackOffset(placement, 16, 12);
+      if (placement === "outside")
+        expect(-right - 12).toBeGreaterThanOrEqual(0);
+      expect(scrollOffsetFromThumb(metrics.thumbOffset, metrics)).toBe(300);
+    }
+  });
   it("内容未溢出或容器不可见时隐藏滑块", () => {
     for (const [viewport, content, track] of [
       [100, 80, 100],

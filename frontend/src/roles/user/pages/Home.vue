@@ -38,6 +38,7 @@ watch([category, sort], () => {
     <Tabs
       v-model="category"
       variant="chip"
+      wrap
       class="ds-chips"
       :items="[
         { key: '', label: '全部' },

@@ -408,6 +408,9 @@ body,
 .app-stack > .xz-pagehead {
   margin-bottom: 0;
 }
+.app-stack > .xz-filterbar {
+  margin-bottom: 0;
+}
 .ds-doc .app-image {
   max-height: var(--size-thumb);
   width: 100%;

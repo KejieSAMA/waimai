@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
-import { scrollbarMetrics, scrollOffsetFromThumb } from "./scrollbar";
+import {
+  scrollbarMetrics,
+  scrollOffsetFromThumb,
+  scrollbarTrackOffset,
+} from "./scrollbar";
 import { useOverlayScrollbars } from "./scrollbarContext";
 
 type Axis = "x" | "y";
@@ -10,13 +14,15 @@ const props = withDefaults(
     content?: HTMLElement | null;
     axis?: Axis | "both";
     label?: string;
+    placement?: "inside" | "outside";
   }>(),
-  { axis: "y", label: "滚动内容" },
+  { axis: "y", label: "滚动内容", placement: "inside" },
 );
 const enabled = useOverlayScrollbars();
 const targetId = `xz-scroll-${useId()}`;
 const x = ref(scrollbarMetrics(0, 0, 0));
 const y = ref(scrollbarMetrics(0, 0, 0));
+const trackRight = ref(0);
 const tracks = { x: ref<HTMLElement>(), y: ref<HTMLElement>() };
 const axes = computed<Axis[]>(() =>
   props.axis === "both" ? ["x", "y"] : [props.axis],
@@ -36,6 +42,12 @@ function measure() {
   frame = undefined;
   const target = props.target;
   if (!target || !enabled) return;
+  const styles = getComputedStyle(target);
+  trackRight.value = scrollbarTrackOffset(
+    props.placement,
+    parseFloat(styles.getPropertyValue("--space-4")),
+    parseFloat(styles.getPropertyValue("--space-3")),
+  );
   x.value = scrollbarMetrics(
     target.clientWidth,
     target.scrollWidth,
@@ -185,7 +197,12 @@ watch(
   { immediate: true, flush: "post" },
 );
 watch(
-  [() => x.value.visible, () => y.value.visible, () => props.axis],
+  [
+    () => x.value.visible,
+    () => y.value.visible,
+    () => props.axis,
+    () => props.placement,
+  ],
   refresh,
   {
     flush: "post",
@@ -210,6 +227,7 @@ defineExpose({ refresh });
         }
       "
       v-show="metrics[axis].visible"
+      :style="axis === 'y' ? { right: trackRight + 'px' } : undefined"
       :class="[
         'xz-scrollbar',
         'xz-scrollbar--' + axis,
