@@ -22,10 +22,8 @@ import {
 import FilterBar from "../../../components/FilterBar.vue";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
-import PageHeader from "../../../components/PageHeader.vue";
 import Pagination from "../../../components/Pagination.vue";
 import { api } from "../../../common/api";
-import { run, busy } from "../../../common/feedback";
 const router = useRouter();
 const {
   list,
@@ -52,23 +50,9 @@ const {
 const locked = computed(
   () => loading.value || mutating.value || store.value?.status === "FROZEN",
 );
-const categoryDialog = ref(false),
-  newCategory = ref("");
 const pending = ref<Product>(),
   stockIds = ref<string[]>([]),
   batchStock = ref("0");
-async function addCategory() {
-  await run(async () => {
-    const result = await api<{ id: string; name: string; sort: number }>(
-      "/merchant/dish-categories",
-      { method: "POST", body: { name: newCategory.value } },
-      "MERCHANT",
-    );
-    categories.value.push(result);
-    newCategory.value = "";
-    categoryDialog.value = false;
-  });
-}
 function change(product: Product, listed: boolean) {
   if (!listed) pending.value = product;
   else void batch("on", [product.id]);
@@ -94,21 +78,6 @@ const columns = [
 <template>
   <BackofficePage :body-scroll="false">
     <template #header>
-      <PageHeader title="商品管理"
-        ><template #actions
-          ><Button
-            variant="outline"
-            :disabled="locked"
-            @click="categoryDialog = true"
-            >分类管理</Button
-          ><Button
-            icon="plus"
-            :disabled="locked"
-            @click="router.push('/merchant/products/new')"
-            >新增商品</Button
-          ></template
-        ></PageHeader
-      >
       <Tabs
         v-model="status"
         :items="[
@@ -117,7 +86,7 @@ const columns = [
           { key: 'REVIEW', label: '审核中', count: counts.REVIEW },
         ]"
       />
-      <FilterBar @search="apply()" @reset="apply(true)">
+      <FilterBar :show-reset="false" @search="apply()">
         <SearchBar
           v-model="filters.keyword"
           placeholder="搜索商品名称"
@@ -140,6 +109,14 @@ const columns = [
             { value: 'soldout', label: '已售罄' },
           ]"
         />
+        <template #actions
+          ><Button
+            icon="plus"
+            :disabled="locked"
+            @click="router.push('/merchant/products/new')"
+            >新增商品</Button
+          ></template
+        >
       </FilterBar>
       <div v-if="error" class="app-error body-sm" role="alert">
         {{ error
@@ -233,21 +210,6 @@ const columns = [
         loading ? "加载中" : error ? "商品加载失败" : "暂无商品"
       }}</template>
     </DataTable>
-    <Dialog
-      :open="categoryDialog"
-      title="分类管理"
-      @close="categoryDialog = false"
-      ><p class="body-sm app-muted">
-        {{ categories.map((c) => c.name).join(" · ") }}
-      </p>
-      <Input v-model="newCategory" label="新增分类" /><template #actions
-        ><Button
-          :disabled="busy || locked || !newCategory.trim()"
-          @click="addCategory"
-          >新增分类</Button
-        ></template
-      ></Dialog
-    >
     <Dialog
       :open="!!pending"
       title="确认下架"
