@@ -69,7 +69,15 @@ onMounted(() =>
     }
   }),
 );
-const categoryDialog = ref(false);
+const categoryDialog = ref(false),
+  categorySaving = ref(false),
+  categoryError = ref("");
+function openCategory() {
+  if (locked.value) return;
+  newCategory.value = "";
+  categoryError.value = "";
+  categoryDialog.value = true;
+}
 const images = computed<string[]>(() => JSON.parse(form.images));
 const locked = computed(() => busy.value || store.value?.status === "FROZEN");
 async function image(files: File[]) {
@@ -86,17 +94,30 @@ function removeImage(index: number) {
   form.images = JSON.stringify(images.value.filter((_, i) => i !== index));
 }
 async function addCategory() {
-  await run(async () => {
+  if (locked.value || categorySaving.value) return;
+  const name = newCategory.value.trim();
+  if (!name || name.length > 40) {
+    categoryError.value = "请输入 1–40 个字的分类名称";
+    return;
+  }
+  categorySaving.value = true;
+  categoryError.value = "";
+  try {
     const c = await api<Category>(
       "/merchant/dish-categories",
-      { method: "POST", body: { name: newCategory.value } },
+      { method: "POST", body: { name } },
       "MERCHANT",
     );
     categories.value.push(c);
     form.dishCategoryId = c.id;
     newCategory.value = "";
     categoryDialog.value = false;
-  });
+  } catch (cause) {
+    categoryError.value =
+      cause instanceof Error ? cause.message : "新增失败，请重试";
+  } finally {
+    categorySaving.value = false;
+  }
 }
 async function save(listed = form.listed) {
   await run(async () => {
@@ -245,25 +266,13 @@ async function save(listed = form.listed) {
                 min="0"
               />
               <p class="body-sm app-muted">保存后按平台审核规则处理上架</p>
-              <Button variant="text" @click="categoryDialog = true"
+              <Button variant="text" :disabled="locked" @click="openCategory"
                 >新增分类</Button
               >
             </div>
           </section>
         </div>
       </div>
-      <Dialog
-        :open="categoryDialog"
-        title="新增分类"
-        @close="categoryDialog = false"
-        ><Input v-model="newCategory" label="分类名称" /><template #actions
-          ><Button
-            :disabled="locked || !newCategory.trim()"
-            @click="addCategory"
-            >新增分类</Button
-          ></template
-        ></Dialog
-      >
     </form>
     <template #footer
       ><div class="app-row bo-product-actions">
@@ -276,10 +285,54 @@ async function save(listed = form.listed) {
         }}</Button>
       </div></template
     >
+    <template #overlay>
+      <Dialog
+        :open="categoryDialog"
+        title="新增分类"
+        variant="modal"
+        :close-disabled="categorySaving"
+        @close="categoryDialog = false"
+      >
+        <form
+          id="product-category-form"
+          class="app-stack category-form"
+          @submit.prevent="addCategory"
+        >
+          <p class="body-sm app-muted">创建分类后，可在商品编辑中直接选择。</p>
+          <Input
+            v-model="newCategory"
+            label="分类名称"
+            placeholder="例如：招牌面、小菜、饮品"
+            hint="最多 40 个字"
+            maxlength="40"
+            required
+            autofocus
+            :disabled="categorySaving"
+            :error="categoryError"
+          />
+        </form>
+        <template #actions
+          ><Button
+            variant="outline"
+            :disabled="categorySaving"
+            @click="categoryDialog = false"
+            >取消</Button
+          ><Button
+            type="submit"
+            form="product-category-form"
+            :disabled="locked || categorySaving || !newCategory.trim()"
+            >{{ categorySaving ? "新增中" : "新增分类" }}</Button
+          ></template
+        >
+      </Dialog>
+    </template>
   </BackofficePage>
 </template>
 
 <style scoped>
+.category-form p {
+  margin: 0;
+}
 .bo-product-actions {
   margin-left: auto;
 }

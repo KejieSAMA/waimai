@@ -13,6 +13,7 @@ const props = withDefaults(
     title?: string;
     actions?: Action[];
     variant?: "center" | "sheet" | "modal" | "drawer";
+    closeDisabled?: boolean;
   }>(),
   { open: false },
 );
@@ -28,7 +29,7 @@ function keydown(event: KeyboardEvent) {
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopImmediatePropagation();
-    emit("close");
+    close();
     return;
   }
   if (event.key !== "Tab") return;
@@ -55,7 +56,7 @@ function keydown(event: KeyboardEvent) {
   }
 }
 function close() {
-  if (dialogStack.isTop(key)) emit("close");
+  if (!props.closeDisabled && dialogStack.isTop(key)) emit("close");
 }
 function containFocus(event: FocusEvent) {
   if (!dialogStack.isTop(key) || !props.open || !panel.value) return;
@@ -84,8 +85,13 @@ watch(
       document.addEventListener("keydown", keydown);
       document.addEventListener("focusin", containFocus);
       await nextTick();
-      if (props.open && dialogStack.isTop(key))
-        panel.value?.focus({ preventScroll: true });
+      if (props.open && dialogStack.isTop(key)) {
+        const target =
+          panel.value?.querySelector<HTMLElement>(
+            "[autofocus]:not(:disabled)",
+          ) ?? panel.value;
+        target?.focus({ preventScroll: true });
+      }
     } else cleanup();
   },
   { immediate: true },
@@ -107,15 +113,22 @@ onBeforeUnmount(cleanup);
           'xz-dialog',
           'xz-dialog--' + variant,
           { 'xz-dialog--overlay': overlay },
+          { 'xz-desk': overlay && variant === 'modal' },
         ]"
         role="dialog"
         aria-modal="true"
         :aria-label="title"
       >
-        <div v-if="variant === 'drawer'" class="xz-dialog__head">
+        <div
+          v-if="variant === 'drawer' || variant === 'modal'"
+          class="xz-dialog__head"
+        >
           <h2 class="xz-dialog__title title">{{ title }}</h2>
           <Button
             variant="text"
+            class="xz-dialog__close"
+            :size="variant === 'modal' ? 'sm' : 'md'"
+            :disabled="closeDisabled"
             aria-label="关闭"
             icon="close"
             @click="close"
@@ -127,8 +140,8 @@ onBeforeUnmount(cleanup);
           axis="both"
           :label="title || '弹窗内容'"
           contain
-          ><slot
-        /></ScrollArea>
+          ><div class="xz-dialog__content"><slot /></div
+        ></ScrollArea>
         <div v-if="actions || $slots.actions" class="xz-dialog__actions">
           <slot name="actions"
             ><Button
@@ -170,6 +183,41 @@ onBeforeUnmount(cleanup);
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+.xz-dialog--overlay > .xz-dialog__body {
+  overflow: hidden;
+}
+.xz-dialog__content {
+  padding: var(--space-1);
+}
+.xz-dialog--modal {
+  padding: 0;
+  overflow: hidden;
+}
+.xz-dialog--modal > .xz-dialog__head {
+  height: auto;
+  padding: var(--space-5) var(--space-6) var(--space-3);
+  gap: var(--space-4);
+  border-bottom: 0;
+}
+.xz-dialog--modal .xz-dialog__title {
+  margin: 0;
+}
+.xz-dialog--modal .xz-dialog__close {
+  flex: none;
+  width: var(--size-button-sm);
+  height: var(--size-button-sm);
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+}
+.xz-dialog--modal .xz-dialog__content {
+  padding: var(--space-3) var(--space-6) var(--space-5);
+}
+.xz-dialog--modal > .xz-dialog__actions {
+  margin: 0;
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--line);
 }
 .xz-dialog--sheet {
   max-height: calc(100dvh - var(--space-6));
