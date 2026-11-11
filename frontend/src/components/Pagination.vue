@@ -54,3 +54,9 @@ const visible = computed(() =>
     </button>
   </nav>
 </template>
+
+<style scoped>
+.xz-pager:not(.app-home-pagination) {
+  justify-content: flex-end;
+}
+</style>

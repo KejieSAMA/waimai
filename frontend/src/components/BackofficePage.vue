@@ -82,9 +82,9 @@ defineExpose({ scrollToTop: () => scroll.value?.scrollTo({ top: 0 }) });
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: var(--space-3);
-  padding: var(--space-3) 0;
+  padding: var(--space-3) 0 0;
   border-top: 1px solid var(--line);
   background: var(--surface);
 }

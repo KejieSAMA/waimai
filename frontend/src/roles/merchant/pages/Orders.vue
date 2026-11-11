@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  Button,
-  Dialog,
-  Input,
-  SearchBar,
-  Switch,
-  Tabs,
-  Tag,
-  Price,
-} from "@waimai/ui";
+import { Button, Dialog, Input, SearchBar, Tabs, Tag, Price } from "@waimai/ui";
 import {
   money,
   merchantOrderContact,
@@ -20,7 +11,7 @@ import {
   useMerchantOrders,
 } from "@waimai/shared";
 import BackofficePage from "../../../components/BackofficePage.vue";
-import PageHeader from "../../../components/PageHeader.vue";
+import DataTable from "../../../components/DataTable.vue";
 import Pagination from "../../../components/Pagination.vue";
 import InfoList from "../../../components/InfoList.vue";
 import OrderActions from "../components/OrderActions.vue";
@@ -46,7 +37,32 @@ const orders = reactive(
       }),
   ),
 );
-const stream = useOrderStream(orders.refresh);
+useOrderStream(orders.refresh, { autoConnect: true });
+const columns = [
+  {
+    key: "index",
+    title: "序号",
+    width: "calc(var(--space-4) * 4)",
+    num: true,
+    align: "right" as const,
+  },
+  { key: "goods", title: "商品与备注" },
+  { key: "createdAt", title: "下单时间", width: "calc(var(--space-6) * 5)" },
+  {
+    key: "payCents",
+    title: "实付",
+    num: true,
+    align: "right" as const,
+    width: "calc(var(--space-4) * 5)",
+  },
+  { key: "status", title: "状态", width: "calc(var(--space-6) * 4)" },
+  {
+    key: "actions",
+    title: "操作",
+    align: "right" as const,
+    width: "calc(var(--space-6) * 8)",
+  },
+];
 const locked = computed(
   () => orders.mutating || merchantStore.value?.status === "FROZEN",
 );
@@ -59,25 +75,8 @@ const detailAddress = computed(() => {
 });
 </script>
 <template>
-  <BackofficePage
-    label="订单列表"
-    :reset-key="query.status + ':' + query.keyword + ':' + query.page"
-  >
+  <BackofficePage label="订单列表" :body-scroll="false">
     <template #header>
-      <PageHeader title="订单" subtitle="接单、出餐与退款处理"
-        ><template #actions
-          ><Switch
-            label="开启提醒"
-            :model-value="stream.enabled.value"
-            @update:model-value="stream.toggle"
-          /><Button
-            variant="outline"
-            :disabled="orders.loading || orders.mutating"
-            @click="orders.refresh"
-            >刷新订单</Button
-          ></template
-        ></PageHeader
-      >
       <Tabs
         :model-value="query.status"
         :items="orders.tabs"
@@ -105,66 +104,70 @@ const detailAddress = computed(() => {
         {{ orders.actionError }}
       </p>
     </template>
-    <div class="order-list" :aria-busy="orders.loading">
-      <article v-for="order in orders.list" :key="order.id" class="order-row">
-        <div class="order-row__identity">
-          <span class="title-sm">#{{ order.serialOfDay }}</span
-          ><span class="caption app-muted">{{ order.orderNo }}</span
-          ><span class="body-sm">{{ merchantOrderContact(order) }}</span>
-        </div>
-        <div class="order-row__goods">
-          <p
-            class="title-sm"
-            :title="order.items.map((item) => item.nameSnapshot).join('、')"
-          >
-            {{
-              order.items
+    <DataTable
+      fill
+      class="merchant-order-table"
+      :rows="orders.list"
+      :columns="columns"
+      :reset-key="JSON.stringify(query)"
+      :aria-busy="orders.loading"
+    >
+      <template #index="{ row }">{{
+        (query.page - 1) * 20 + orders.list.indexOf(row) + 1
+      }}</template>
+      <template #goods="{ row }"
+        ><div class="order-row__goods">
+          <span
+            class="title-sm order-row__names"
+            :title="row.items.map((item) => item.nameSnapshot).join('、')"
+            >{{
+              row.items
                 .slice(0, 2)
                 .map((item) => item.nameSnapshot)
                 .join("、")
-            }}{{ order.items.length > 2 ? " 等" : "" }}
-          </p>
-          <span class="body-sm app-muted"
+            }}{{ row.items.length > 2 ? " 等" : "" }}</span
+          ><span class="body-sm app-muted order-row__count"
             >共
-            {{ order.items.reduce((sum, item) => sum + item.qty, 0) }} 件</span
+            {{ row.items.reduce((sum, item) => sum + item.qty, 0) }} 件</span
+          ><span
+            v-if="row.note"
+            class="body-sm app-muted order-row__note"
+            :title="row.note"
+            >备注 {{ row.note }}</span
           >
-          <p v-if="order.note" class="body-sm app-muted" :title="order.note">
-            备注 {{ order.note }}
-          </p>
-        </div>
-        <time class="body-sm app-muted">{{ time(order.createdAt) }}</time>
-        <Price :value="order.payCents / 100" tone="ink" />
-        <Tag :tone="orderStatuses[order.status].tone">{{
-          orderStatuses[order.status].label
-        }}</Tag>
-        <div class="order-row__actions">
+        </div></template
+      >
+      <template #createdAt="{ row }"
+        ><time class="body-sm app-muted">{{
+          time(row.createdAt)
+        }}</time></template
+      >
+      <template #payCents="{ row }"
+        ><Price :value="row.payCents / 100" tone="ink" size="sm"
+      /></template>
+      <template #status="{ row }"
+        ><Tag :tone="orderStatuses[row.status].tone">{{
+          orderStatuses[row.status].label
+        }}</Tag></template
+      >
+      <template #actions="{ row }"
+        ><div class="order-row__actions">
           <Button
             size="sm"
             variant="text"
             :disabled="orders.mutating"
-            @click="orders.openDetail(order.id)"
+            @click="orders.openDetail(row.id)"
             >查看</Button
           ><OrderActions
-            :order="order"
+            :order="row"
             :disabled="locked || orders.loading"
             @act="orders.act"
-          />
-        </div>
-      </article>
-      <p
-        v-if="orders.loading && !orders.list.length"
-        class="app-empty body-sm"
-        role="status"
-      >
-        加载中
-      </p>
-      <p
-        v-else-if="!orders.list.length && !orders.error"
-        class="app-empty body-sm"
-      >
-        暂无订单
-      </p>
-    </div>
+          /></div
+      ></template>
+      <template #empty>{{
+        orders.loading ? "加载中" : orders.error ? "订单加载失败" : "暂无订单"
+      }}</template>
+    </DataTable>
     <template #footer
       ><Pagination
         :model-value="query.page"
@@ -308,36 +311,36 @@ const detailAddress = computed(() => {
 .order-search :deep(.xz-search) {
   padding: 0;
 }
-.order-list {
-  min-width: calc(var(--size-sidebar) * 4);
-  background: var(--surface-raised);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+.merchant-order-table :deep(table) {
+  table-layout: fixed;
+  min-width: calc(var(--size-sidebar) * 5);
 }
-.order-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr) auto auto auto auto;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  min-height: var(--size-row);
+.merchant-order-table :deep(td) {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
 }
-.order-row + .order-row {
-  border-top: 1px solid var(--line);
-}
-.order-row__identity,
 .order-row__goods {
-  min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
-.order-row__identity > span,
-.order-row__goods p {
+.order-row__names,
+.order-row__note {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin: 0;
+}
+.order-row__names {
+  flex: 1 1 auto;
+}
+.order-row__count {
+  flex: none;
+  white-space: nowrap;
+}
+.order-row__note {
+  flex: 0 1 40%;
 }
 .order-row__actions {
   display: flex;

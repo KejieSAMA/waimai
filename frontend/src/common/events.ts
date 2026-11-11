@@ -1,7 +1,10 @@
 import { invalidateRoleData } from "@waimai/shared";
-import { onBeforeUnmount, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useAuth } from "./auth";
-export function useOrderStream(reload: () => Promise<unknown>) {
+export function useOrderStream(
+  reload: () => Promise<unknown>,
+  options: { autoConnect?: boolean } = {},
+) {
   const enabled = ref(false);
   const connected = ref(false);
   let controller: AbortController | undefined;
@@ -77,6 +80,12 @@ export function useOrderStream(reload: () => Promise<unknown>) {
     await audio.resume();
     void connect();
   }
+  onMounted(() => {
+    if (options.autoConnect) {
+      stopped = false;
+      void connect();
+    }
+  });
   onBeforeUnmount(() => {
     stopped = true;
     controller?.abort();
