@@ -17,7 +17,7 @@
 | `/me` | 账号设置 | PageHeader + InfoList |
 | `/login` | 用户登录（手机号 + 验证码） |  |
 | `/merchant` → `/merchant/dashboard` | 工作台 | DeskMerchantDashboard |
-| `/merchant/orders` | 订单看板 | DeskMerchantOrders |
+| `/merchant/orders` | 状态 Tab + 紧凑订单行 + 居中详情弹窗 | DeskMerchantOrders（按确认方案改造） |
 | `/merchant/products` | 商品管理 | DeskMerchantProducts |
 | `/merchant/products/new`、`/merchant/products/:id/edit` | 新增 / 编辑商品 | DeskMerchantProductEdit |
 | `/merchant/store` | 店铺设置（名称、Logo、公告、营业时间、起送价、配送费） | PageHeader + 表单卡片 |
@@ -60,6 +60,8 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 
 PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/mobile/merchant/orders`）；没有对应页面的跳到该角色首页。设备自动分流优先使用 `navigator.userAgentData.mobile`（明确的 false 也有效），不支持时回退到手机 UA 与 `MacIntel + 多点触控` 的 iPad 辅助识别；未知设备默认 PC，Windows 触屏电脑保持 PC，窗口宽度不参与应用分流。两端在挂载前使用同一判断，切换时保留页面路径、查询参数与锚点。手动偏好保存为 `xz-device` 的 `{ version: 2, mode, detectedMode }` JSON，仅设备状态与保存时一致时应用，状态改变后清除覆盖，旧字符串与无效记录自动清理。
 
+PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底部居中分页；仪表盘及账号只滚正文，设置与编辑固定操作区。商家侧栏根据店铺状态在入驻申请与店铺设置之间二选一：未入驻／PENDING／REJECTED 对应 apply，OPEN／CLOSED／FROZEN 对应 store，FROZEN 只读。旧路径按状态替换；设置分组共用草稿，待审核保留修改重提，已通过资质仅查看。
+
 ## 2. 账号与鉴权
 
 - 三种角色：`USER`、`MERCHANT`、`ADMIN`。一个手机号只对应一种角色。
@@ -101,8 +103,10 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - 商品列表响应增加 `counts: { ON, OFF, REVIEW }`，按相同商家归属、关键词、店内分类和库存范围计数，忽略当前状态和分组；REVIEW 包含审核中及驳回。
 - `POST /merchant/products`、`PUT /merchant/products/:id`、`PUT /merchant/products/:id/listing`（上架 / 下架）
 - `POST /merchant/products/batch`（批量上架 / 下架 / 改库存）
-- `GET /merchant/orders?status`、`GET /merchant/orders/stream`（SSE 新订单推送）
-- 订单列表另支持 `stage=PENDING|PREPARING|DELIVERING|REFUNDING`，配送分组包含待自提，供四列看板分别分页。
+- `GET /merchant/orders?status&keyword&page`、`GET /merchant/orders/stream`（SSE 新订单推送）
+- 商家订单列表附加 counts，限定同店和同关键词，忽略状态、stage 与分页；all 为该范围全部订单数，其余键为各订单状态。
+- `GET /merchant/orders/:id` 商家只读详情，归属店铺从登录态获取，跨店 404，手机号继续脱敏，商品项提供后端行小计。
+- 订单列表另支持 `stage=PENDING|PREPARING|DELIVERING|REFUNDING`，配送分组包含待自提，保留给现有客户端；PC 新列表按精确 status 分组并使用统一固定分页。
 - `POST /merchant/orders/:id/accept|reject|ready|refund-approve|refund-reject`
 - `GET /merchant/stats/today`、`GET /merchant/stats/trend?days=7`、`GET /merchant/todos`
 

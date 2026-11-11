@@ -2,14 +2,22 @@
 import { Button, ScrollArea, Switch } from "@waimai/ui";
 import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
-import { computed, watch, ref } from "vue";
+import { computed, watch, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "@waimai/tokens";
 import type { NavItem, NavGroup } from "@waimai/ui";
 import type { Role, Store } from "@waimai/shared";
-import { useRoleNotices } from "@waimai/shared";
+import { useRoleNotices, merchantStoreEntry } from "@waimai/shared";
 import { api } from "./api";
-import { merchantStore } from "./merchantStatus";
+import {
+  merchantStore,
+  merchantStoreLoading,
+  merchantStoreBusy,
+  merchantStoreError,
+  loadMerchantStore,
+  resetMerchantStore,
+  updateMerchantStore,
+} from "./merchantStatus";
 import { run } from "./feedback";
 import { useAuth } from "./auth";
 import { useCart } from "./cart";
@@ -45,7 +53,6 @@ const menus: Record<string, NavItem[]> = {
     { key: "/merchant/orders", label: "订单", icon: "order" },
     { key: "/merchant/products", label: "商品管理", icon: "box" },
     { key: "/merchant/store", label: "店铺设置", icon: "store" },
-    { key: "/merchant/apply", label: "入驻申请", icon: "shield" },
     { key: "/merchant/me", label: "我的", icon: "user" },
   ],
   admin: [
@@ -66,7 +73,13 @@ const { badges, notices } = useRoleNotices(
   computed(() => role.value !== "merchant" || !!merchantStore.value),
 );
 const nav = computed(() =>
-  menus[role.value].map((item) => ({ ...item, badge: badges.value[item.key] })),
+  menus[role.value].flatMap((item) => {
+    if (role.value === "merchant" && item.key === "/merchant/store") {
+      const entry = merchantStoreEntry(merchantStore.value);
+      return entry ? [{ ...entry, badge: badges.value[entry.key] }] : [];
+    }
+    return [{ ...item, badge: badges.value[item.key] }];
+  }),
 );
 const groups = computed<NavGroup[]>(() =>
   role.value === "merchant"
@@ -86,37 +99,30 @@ const groups = computed<NavGroup[]>(() =>
 const changingStore = ref(false);
 watch(
   [role, () => account.value?.id],
-  async ([value, accountId], _old, cleanup) => {
-    let active = true;
-    cleanup(() => {
-      active = false;
-    });
+  async ([value, accountId]) => {
     if (value !== "merchant" || !accountId) {
-      merchantStore.value = undefined;
+      resetMerchantStore();
       return;
     }
-    if (value === "merchant")
-      await run(async () => {
-        const store = await api<Store | null>(
-          "/merchant/application",
-          {},
-          "MERCHANT",
-        );
-        if (active) merchantStore.value = store;
-      });
+    await loadMerchantStore(accountId);
   },
   { immediate: true },
 );
 async function setOpen(open: boolean) {
+  if (merchantStoreBusy.value || changingStore.value) return;
   changingStore.value = true;
+  merchantStoreBusy.value = true;
   await run(async () => {
-    merchantStore.value = await api<Store>(
-      "/merchant/store/open",
-      { method: "PUT", body: { open } },
-      "MERCHANT",
+    updateMerchantStore(
+      await api<Store>(
+        "/merchant/store/open",
+        { method: "PUT", body: { open } },
+        "MERCHANT",
+      ),
     );
   });
   changingStore.value = false;
+  merchantStoreBusy.value = false;
 }
 const selected = computed(() =>
   String(
@@ -129,6 +135,13 @@ const selected = computed(() =>
       (role.value === "user" ? "" : nav.value[0].key),
   ),
 );
+function reloadMerchant() {
+  const id = auth.accounts.MERCHANT?.id;
+  if (role.value === "merchant" && id && !merchantStoreBusy.value)
+    return loadMerchantStore(id, true);
+}
+onMounted(() => window.addEventListener("focus", reloadMerchant));
+onBeforeUnmount(() => window.removeEventListener("focus", reloadMerchant));
 const go = (path: string) => router.push(path);
 </script>
 <template>
@@ -183,8 +196,14 @@ const go = (path: string) => router.push(path);
     @notices="go(role === 'merchant' ? '/merchant/orders' : '/admin/audit')"
     @update:model-value="go"
   >
-    <template v-if="role === 'merchant' && merchantStore" #footer
-      ><Switch
+    <template v-if="role === 'merchant'" #footer
+      ><p v-if="merchantStoreLoading" class="body-sm app-muted">加载店铺信息</p>
+      <p v-else-if="merchantStoreError" class="body-sm app-error">
+        {{ merchantStoreError
+        }}<Button variant="text" @click="reloadMerchant">重试</Button>
+      </p>
+      <Switch
+        v-if="merchantStore"
         :label="
           merchantStore.status === 'OPEN'
             ? '营业中'
@@ -194,7 +213,9 @@ const go = (path: string) => router.push(path);
         "
         :model-value="merchantStore.status === 'OPEN'"
         :disabled="
-          changingStore || !['OPEN', 'CLOSED'].includes(merchantStore.status)
+          changingStore ||
+          merchantStoreBusy ||
+          !['OPEN', 'CLOSED'].includes(merchantStore.status)
         "
         @update:model-value="setOpen" /></template
     ><template #topRight

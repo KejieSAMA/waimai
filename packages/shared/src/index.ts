@@ -279,4 +279,5 @@ export function createApi(transport: Transport, getToken: () => string | null) {
 }
 export * from "./dishGroups";
 export * from "./publicStores";
+export * from "./storeEditor";
 export * from "./merchantOrders";
