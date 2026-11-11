@@ -27,3 +27,6 @@
 - 2026-11-11，店铺返回图标按钮固定为 40×40，位于店铺信息区左上角，使用现有圆角和表面色 token 绘制正圆。
 - 2026-11-11，按最新设备状态自动路由要求，将原来仅 PC 加载时执行的 UA 检测改为两端统一检测：手机 UA（含桌面 UA 的触屏 iPad）或小于 768px 的视口使用手机版，否则使用 PC；启动前、窗口变化和页面恢复时判断，手动偏好继续优先，以支持设备模拟与窗口切换并避免双端来回跳转。
 - 2026-11-11，设备路径转换仅添加或移除完整 /mobile 前缀，保留角色、详情 ID、查询参数、登录回跳与锚点；共用纯逻辑放入 shared，浏览器 API 与监听清理留在应用内，手动切换不再将“我的”页面重定向到首页。
+- 2026-11-11，按确认后的修正方案废除上述宽度分流：优先使用 Client Hints 的 mobile 布尔值（false 同样有效），缺失时回退 UA 与 MacIntel 多点触控 iPad 识别，未知设备和 Windows 触屏电脑使用 PC；参考 [is-mobile](https://github.com/juliangruber/is-mobile/blob/main/index.js) 与 [Chrome Client Hints](https://developer.chrome.com/docs/privacy-security/user-agent-client-hints)，将设备身份与布局宽度分开，避免开发者工具或窄窗口触发整站跳转。
+- 2026-11-11，xz-device 升级为 version 2、mode、detectedMode 的 JSON 记录，仅同一设备状态下应用手动偏好；检测状态改变、旧字符串或无效记录时自动清除，仅操作该键，不要求用户清理控制台存储。
+- 2026-11-11，初次检测在挂载前立即执行，后续 resize、pageshow、focus、恢复可见和设备偏好存储事件以 150ms 合并重读设备信息；跳转、卸载与热更新时清理所有监听及定时器，浏览器设备标识需刷新才变化时沿用浏览器行为，不探测开发者工具内部状态。

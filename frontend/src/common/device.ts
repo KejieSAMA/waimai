@@ -1,12 +1,40 @@
 import {
+  detectDeviceMode,
   devicePreferenceKey,
   deviceUrl,
+  parseDevicePreference,
   watchDeviceRouting,
+  type DeviceInfo,
+  type DeviceMode,
+  type DevicePreference,
 } from "@waimai/shared";
 
-function readPreference() {
+function readDeviceInfo(): DeviceInfo {
+  const clientHints = (
+    navigator as Navigator & {
+      userAgentData?: { mobile?: boolean };
+    }
+  ).userAgentData;
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+    mobileHint: clientHints?.mobile,
+  };
+}
+
+function readPreference(detectedMode: DeviceMode) {
   try {
-    return localStorage.getItem(devicePreferenceKey);
+    const raw = localStorage.getItem(devicePreferenceKey);
+    const preference = parseDevicePreference(raw);
+    if (
+      raw !== null &&
+      (!preference || preference.detectedMode !== detectedMode)
+    ) {
+      localStorage.removeItem(devicePreferenceKey);
+      return null;
+    }
+    return preference;
   } catch {
     return null;
   }
@@ -14,21 +42,41 @@ function readPreference() {
 
 export function startDeviceRouting() {
   return watchDeviceRouting({
-    read: () => ({
-      pathname: location.pathname,
-      search: location.search,
-      hash: location.hash,
-      viewportWidth: window.innerWidth,
-      userAgent: navigator.userAgent,
-      maxTouchPoints: navigator.maxTouchPoints,
-      preference: readPreference(),
-    }),
+    read() {
+      const device = readDeviceInfo();
+      return {
+        ...device,
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+        preference: readPreference(detectDeviceMode(device)),
+      };
+    },
     replace: (url) => location.replace(url),
     subscribe(check) {
-      const events = ["resize", "pageshow", "storage"] as const;
-      for (const event of events) window.addEventListener(event, check);
+      let timer: number | undefined;
+      const schedule = () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          timer = undefined;
+          check();
+        }, 150);
+      };
+      const onVisibility = () => {
+        if (document.visibilityState === "visible") schedule();
+      };
+      const onStorage = (event: StorageEvent) => {
+        if (event.key === devicePreferenceKey || event.key === null) schedule();
+      };
+      const events = ["resize", "pageshow", "focus"] as const;
+      for (const event of events) window.addEventListener(event, schedule);
+      window.addEventListener("storage", onStorage);
+      document.addEventListener("visibilitychange", onVisibility);
       return () => {
-        for (const event of events) window.removeEventListener(event, check);
+        window.clearTimeout(timer);
+        for (const event of events) window.removeEventListener(event, schedule);
+        window.removeEventListener("storage", onStorage);
+        document.removeEventListener("visibilitychange", onVisibility);
       };
     },
   });
@@ -36,6 +84,11 @@ export function startDeviceRouting() {
 
 export function switchDevice(mobile: boolean) {
   const mode = mobile ? "mobile" : "desktop";
-  localStorage.setItem(devicePreferenceKey, mode);
+  const preference: DevicePreference = {
+    version: 2,
+    mode,
+    detectedMode: detectDeviceMode(readDeviceInfo()),
+  };
+  localStorage.setItem(devicePreferenceKey, JSON.stringify(preference));
   location.assign(deviceUrl(location, mode));
 }
