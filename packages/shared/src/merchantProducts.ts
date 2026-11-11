@@ -138,6 +138,7 @@ export function useMerchantProducts(request: Request, initialStock = "") {
     mutating,
     error,
     filters,
+    applied,
     load,
     retry,
     apply,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import { Button } from "@waimai/ui";
 import PageHeader from "../../../components/PageHeader.vue";
 import InfoList from "../../../components/InfoList.vue";
@@ -18,14 +19,16 @@ async function logout() {
 }
 </script>
 <template>
-  <div class="app-stack">
-    <PageHeader title="账号设置">
-      <template #actions
-        ><Button variant="outline" @click="switchDevice(true)"
-          >手机版</Button
-        ></template
-      >
-    </PageHeader>
+  <BackofficePage class="app-stack">
+    <template #header>
+      <PageHeader title="账号设置">
+        <template #actions
+          ><Button variant="outline" @click="switchDevice(true)"
+            >手机版</Button
+          ></template
+        >
+      </PageHeader></template
+    >
     <section class="app-card app-stack" aria-label="账号信息">
       <h2 class="title-sm">账号信息</h2>
       <InfoList
@@ -44,5 +47,5 @@ async function logout() {
         >
       </div>
     </section>
-  </div>
+  </BackofficePage>
 </template>

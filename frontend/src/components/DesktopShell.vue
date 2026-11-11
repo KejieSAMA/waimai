@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SearchBar, Thumb, ScrollArea, Icon } from "@waimai/ui";
+import { SearchBar, Thumb, Icon } from "@waimai/ui";
 import SideNav from "./SideNav.vue";
 import type { NavGroup } from "@waimai/ui";
 defineProps<{
@@ -19,10 +19,12 @@ const emit = defineEmits<{
   <div :class="['xz-shell', 'xz-desk', 'xz-shell--' + role]">
     <SideNav
       :role="role"
+      :brand="role === 'merchant' ? '盟信商家后台' : '盟信管理后台'"
+      :subtitle="user?.name"
       :groups="groups"
       :model-value="modelValue"
       @update:model-value="emit('update:modelValue', $event)"
-      ><template #footer><slot name="footer" /></template
+      ><template v-if="$slots.footer" #footer><slot name="footer" /></template
     ></SideNav>
     <div class="xz-shell__main">
       <header class="xz-topbar">
@@ -57,15 +59,20 @@ const emit = defineEmits<{
           >
         </div>
       </header>
-      <ScrollArea
-        as="main"
-        class="xz-shell__content"
-        label="后台页面内容"
-        axis="both"
-        scrollbar-placement="outside"
-        ><slot
-      /></ScrollArea>
+      <main class="bo-shell-content"><slot /></main>
     </div>
     <slot name="overlay" />
   </div>
 </template>
+
+<style scoped>
+.bo-shell-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-6);
+  overflow: hidden;
+}
+</style>

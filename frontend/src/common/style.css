@@ -420,3 +420,9 @@ body,
 .ds-doc p {
   margin: 0;
 }
+
+/* Keep the base tab divider without the desktop card treatment. */
+.xz-desk .xz-tabs--line {
+  border-radius: 0;
+  box-shadow: inset 0 -1px 0 var(--line);
+}

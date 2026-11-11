@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import {
   Button,
   ListCell,
@@ -8,19 +9,23 @@ import {
   Switch,
   Tag,
 } from "@waimai/ui";
-import { merchantStore } from "../../../common/merchantStatus";
+import {
+  merchantStore,
+  loadMerchantStore,
+  merchantStoreError,
+} from "../../../common/merchantStatus";
 import PageHeader from "../../../components/PageHeader.vue";
 import TrendChart from "../../../components/TrendChart.vue";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
   type Stats,
-  type Store,
   type Order,
   type Page,
   dashboardMoney,
   time,
 } from "@waimai/shared";
+import { useAuth } from "../../../common/auth";
 import { api } from "../../../common/api";
 import { run } from "../../../common/feedback";
 import { useOrderStream } from "../../../common/events";
@@ -30,12 +35,12 @@ const router = useRouter(),
   trend = ref<{ label: string; value: number }[]>([]),
   orders = ref<Order[]>([]);
 async function load() {
-  const s = await api<Store | null>("/merchant/application", {}, "MERCHANT");
-  if (!s) {
+  const s = await loadMerchantStore(useAuth().accounts.MERCHANT!.id);
+  if (s === null) {
     await router.push("/merchant/apply");
     return;
   }
-  store.value = s;
+  if (!s) throw new Error(merchantStoreError.value || "店铺加载失败");
   const [a, b, c] = await Promise.all([
     api<Stats>("/merchant/stats/today", {}, "MERCHANT"),
     api<{ label: string; value: number }[]>(
@@ -83,17 +88,19 @@ async function accept(id: string) {
 }
 </script>
 <template>
-  <div v-if="store && stats">
-    <PageHeader
-      title="工作台"
-      :subtitle="store.name + ' · 今日 ' + store.openHours"
-      ><template #actions
-        ><Button variant="outline" @click="router.push('/merchant/store')"
-          >营业时间</Button
-        ><Button icon="plus" @click="router.push('/merchant/products/new')"
-          >新增商品</Button
-        ></template
-      ></PageHeader
+  <BackofficePage v-if="store && stats">
+    <template #header>
+      <PageHeader
+        title="工作台"
+        :subtitle="store.name + ' · 今日 ' + store.openHours"
+        ><template #actions
+          ><Button variant="outline" @click="router.push('/merchant/store')"
+            >营业时间</Button
+          ><Button icon="plus" @click="router.push('/merchant/products/new')"
+            >新增商品</Button
+          ></template
+        ></PageHeader
+      ></template
     >
     <div class="ds-grid ds-stats">
       <StatCard
@@ -183,5 +190,5 @@ async function accept(id: string) {
       />
     </div>
     <p v-if="!orders.length" class="app-empty body-sm">暂无新订单</p>
-  </div>
+  </BackofficePage>
 </template>

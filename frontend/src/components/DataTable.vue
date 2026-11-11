@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="R extends object">
 import { Button, Checkbox, ScrollArea } from "@waimai/ui";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Action } from "@waimai/shared";
 const props = withDefaults(
   defineProps<{
@@ -17,8 +17,16 @@ const props = withDefaults(
     selected?: string[];
     batchActions?: Action[];
     activeKey?: string;
+    fill?: boolean;
+    resetKey?: string;
   }>(),
   { rowKey: "id", selected: () => [] },
+);
+const scroll = ref<InstanceType<typeof ScrollArea>>();
+watch(
+  () => props.resetKey,
+  () => scroll.value?.scrollTo({ top: 0 }),
+  { flush: "post" },
 );
 const emit = defineEmits<{ select: [keys: string[]]; rowClick: [row: R] }>();
 const all = computed(
@@ -38,7 +46,7 @@ function toggle(id: string) {
 }
 </script>
 <template>
-  <div class="xz-table">
+  <div class="xz-table" :class="{ 'bo-table--fill': fill }">
     <div v-if="$slots.toolbar" class="xz-table__toolbar">
       <slot name="toolbar" />
     </div>
@@ -55,7 +63,14 @@ function toggle(id: string) {
         >取消选择</Button
       >
     </div>
-    <ScrollArea class="xz-table__scroll" axis="x" label="表格内容">
+    <ScrollArea
+      ref="scroll"
+      class="xz-table__scroll"
+      :axis="fill ? 'both' : 'x'"
+      :scrollbar-placement="fill ? 'outside' : 'inside'"
+      label="表格内容"
+      :contain="fill"
+    >
       <table>
         <thead>
           <tr>
@@ -132,3 +147,28 @@ function toggle(id: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.bo-table--fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+}
+.bo-table--fill > .xz-table__toolbar,
+.bo-table--fill > .xz-table__batch,
+.bo-table--fill > .xz-table__foot {
+  flex: none;
+}
+.bo-table--fill > .xz-table__scroll {
+  flex: 1;
+  min-height: 0;
+}
+.bo-table--fill :deep(thead th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+}
+</style>

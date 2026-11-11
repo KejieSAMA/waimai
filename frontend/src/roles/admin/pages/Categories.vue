@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
@@ -52,12 +53,15 @@ async function remove() {
 }
 </script>
 <template>
-  <div class="app-stack">
-    <div class="app-row">
-      <PageHeader title="类目管理" />
-      <Button @click="edit(null)">新增类目</Button>
-    </div>
+  <BackofficePage :body-scroll="false">
+    <template #header>
+      <div class="app-row">
+        <PageHeader title="类目管理" />
+        <Button @click="edit(null)">新增类目</Button>
+      </div>
+    </template>
     <DataTable
+      fill
       :rows="list"
       :columns="[
         { key: 'name', title: '类目名称' },
@@ -88,5 +92,5 @@ async function remove() {
         ></template
       ></Dialog
     >
-  </div>
+  </BackofficePage>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import { ListCell, ListCellGroup, StatCard, Tag } from "@waimai/ui";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -85,9 +86,10 @@ onMounted(() =>
 );
 </script>
 <template>
-  <div>
-    <PageHeader title="数据总览" subtitle="平台今日经营情况" /><template
-      v-if="stats"
+  <BackofficePage>
+    <template #header>
+      <PageHeader title="数据总览" subtitle="平台今日经营情况" /></template
+    ><template v-if="stats"
       ><div class="ds-grid ds-stats5">
         <StatCard
           tone="chrome"
@@ -146,5 +148,5 @@ onMounted(() =>
         ></DataTable
       ></template
     >
-  </div>
+  </BackofficePage>
 </template>

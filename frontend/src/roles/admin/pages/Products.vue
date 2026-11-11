@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import FilterBar from "../../../components/FilterBar.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input, SearchBar, Tabs, Tag } from "@waimai/ui";
@@ -67,38 +68,44 @@ async function send(id: string, action: string) {
 }
 </script>
 <template>
-  <div class="app-stack">
-    <PageHeader title="商品巡检" />
-    <Tabs
-      v-model="status"
-      :items="[
-        { key: '', label: '全部商品' },
-        ...Object.entries(productStatuses).map(([key, s]) => ({
-          key,
-          label: s.label,
-        })),
-      ]"
-    /><FilterBar
-      @search="
-        appliedKeyword = keyword;
-        page = 1;
-        load();
-      "
-      @reset="
-        keyword = appliedKeyword = '';
-        page = 1;
-        load();
-      "
-      ><SearchBar
-        v-model="keyword"
-        placeholder="搜索商品"
-        @action="
+  <BackofficePage :body-scroll="false">
+    <template #header>
+      <PageHeader title="商品巡检" />
+      <Tabs
+        v-model="status"
+        :items="[
+          { key: '', label: '全部商品' },
+          ...Object.entries(productStatuses).map(([key, s]) => ({
+            key,
+            label: s.label,
+          })),
+        ]"
+      /><FilterBar
+        @search="
           appliedKeyword = keyword;
           page = 1;
           load();
         "
-    /></FilterBar>
-    <DataTable :rows="list" :columns="columns"
+        @reset="
+          keyword = appliedKeyword = '';
+          page = 1;
+          load();
+        "
+        ><SearchBar
+          v-model="keyword"
+          placeholder="搜索商品"
+          @action="
+            appliedKeyword = keyword;
+            page = 1;
+            load();
+          "
+      /></FilterBar>
+    </template>
+    <DataTable
+      fill
+      :reset-key="JSON.stringify([page, status, appliedKeyword])"
+      :rows="list"
+      :columns="columns"
       ><template #name="{ row }"
         ><DataTableMedia
           :name="row.name"
@@ -128,12 +135,8 @@ async function send(id: string, action: string) {
             >强制下架</Button
           >
         </div></template
-      ><template #footer
-        ><Pagination
-          v-model="page"
-          :total="total"
-          @update:model-value="load" /></template
-    ></DataTable>
+      ></DataTable
+    >
     <Dialog
       :open="!!pending"
       title="填写原因"
@@ -147,5 +150,8 @@ async function send(id: string, action: string) {
         ></template
       ></Dialog
     >
-  </div>
+    <template #footer
+      ><Pagination v-model="page" :total="total" @update:model-value="load"
+    /></template>
+  </BackofficePage>
 </template>

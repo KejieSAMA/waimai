@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import {
   Button,
   Checkbox,
@@ -125,143 +126,161 @@ async function save(listed = form.listed) {
 }
 </script>
 <template>
-  <form id="product-editor" @submit.prevent="save(form.listed)">
-    <PageHeader
-      :title="editing ? '编辑商品' : '新增商品'"
-      :breadcrumb="['商品管理', editing ? '编辑商品' : '新增商品']"
-      ><template #tag><Tag v-if="!form.listed">草稿</Tag></template
-      ><template #actions
-        ><Button variant="outline" @click="router.push('/merchant/products')"
+  <BackofficePage>
+    <template #header>
+      <PageHeader
+        :title="editing ? '编辑商品' : '新增商品'"
+        :breadcrumb="['商品管理', editing ? '编辑商品' : '新增商品']"
+        ><template #tag
+          ><Tag v-if="!form.listed">草稿</Tag></template
+        ></PageHeader
+      ></template
+    >
+    <form id="product-editor" @submit.prevent="save(form.listed)">
+      <div class="ds-grid ds-form">
+        <div class="ds-stack">
+          <section class="ds-card">
+            <h2 class="ds-card__title title">基础信息</h2>
+            <div class="ds-fields">
+              <Input
+                v-model="form.name"
+                label="商品名称"
+                required
+                maxlength="30"
+                hint="最多 30 个字"
+              />
+              <Select
+                v-model="form.dishCategoryId"
+                label="所属分类"
+                placeholder="选择分类"
+                :options="
+                  categories.map((c) => ({ value: c.id, label: c.name }))
+                "
+              />
+              <Input
+                v-model="form.price"
+                label="售价"
+                prefix="¥"
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+              />
+              <Input
+                v-model="form.original"
+                label="划线价"
+                prefix="¥"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="选填，需高于售价"
+              />
+              <Input
+                v-model="form.stock"
+                label="库存"
+                suffix="份"
+                type="number"
+                min="0"
+                required
+                :hint="'低于 ' + form.lowStock + ' 份时提醒'"
+              /><Input
+                v-model="form.limit"
+                label="每单限购"
+                suffix="份"
+                type="number"
+                min="1"
+                placeholder="不限"
+              />
+            </div>
+          </section>
+          <section class="ds-card">
+            <h2 class="ds-card__title title">商品图片</h2>
+            <ImageUpload
+              :images="images"
+              :disabled="locked"
+              @select="image"
+              @remove="removeImage"
+            />
+            <p class="body-sm app-muted">
+              第一张为主图，请上传 1:1 实拍图，最多 5 张，单张不超过 5MB
+            </p>
+          </section>
+          <section class="ds-card">
+            <h2 class="ds-card__title title">商品描述</h2>
+            <Input
+              v-model="form.description"
+              multiline
+              maxlength="60"
+              placeholder="口味、用料、分量，最多 60 字"
+            />
+          </section>
+        </div>
+        <div class="ds-stack">
+          <section class="ds-card">
+            <h2 class="ds-card__title title">用户端预览</h2>
+            <div class="ds-preview">
+              <DishCard
+                :name="form.name || '商品名称'"
+                :price="Number(form.price) || 0"
+                :original="form.original ? Number(form.original) : undefined"
+                :image="firstImage(form.images)"
+                :desc="form.description"
+              />
+            </div>
+            <p class="body-sm app-muted">
+              用户在店铺点餐页看到的样子，随左侧填写实时更新
+            </p>
+          </section>
+          <section class="ds-card">
+            <h2 class="ds-card__title title">上架设置</h2>
+            <div class="ds-checks">
+              <Checkbox
+                v-model="form.listed"
+                label="保存后立即上架"
+                :disabled="locked"
+              /><Input
+                v-model="form.lowStock"
+                label="预警库存"
+                type="number"
+                min="0"
+              />
+              <p class="body-sm app-muted">保存后按平台审核规则处理上架</p>
+              <Button variant="text" @click="categoryDialog = true"
+                >新增分类</Button
+              >
+            </div>
+          </section>
+        </div>
+      </div>
+      <Dialog
+        :open="categoryDialog"
+        title="新增分类"
+        @close="categoryDialog = false"
+        ><Input v-model="newCategory" label="分类名称" /><template #actions
+          ><Button
+            :disabled="locked || !newCategory.trim()"
+            @click="addCategory"
+            >新增分类</Button
+          ></template
+        ></Dialog
+      >
+    </form>
+    <template #footer
+      ><div class="app-row bo-product-actions">
+        <Button variant="outline" @click="router.push('/merchant/products')"
           >取消</Button
         ><Button variant="secondary" :disabled="locked" @click="save(false)"
           >存为草稿</Button
-        ><Button type="submit" :disabled="locked">{{
+        ><Button type="submit" form="product-editor" :disabled="locked">{{
           form.listed ? "保存并上架" : "保存商品"
-        }}</Button></template
-      ></PageHeader
+        }}</Button>
+      </div></template
     >
-    <div class="ds-grid ds-form">
-      <div class="ds-stack">
-        <section class="ds-card">
-          <h2 class="ds-card__title title">基础信息</h2>
-          <div class="ds-fields">
-            <Input
-              v-model="form.name"
-              label="商品名称"
-              required
-              maxlength="30"
-              hint="最多 30 个字"
-            />
-            <Select
-              v-model="form.dishCategoryId"
-              label="所属分类"
-              placeholder="选择分类"
-              :options="categories.map((c) => ({ value: c.id, label: c.name }))"
-            />
-            <Input
-              v-model="form.price"
-              label="售价"
-              prefix="¥"
-              type="number"
-              min="0.01"
-              step="0.01"
-              required
-            />
-            <Input
-              v-model="form.original"
-              label="划线价"
-              prefix="¥"
-              type="number"
-              min="0.01"
-              step="0.01"
-              placeholder="选填，需高于售价"
-            />
-            <Input
-              v-model="form.stock"
-              label="库存"
-              suffix="份"
-              type="number"
-              min="0"
-              required
-              :hint="'低于 ' + form.lowStock + ' 份时提醒'"
-            /><Input
-              v-model="form.limit"
-              label="每单限购"
-              suffix="份"
-              type="number"
-              min="1"
-              placeholder="不限"
-            />
-          </div>
-        </section>
-        <section class="ds-card">
-          <h2 class="ds-card__title title">商品图片</h2>
-          <ImageUpload
-            :images="images"
-            :disabled="locked"
-            @select="image"
-            @remove="removeImage"
-          />
-          <p class="body-sm app-muted">
-            第一张为主图，请上传 1:1 实拍图，最多 5 张，单张不超过 5MB
-          </p>
-        </section>
-        <section class="ds-card">
-          <h2 class="ds-card__title title">商品描述</h2>
-          <Input
-            v-model="form.description"
-            multiline
-            maxlength="60"
-            placeholder="口味、用料、分量，最多 60 字"
-          />
-        </section>
-      </div>
-      <div class="ds-stack">
-        <section class="ds-card">
-          <h2 class="ds-card__title title">用户端预览</h2>
-          <div class="ds-preview">
-            <DishCard
-              :name="form.name || '商品名称'"
-              :price="Number(form.price) || 0"
-              :original="form.original ? Number(form.original) : undefined"
-              :image="firstImage(form.images)"
-              :desc="form.description"
-            />
-          </div>
-          <p class="body-sm app-muted">
-            用户在店铺点餐页看到的样子，随左侧填写实时更新
-          </p>
-        </section>
-        <section class="ds-card">
-          <h2 class="ds-card__title title">上架设置</h2>
-          <div class="ds-checks">
-            <Checkbox
-              v-model="form.listed"
-              label="保存后立即上架"
-              :disabled="locked"
-            /><Input
-              v-model="form.lowStock"
-              label="预警库存"
-              type="number"
-              min="0"
-            />
-            <p class="body-sm app-muted">保存后按平台审核规则处理上架</p>
-            <Button variant="text" @click="categoryDialog = true"
-              >新增分类</Button
-            >
-          </div>
-        </section>
-      </div>
-    </div>
-    <Dialog
-      :open="categoryDialog"
-      title="新增分类"
-      @close="categoryDialog = false"
-      ><Input v-model="newCategory" label="分类名称" /><template #actions
-        ><Button :disabled="locked || !newCategory.trim()" @click="addCategory"
-          >新增分类</Button
-        ></template
-      ></Dialog
-    >
-  </form>
+  </BackofficePage>
 </template>
+
+<style scoped>
+.bo-product-actions {
+  margin-left: auto;
+}
+</style>

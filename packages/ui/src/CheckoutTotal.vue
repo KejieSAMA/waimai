@@ -22,14 +22,22 @@ const emit = defineEmits<{ submit: [] }>();
         v-else
         class="price-lg"
         >—</span
-      ><span v-if="updating" class="caption" role="status">更新中</span>
+      >
     </div>
     <Button
+      class="xz-checkout-total__submit"
+      :class="{ 'is-busy': updating || submitting }"
       size="lg"
       :block="!inline"
       :disabled="disabled || submitting || updating"
+      :aria-busy="updating || submitting"
       @click="emit('submit')"
-      >{{ submitting ? "提交中" : "提交订单" }}</Button
+      ><span
+        v-if="updating || submitting"
+        class="xz-checkout-total__progress"
+        role="status"
+        :aria-label="submitting ? '订单提交中' : '金额更新中'"
+      /><span>提交订单</span></Button
     >
     <p v-if="!inline" class="caption">提交后前往订单详情确认支付</p>
   </div>
@@ -54,6 +62,47 @@ const emit = defineEmits<{ submit: [] }>();
   margin: 0;
   color: var(--ink-muted);
   text-align: center;
+}
+.xz-checkout-total__submit {
+  position: relative;
+  padding-inline: calc(var(--space-4) * 2);
+  transition: none;
+}
+.xz-checkout-total__submit.is-busy:disabled {
+  background: var(--brand);
+  border-color: transparent;
+  color: var(--on-brand);
+  cursor: progress;
+}
+.xz-checkout-total__progress {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  width: var(--space-4);
+  height: var(--space-4);
+  margin-top: calc(var(--space-2) * -1);
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: var(--radius-pill);
+  opacity: 0;
+  animation:
+    checkout-progress-show 0s 160ms forwards,
+    checkout-progress-spin 800ms linear infinite;
+}
+@keyframes checkout-progress-show {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes checkout-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xz-checkout-total__progress {
+    animation: checkout-progress-show 0s 160ms forwards;
+  }
 }
 .xz-checkout-total--inline {
   flex-direction: row;

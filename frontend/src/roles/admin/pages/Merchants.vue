@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import FilterBar from "../../../components/FilterBar.vue";
 import InfoList from "../../../components/InfoList.vue";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
@@ -168,51 +169,60 @@ async function send(id: string, action: string) {
 }
 </script>
 <template>
-  <div class="app-stack">
-    <PageHeader
-      :title="auditOnly ? '入驻审核' : '商家管理'"
-      :subtitle="auditOnly ? '核验入驻资料与证照' : '管理平台商家与经营状态'"
-    /><Tabs
-      v-if="!auditOnly"
-      v-model="status"
-      :items="[
-        { key: '', label: '全部', count: counts.all },
-        { key: 'PENDING', label: '待审核', count: counts.PENDING, alert: true },
-        { key: 'OPEN', label: '营业中', count: counts.OPEN },
-        { key: 'CLOSED', label: '休息中', count: counts.CLOSED },
-        { key: 'FROZEN', label: '已冻结', count: counts.FROZEN },
-      ]"
-    />
-    <FilterBar @search="applyFilters()" @reset="applyFilters(true)">
-      <SearchBar
-        v-model="keyword"
-        placeholder="搜索商家名称"
-        @action="applyFilters()"
-      />
-      <Select
-        v-model="category"
-        label="类目"
-        :options="[
-          { value: '', label: '全部类目' },
-          ...categories.map((c) => ({ value: c.id, label: c.name })),
+  <BackofficePage :body-scroll="false">
+    <template #header>
+      <PageHeader
+        :title="auditOnly ? '入驻审核' : '商家管理'"
+        :subtitle="auditOnly ? '核验入驻资料与证照' : '管理平台商家与经营状态'"
+      /><Tabs
+        v-if="!auditOnly"
+        v-model="status"
+        :items="[
+          { key: '', label: '全部', count: counts.all },
+          {
+            key: 'PENDING',
+            label: '待审核',
+            count: counts.PENDING,
+            alert: true,
+          },
+          { key: 'OPEN', label: '营业中', count: counts.OPEN },
+          { key: 'CLOSED', label: '休息中', count: counts.CLOSED },
+          { key: 'FROZEN', label: '已冻结', count: counts.FROZEN },
         ]"
       />
-      <Select
-        v-model="city"
-        label="城市"
-        :options="[
-          { value: '', label: '全部城市' },
-          ...cities.map((value) => ({ value, label: value })),
-        ]"
-      />
-    </FilterBar>
-    <div v-if="loadError" class="app-error body-sm" role="alert">
-      {{ loadError
-      }}<Button variant="text" size="sm" :disabled="loading" @click="load"
-        >重试</Button
-      >
-    </div>
+      <FilterBar @search="applyFilters()" @reset="applyFilters(true)">
+        <SearchBar
+          v-model="keyword"
+          placeholder="搜索商家名称"
+          @action="applyFilters()"
+        />
+        <Select
+          v-model="category"
+          label="类目"
+          :options="[
+            { value: '', label: '全部类目' },
+            ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]"
+        />
+        <Select
+          v-model="city"
+          label="城市"
+          :options="[
+            { value: '', label: '全部城市' },
+            ...cities.map((value) => ({ value, label: value })),
+          ]"
+        />
+      </FilterBar>
+      <div v-if="loadError" class="app-error body-sm" role="alert">
+        {{ loadError
+        }}<Button variant="text" size="sm" :disabled="loading" @click="load"
+          >重试</Button
+        >
+      </div>
+    </template>
     <DataTable
+      fill
+      :reset-key="JSON.stringify([page, status, applied])"
       :rows="list"
       :columns="columns"
       :active-key="detail?.id"
@@ -253,13 +263,8 @@ async function send(id: string, action: string) {
         </div></template
       ><template #empty>{{
         loading ? "加载中" : loadError ? "商家加载失败" : "暂无商家"
-      }}</template
-      ><template #footer
-        ><Pagination
-          v-model="page"
-          :total="total"
-          @update:model-value="load" /></template
-    ></DataTable>
+      }}</template></DataTable
+    >
     <Dialog
       :open="!!detail"
       :title="auditOnly ? '入驻审核' : '商家详情'"
@@ -386,5 +391,8 @@ async function send(id: string, action: string) {
         ></template
       ></Dialog
     >
-  </div>
+    <template #footer
+      ><Pagination v-model="page" :total="total" @update:model-value="load"
+    /></template>
+  </BackofficePage>
 </template>

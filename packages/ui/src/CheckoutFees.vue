@@ -30,14 +30,18 @@ defineProps<{ quote: Quote | null; updating?: boolean; compact?: boolean }>();
         </dd>
       </div>
       <div
-        v-if="quote && quote.discountCents > 0"
         class="xz-checkout-fees__discount"
+        :class="{ 'is-empty': !quote?.discountCents }"
+        :aria-hidden="!quote?.discountCents || undefined"
       >
         <dt>满减优惠</dt>
-        <dd>−<Price :value="quote.discountCents / 100" size="sm" /></dd>
+        <dd>
+          <template v-if="quote && quote.discountCents > 0"
+            >−<Price :value="quote.discountCents / 100" size="sm"
+          /></template>
+        </dd>
       </div>
     </dl>
-    <p v-if="updating" class="caption" role="status">金额更新中</p>
   </div>
 </template>
 <style scoped>
@@ -65,8 +69,7 @@ defineProps<{ quote: Quote | null; updating?: boolean; compact?: boolean }>();
 .xz-checkout-fees .xz-checkout-fees__discount dd {
   color: var(--brand-text);
 }
-.xz-checkout-fees p {
-  margin: var(--space-2) 0 0;
-  color: var(--ink-muted);
+.xz-checkout-fees__discount.is-empty {
+  visibility: hidden;
 }
 </style>

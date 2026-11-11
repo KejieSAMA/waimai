@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import {
   Button,
   Dialog,
@@ -39,6 +40,7 @@ const {
   mutating,
   error,
   filters,
+  applied,
   load,
   retry,
   apply,
@@ -90,61 +92,65 @@ const columns = [
 ];
 </script>
 <template>
-  <div class="app-stack">
-    <PageHeader title="商品管理"
-      ><template #actions
-        ><Button
-          variant="outline"
-          :disabled="locked"
-          @click="categoryDialog = true"
-          >分类管理</Button
-        ><Button
-          icon="plus"
-          :disabled="locked"
-          @click="router.push('/merchant/products/new')"
-          >新增商品</Button
-        ></template
-      ></PageHeader
-    >
-    <Tabs
-      v-model="status"
-      :items="[
-        { key: 'ON', label: '在售', count: counts.ON },
-        { key: 'OFF', label: '已下架', count: counts.OFF },
-        { key: 'REVIEW', label: '审核中', count: counts.REVIEW },
-      ]"
-    />
-    <FilterBar @search="apply()" @reset="apply(true)">
-      <SearchBar
-        v-model="filters.keyword"
-        placeholder="搜索商品名称"
-        @action="apply()"
-      />
-      <Select
-        v-model="filters.category"
-        label="分类"
-        :options="[
-          { value: '', label: '全部分类' },
-          ...categories.map((c) => ({ value: c.id, label: c.name })),
-        ]"
-      />
-      <Select
-        v-model="filters.stock"
-        label="库存"
-        :options="[
-          { value: '', label: '全部库存' },
-          { value: 'low', label: '库存预警' },
-          { value: 'soldout', label: '已售罄' },
-        ]"
-      />
-    </FilterBar>
-    <div v-if="error" class="app-error body-sm" role="alert">
-      {{ error
-      }}<Button variant="text" size="sm" :disabled="loading" @click="retry()"
-        >重试</Button
+  <BackofficePage :body-scroll="false">
+    <template #header>
+      <PageHeader title="商品管理"
+        ><template #actions
+          ><Button
+            variant="outline"
+            :disabled="locked"
+            @click="categoryDialog = true"
+            >分类管理</Button
+          ><Button
+            icon="plus"
+            :disabled="locked"
+            @click="router.push('/merchant/products/new')"
+            >新增商品</Button
+          ></template
+        ></PageHeader
       >
-    </div>
+      <Tabs
+        v-model="status"
+        :items="[
+          { key: 'ON', label: '在售', count: counts.ON },
+          { key: 'OFF', label: '已下架', count: counts.OFF },
+          { key: 'REVIEW', label: '审核中', count: counts.REVIEW },
+        ]"
+      />
+      <FilterBar @search="apply()" @reset="apply(true)">
+        <SearchBar
+          v-model="filters.keyword"
+          placeholder="搜索商品名称"
+          @action="apply()"
+        />
+        <Select
+          v-model="filters.category"
+          label="分类"
+          :options="[
+            { value: '', label: '全部分类' },
+            ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]"
+        />
+        <Select
+          v-model="filters.stock"
+          label="库存"
+          :options="[
+            { value: '', label: '全部库存' },
+            { value: 'low', label: '库存预警' },
+            { value: 'soldout', label: '已售罄' },
+          ]"
+        />
+      </FilterBar>
+      <div v-if="error" class="app-error body-sm" role="alert">
+        {{ error
+        }}<Button variant="text" size="sm" :disabled="loading" @click="retry()"
+          >重试</Button
+        >
+      </div>
+    </template>
     <DataTable
+      fill
+      :reset-key="JSON.stringify([page, status, applied])"
       :columns="columns"
       :rows="list"
       selectable
@@ -226,9 +232,6 @@ const columns = [
       <template #empty>{{
         loading ? "加载中" : error ? "商品加载失败" : "暂无商品"
       }}</template>
-      <template #footer
-        ><Pagination v-model="page" :total="total" @update:model-value="load()"
-      /></template>
     </DataTable>
     <Dialog
       :open="categoryDialog"
@@ -294,5 +297,8 @@ const columns = [
         ></template
       ></Dialog
     >
-  </div>
+    <template #footer
+      ><Pagination v-model="page" :total="total" @update:model-value="load()"
+    /></template>
+  </BackofficePage>
 </template>

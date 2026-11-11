@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackofficePage from "../../../components/BackofficePage.vue";
 import FilterBar from "../../../components/FilterBar.vue";
 import PageHeader from "../../../components/PageHeader.vue";
 import {
@@ -69,39 +70,45 @@ async function resolve(approve: boolean) {
 }
 </script>
 <template>
-  <div class="app-stack">
-    <PageHeader :title="disputes ? '退款纠纷' : '订单监管'" />
-    <Tabs
-      v-if="!disputes"
-      v-model="status"
-      :items="[
-        { key: '', label: '全部订单' },
-        ...Object.entries(orderStatuses).map(([key, s]) => ({
-          key,
-          label: s.label,
-        })),
-      ]"
-    /><FilterBar
-      @search="
-        appliedKeyword = keyword;
-        page = 1;
-        load();
-      "
-      @reset="
-        keyword = appliedKeyword = '';
-        page = 1;
-        load();
-      "
-      ><SearchBar
-        v-model="keyword"
-        placeholder="搜索订单号"
-        @action="
+  <BackofficePage :body-scroll="false">
+    <template #header>
+      <PageHeader :title="disputes ? '退款纠纷' : '订单监管'" />
+      <Tabs
+        v-if="!disputes"
+        v-model="status"
+        :items="[
+          { key: '', label: '全部订单' },
+          ...Object.entries(orderStatuses).map(([key, s]) => ({
+            key,
+            label: s.label,
+          })),
+        ]"
+      /><FilterBar
+        @search="
           appliedKeyword = keyword;
           page = 1;
           load();
         "
-    /></FilterBar>
-    <DataTable :rows="list" :columns="columns"
+        @reset="
+          keyword = appliedKeyword = '';
+          page = 1;
+          load();
+        "
+        ><SearchBar
+          v-model="keyword"
+          placeholder="搜索订单号"
+          @action="
+            appliedKeyword = keyword;
+            page = 1;
+            load();
+          "
+      /></FilterBar>
+    </template>
+    <DataTable
+      fill
+      :reset-key="JSON.stringify([page, status, appliedKeyword])"
+      :rows="list"
+      :columns="columns"
       ><template #store="{ row }">{{ row.store.name }}</template
       ><template #status="{ row }"
         ><Tag :tone="orderStatuses[row.status].tone">{{
@@ -119,12 +126,8 @@ async function resolve(approve: boolean) {
           "
           >查看详情</Button
         ></template
-      ><template #footer
-        ><Pagination
-          v-model="page"
-          :total="total"
-          @update:model-value="load" /></template
-    ></DataTable>
+      ></DataTable
+    >
     <Dialog
       :open="!!detail"
       title="订单详情"
@@ -164,5 +167,8 @@ async function resolve(approve: boolean) {
         ></template
       ></Dialog
     >
-  </div>
+    <template #footer
+      ><Pagination v-model="page" :total="total" @update:model-value="load"
+    /></template>
+  </BackofficePage>
 </template>
