@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CategoryNav, DishCard, Tag, Thumb } from "@waimai/ui";
+import { Button, CategoryNav, DishCard, Tag, Thumb } from "@waimai/ui";
 import CartPanel from "../../../components/CartPanel.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -55,6 +55,13 @@ watch(
 <template>
   <div v-if="store" class="app-stack">
     <div class="ds-storehead">
+      <Button
+        variant="text"
+        icon="back"
+        aria-label="返回商家列表"
+        title="返回商家列表"
+        @click="router.push('/')"
+      />
       <Thumb kind="logo" size="lg" :src="store.logo" :name="store.name" />
       <div class="app-stack">
         <h1 class="title-lg">{{ store.name }}</h1>
@@ -117,7 +124,10 @@ watch(
           }))
         "
         :quote="cart.quote"
-        :disabled="store.status !== 'OPEN'"
+        :updating="cart.quotePending && !!auth.tokens.USER"
+        :disabled="
+          store.status !== 'OPEN' || (!!auth.tokens.USER && !!cart.quoteError)
+        "
         @quantity="
           (id, qty) => {
             const p = store?.products?.find((p) => p.id === id);

@@ -12,6 +12,7 @@ defineProps<{
   quote: Quote | null;
   label?: string;
   disabled?: boolean;
+  updating?: boolean;
 }>();
 const emit = defineEmits<{
   checkout: [];
@@ -45,7 +46,7 @@ const emit = defineEmits<{
     <div v-else class="xz-cartpanel__empty body-md">
       <Icon name="cart" :size="32" />还没有选购商品
     </div>
-    <div v-if="quote" class="xz-cartpanel__sum body-md">
+    <div v-if="quote" class="xz-cartpanel__sum body-md" :aria-busy="updating">
       <div>
         <span>商品小计</span
         ><Price :value="quote.itemsCents / 100" tone="ink" size="sm" />
@@ -66,7 +67,7 @@ const emit = defineEmits<{
       <Button
         size="lg"
         block
-        :disabled="!items.length || disabled"
+        :disabled="!items.length || disabled || updating"
         @click="emit('checkout')"
         >{{ label || "去结算" }}</Button
       >

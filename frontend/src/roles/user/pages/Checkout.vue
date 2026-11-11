@@ -120,7 +120,10 @@ async function submit() {
         </p>
         <Button
           :disabled="
-            busy || !cart.quote || (cart.type === 'DELIVERY' && !cart.addressId)
+            busy ||
+            cart.quotePending ||
+            !cart.quote ||
+            (cart.type === 'DELIVERY' && !cart.addressId)
           "
           @click="submit"
           >提交订单</Button
