@@ -68,7 +68,7 @@ async function submit() {
     <h1 class="title-lg">
       {{
         role === "USER"
-          ? "登录小灶"
+          ? "登录盟信"
           : role === "MERCHANT"
             ? "商家登录"
             : "管理员登录"

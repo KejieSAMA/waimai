@@ -77,7 +77,7 @@ const tabs = computed(() =>
   <MobilePage
     ><template #navBar
       ><NavBar
-        :title="String(route.meta.title || '小灶')"
+        :title="String(route.meta.title || '盟信')"
         :tone="
           role === 'admin' ? 'admin' : route.path === '/' ? 'brand' : 'light'
         "

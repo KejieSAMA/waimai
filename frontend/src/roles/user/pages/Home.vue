@@ -44,7 +44,7 @@ watch(
 );
 </script>
 <template>
-  <div class="app-stack">
+  <div class="app-stack app-store-list">
     <SearchBar
       v-model="keyword"
       placeholder="搜索店铺"
@@ -94,6 +94,26 @@ watch(
       />
     </div>
     <p v-if="!stores.length" class="app-empty body">暂无符合条件的店铺</p>
-    <Pagination v-model="page" :total="total" @update:model-value="load" />
+    <Pagination
+      v-model="page"
+      class="app-home-pagination"
+      :total="total"
+      @update:model-value="load"
+    />
   </div>
 </template>
+<style scoped>
+.app-store-list {
+  padding-bottom: calc(var(--size-button-sm) + var(--space-6));
+}
+.app-home-pagination {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  justify-content: center;
+  padding: var(--space-3);
+  background: var(--surface);
+}
+</style>

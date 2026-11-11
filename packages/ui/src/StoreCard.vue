@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import Icon from "./Icon.vue";
-import Tag from "./Tag.vue";
 import type { TagItem } from "./types";
 withDefaults(
   defineProps<{
@@ -34,7 +33,12 @@ withDefaults(
       ></span
     >
     <div class="xz-store__main">
-      <div class="xz-store__name title-sm">{{ name }}</div>
+      <div class="xz-store__name title-sm">
+        <span class="xz-store__title">{{ name }}</span>
+        <span v-if="status === 'closed'" class="xz-store__closed body-sm"
+          >休息中</span
+        >
+      </div>
       <div class="xz-store__row body-sm">
         <span v-if="rating != null" class="xz-store__rating"
           ><Icon name="star" :size="13" />{{ rating }}分</span
@@ -50,20 +54,30 @@ withDefaults(
           deliveryFee === 0 ? "免配送费" : "配送 ¥" + deliveryFee
         }}</span>
       </div>
-      <div class="xz-store__tags">
-        <template v-if="status === 'closed'"
-          ><Tag>休息中</Tag
-          ><span class="xz-store__notice body-sm">{{ notice }}</span></template
-        ><template v-else
-          ><Tag
-            v-for="(t, i) in tags"
-            :key="i"
-            :tone="typeof t === 'string' ? 'brand' : t.tone"
-            :variant="typeof t === 'string' ? 'outline' : t.variant"
-            >{{ typeof t === "string" ? t : t.label }}</Tag
-          ></template
-        >
-      </div>
     </div>
   </div>
 </template>
+<style scoped>
+.xz-store {
+  align-items: center;
+}
+.xz-store.is-closed .xz-logo {
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  filter: grayscale(1);
+}
+.xz-store__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.xz-store__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xz-store__closed {
+  flex: none;
+  color: var(--ink-muted);
+}
+</style>

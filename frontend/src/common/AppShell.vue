@@ -2,7 +2,7 @@
 import { Button } from "@waimai/ui";
 import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "@waimai/tokens";
 import type { NavItem, NavGroup } from "@waimai/ui";
@@ -13,7 +13,6 @@ const route = useRoute(),
   router = useRouter(),
   auth = useAuth();
 const { toggle } = useTheme();
-const search = ref("");
 const role = computed(
   () =>
     String(route.meta.role ?? "USER").toLowerCase() as
@@ -78,22 +77,13 @@ if (
   >
     <SiteHeader
       :user="account"
-      v-model:search="search"
       :model-value="selected"
       @update:model-value="go"
       @login="go('/login')"
       @cart="go('/checkout')"
-      @search="router.push({ path: '/', query: { keyword: search } })"
     />
     <div class="xz-site-page__body">
       <div class="xz-container"><RouterView /></div>
-    </div>
-    <div class="app-tools body-sm">
-      <Button variant="text" size="sm" @click="toggle">切换主题</Button
-      ><Button variant="text" size="sm" @click="switchDevice(true)"
-        >手机版</Button
-      ><RouterLink to="/merchant">商家中心</RouterLink
-      ><RouterLink to="/admin">运营后台</RouterLink>
     </div>
   </div>
   <DesktopShell

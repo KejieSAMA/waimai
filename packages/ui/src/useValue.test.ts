@@ -32,8 +32,8 @@ describe("Vue 组件受控与内部状态", () => {
     parent.value = true;
     expect(value.value).toBe(true);
   });
-  it("包含设计系统全部图标路径", () => {
-    expect(Object.keys(icons)).toHaveLength(29);
+  it("包含设计系统与主题切换图标路径", () => {
+    expect(Object.keys(icons)).toHaveLength(31);
     expect(icons.plus).toEqual(["M12 5v14", "M5 12h14"]);
   });
 });

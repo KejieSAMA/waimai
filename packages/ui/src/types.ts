@@ -27,7 +27,9 @@ export type IconName =
   | "wallet"
   | "bowl"
   | "alert"
-  | "camera";
+  | "camera"
+  | "sun"
+  | "moon";
 export interface NavItem {
   key: string;
   label: string;

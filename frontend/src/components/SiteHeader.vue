@@ -1,36 +1,37 @@
 <script setup lang="ts">
-import { Button, Icon, SearchBar } from "@waimai/ui";
+import { Button, Icon } from "@waimai/ui";
+import { useTheme } from "@waimai/tokens";
 defineProps<{
   location?: string;
   user?: { name: string };
   modelValue?: string;
-  search?: string;
   cartCount?: number;
 }>();
 const emit = defineEmits<{
   "update:modelValue": [value: string];
-  "update:search": [value: string];
   login: [];
-  search: [];
   cart: [];
 }>();
+const { theme, toggle } = useTheme();
 </script>
 <template>
   <header class="xz-site">
     <div class="xz-site__inner">
-      <span class="xz-site__brand title-lg">小灶</span
+      <span class="xz-site__brand title-lg">盟信</span
       ><span class="xz-site__place body-md"
         ><Icon name="location" :size="18" />{{ location || "望京 SOHO" }}</span
-      ><SearchBar
-        :model-value="search"
-        tone="brand"
-        placeholder="搜索店铺、菜品"
-        action="搜索"
-        class="xz-site__search"
-        @update:model-value="emit('update:search', $event)"
-        @action="emit('search')"
-      />
+      >
       <nav class="xz-site__links" aria-label="网站导航">
+        <button
+          type="button"
+          class="xz-site__link xz-site__theme"
+          aria-label="切换主题"
+          :aria-pressed="theme === 'dark'"
+          :title="theme === 'light' ? '切换深色主题' : '切换浅色主题'"
+          @click="toggle"
+        >
+          <Icon :name="theme === 'light' ? 'sun' : 'moon'" :size="20" />
+        </button>
         <button
           v-for="it in [
             { key: '/', label: '首页' },
@@ -66,3 +67,12 @@ const emit = defineEmits<{
     </div>
   </header>
 </template>
+<style scoped>
+.xz-site__theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-button-md);
+  padding: 0;
+}
+</style>

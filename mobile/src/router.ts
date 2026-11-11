@@ -25,7 +25,7 @@ export function makeRouter() {
   });
   router.beforeEach(async (to) => {
     const role = to.meta.role as Role | undefined;
-    document.title = String(to.meta.title ?? "小灶") + " · 小灶";
+    document.title = String(to.meta.title ?? "盟信") + " · 盟信";
     const auth = useAuth();
     if (role && !auth.tokens[role] && !to.path.endsWith("/login"))
       await auth.refresh(role);

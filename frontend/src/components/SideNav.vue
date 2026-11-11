@@ -22,7 +22,7 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
     aria-label="主导航"
   >
     <div v-if="brand !== false" class="xz-sidenav__brand">
-      <span class="title">{{ brand || "小灶" }}</span
+      <span class="title">{{ brand || "盟信" }}</span
       ><span class="xz-sidenav__sub caption">{{
         subtitle || (role === "admin" ? "运营后台" : "商家中心")
       }}</span>
