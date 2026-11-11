@@ -207,6 +207,78 @@ describe("订单金额、库存和权限", () => {
       });
     }
   });
+  it("商家订单计数忽略当前状态及分页，仍限定同店与关键词，详情拒绝跨店且脱敏", async () => {
+    const address = await db.address.create({
+      data: {
+        userId,
+        contact: "测试联系人",
+        phone: "13911111111",
+        detail: "测试街道",
+      },
+    });
+    const own = await orderService.createOrder(userId, {
+      storeId,
+      type: "DELIVERY",
+      addressId: address.id,
+      items: [{ productId, qty: 1 }],
+    });
+    const other = await orderService.createOrder(userId, {
+      storeId: otherStoreId,
+      type: "PICKUP",
+      items: [{ productId: otherProductId, qty: 1 }],
+    });
+    try {
+      const response = await request(app)
+        .get(
+          `/api/v1/merchant/orders?status=DONE&page=3&keyword=${own.orderNo}`,
+        )
+        .auth(merchantToken, { type: "bearer" });
+      expect(response.status).toBe(200);
+      expect(response.body.data.total).toBe(0);
+      expect(response.body.data.list).toEqual([]);
+      expect(response.body.data.counts).toMatchObject({
+        all: 1,
+        PENDING_PAY: 1,
+      });
+      const scoped = await request(app)
+        .get(`/api/v1/merchant/orders?keyword=${other.orderNo}`)
+        .auth(merchantToken, { type: "bearer" });
+      expect(scoped.body.data.counts.all).toBe(0);
+      const detail = await request(app)
+        .get(`/api/v1/merchant/orders/${own.id}`)
+        .auth(merchantToken, { type: "bearer" });
+      expect(detail.status).toBe(200);
+      expect(JSON.parse(detail.body.data.addressSnapshot).phone).toBe(
+        "尾号 1111",
+      );
+      expect(detail.body.data.items[0].lineTotalCents).toBe(2850);
+      expect(
+        (
+          await request(app)
+            .get(`/api/v1/merchant/orders/${other.id}`)
+            .auth(merchantToken, { type: "bearer" })
+        ).status,
+      ).toBe(404);
+      expect(
+        (
+          await request(app)
+            .get(`/api/v1/merchant/orders/${own.id}`)
+            .auth(token, { type: "bearer" })
+        ).status,
+      ).toBe(403);
+    } finally {
+      await orderService.actOnOrder(
+        own.id,
+        { id: userId, role: "USER" },
+        "cancel",
+      );
+      await orderService.actOnOrder(
+        other.id,
+        { id: userId, role: "USER" },
+        "cancel",
+      );
+    }
+  });
   it("配送订单必须使用本人地址", async () => {
     const response = await request(app)
       .post("/api/v1/user/orders")

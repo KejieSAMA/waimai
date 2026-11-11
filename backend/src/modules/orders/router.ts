@@ -68,6 +68,12 @@ export function registerMerchantOrders(merchant: Router) {
       orders.listOrders(req.actor!, req.query, req.storeId),
     ),
   );
+  merchant.get(
+    "/orders/:id",
+    handler(async (req) =>
+      orders.orderDetail(req.params.id, req.actor!, req.storeId),
+    ),
+  );
   for (const action of [
     "accept",
     "reject",

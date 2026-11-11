@@ -237,11 +237,26 @@ export async function listOrders(
     }),
     db.order.count({ where }),
   ]);
-  return pageResult(
+  const result = pageResult(
     list.map((o) => serializeOrder(o, actor.role)),
     total,
     p,
   );
+  if (actor.role !== "MERCHANT") return result;
+  const grouped = await db.order.groupBy({
+    by: ["status"],
+    where: {
+      ...scopedWhere(actor, storeId),
+      ...(p.keyword ? { orderNo: { contains: p.keyword } } : {}),
+    },
+    _count: { id: true },
+  });
+  const counts: Record<string, number> = { all: 0 };
+  for (const group of grouped) {
+    counts[group.status] = group._count.id;
+    counts.all += group._count.id;
+  }
+  return { ...result, counts };
 }
 export async function orderDetail(
   id: string,
