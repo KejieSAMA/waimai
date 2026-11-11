@@ -1,37 +1,25 @@
 <script setup lang="ts">
-import { Select, StoreCard, Tabs } from "@waimai/ui";
+import { Button, Select, StoreCard, Tabs } from "@waimai/ui";
 import Pagination from "../../../components/Pagination.vue";
-import { onMounted, ref, watch } from "vue";
+
 import { useRouter } from "vue-router";
-import { type Category, type Store, type Page, money } from "@waimai/shared";
+import { usePublicStores, money } from "@waimai/shared";
 import { api } from "../../../common/api";
-import { run } from "../../../common/feedback";
+
 const router = useRouter();
-const categories = ref<Category[]>([]),
-  stores = ref<Store[]>([]);
-const category = ref(""),
-  sort = ref("default"),
-  page = ref(1),
-  total = ref(0);
-async function load() {
-  await run(async () => {
-    const result = await api<Page<Store>>(
-      `/public/stores?categoryId=${encodeURIComponent(category.value)}&sort=${sort.value}&page=${page.value}`,
-    );
-    stores.value = result.list;
-    total.value = result.total;
-  });
-}
-onMounted(async () => {
-  await run(async () => {
-    categories.value = await api<Category[]>("/public/categories");
-  });
-  await load();
-});
-watch([category, sort], () => {
-  page.value = 1;
-  void load();
-});
+const {
+  categories,
+  stores,
+  category,
+  sort,
+  page,
+  total,
+  pending,
+  error,
+  categoryError,
+  load,
+  loadCategories,
+} = usePublicStores(api);
 </script>
 <template>
   <div class="app-stack app-store-list">
@@ -77,7 +65,18 @@ watch([category, sort], () => {
         @click="router.push('/store/' + store.id)"
       />
     </div>
-    <p v-if="!stores.length" class="app-empty body">暂无符合条件的店铺</p>
+    <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
+    <p v-if="error" class="app-error body-sm" role="alert">
+      {{ error
+      }}<Button variant="text" :disabled="pending" @click="load()">重试</Button>
+    </p>
+    <p v-if="categoryError" class="app-error body-sm" role="alert">
+      {{ categoryError
+      }}<Button variant="text" @click="loadCategories">重试分类</Button>
+    </p>
+    <p v-if="!pending && !error && !stores.length" class="app-empty body">
+      暂无符合条件的店铺
+    </p>
     <Pagination
       v-model="page"
       class="app-home-pagination"
