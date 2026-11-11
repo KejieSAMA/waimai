@@ -289,6 +289,9 @@ const referencePages = [
     /><CartPanel
       :items="[{ id: '1', name: '招牌红烧牛肉面', qty: 1, price: 28 }]"
       :quote="{
+        minOrderCents: 2000,
+        shortfallCents: 0,
+        checkoutAllowed: true,
         itemsCents: 2800,
         deliveryFeeCents: 300,
         discountCents: 0,

@@ -1,31 +1,54 @@
 <script setup lang="ts">
-import { reactive } from "vue";
-import { useRouter, isNavigationFailure } from "vue-router";
+import { reactive, watch, onMounted } from "vue";
+import { useRouter, useRoute, isNavigationFailure } from "vue-router";
 import {
   Button,
   Input,
   Tabs,
-  Thumb,
+  CartSelector,
   CheckoutAddress,
-  CheckoutItem,
+  CartItems,
   CheckoutFees,
   CheckoutTotal,
   ScrollArea,
 } from "@waimai/ui";
-import { useCheckout } from "@waimai/shared";
+import { useCheckout, money } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";
 import PageHeader from "../../../components/PageHeader.vue";
-const cart = useCart(),
-  router = useRouter();
+const carts = useCart(),
+  router = useRouter(),
+  route = useRoute();
+const storeId = carts.resolveStoreId(route.query.storeId) ?? "";
+const cart = carts.forStore(storeId);
+if (storeId) carts.selectStore(storeId);
+cart.invalidateQuote("");
+function chooseStore(id: string) {
+  if (!checkout.locked)
+    void router.push({
+      path: "/checkout",
+      query: { ...route.query, storeId: id },
+    });
+}
 const checkout = reactive(
   useCheckout(api, cart, async (path) => {
     const failure = await router.push(path);
     if (isNavigationFailure(failure)) throw new Error("暂时无法打开订单");
   }),
 );
-const maxQty = (product: ReturnType<typeof checkout.productFor>) =>
-  Math.min(999, product.stock, product.limitPerOrder ?? 999);
+watch(
+  () => checkout.store,
+  (store) => {
+    if (store) carts.rememberStore(store);
+  },
+);
+onMounted(() => {
+  if (!route.query.storeId && storeId)
+    void router.replace({
+      path: "/checkout",
+      query: { ...route.query, storeId },
+    });
+});
 </script>
 <template>
   <div class="app-stack checkout-page">
@@ -88,15 +111,19 @@ const maxQty = (product: ReturnType<typeof checkout.productFor>) =>
         </section>
         <section class="app-card checkout-goods" aria-label="商品清单">
           <div class="checkout-goods__head">
-            <Thumb
-              kind="logo"
-              :name="checkout.store?.name ?? ''"
-              :src="checkout.store?.logo"
+            <CartSelector
+              :carts="carts.carts"
+              :selected="storeId"
+              :name="
+                checkout.store?.name ||
+                carts.carts.find((c) => c.storeId === storeId)?.name
+              "
+              :logo="checkout.store?.logo"
+              :count="cart.count"
+              :disabled="checkout.locked"
+              variant="modal"
+              @select="chooseStore"
             />
-            <div>
-              <h2 class="title">{{ checkout.store?.name ?? "已选商品" }}</h2>
-              <p class="body-sm app-muted">共 {{ cart.count }} 件商品</p>
-            </div>
             <Button
               size="sm"
               variant="text"
@@ -127,20 +154,18 @@ const maxQty = (product: ReturnType<typeof checkout.productFor>) =>
               >重试</Button
             >
           </div>
-          <CheckoutItem
-            v-for="line in cart.lines"
-            :key="line.product.id"
-            :product="checkout.productFor(line)"
-            :qty="line.qty"
-            :quoted="
-              cart.quote?.items.find(
-                (item) => item.productId === line.product.id,
+          <CartItems
+            :lines="cart.lines"
+            :quote="cart.quote"
+            :product-for="checkout.productFor"
+            :item-issue="checkout.itemIssue"
+            :disabled="checkout.locked"
+            @quantity="
+              checkout.quantity(
+                { product: $event.product, qty: $event.qty },
+                $event.qty,
               )
             "
-            :max="maxQty(checkout.productFor(line))"
-            :issue="checkout.itemIssue(line)"
-            :disabled="checkout.locked"
-            @quantity="checkout.quantity(line, $event)"
           />
         </section>
         <section class="app-card checkout-note" aria-label="订单备注">
@@ -161,6 +186,10 @@ const maxQty = (product: ReturnType<typeof checkout.productFor>) =>
         <h2 class="title">费用明细</h2>
         <ScrollArea class="checkout-summary__body" label="结算明细"
           ><div class="checkout-summary__details">
+            <p v-if="cart.quote?.shortfallCents" class="body-sm app-muted">
+              差
+              {{ money(cart.quote.shortfallCents) }} 起送，可继续选购或选择自提
+            </p>
             <CheckoutFees
               compact
               :quote="cart.quote"
@@ -214,7 +243,17 @@ const maxQty = (product: ReturnType<typeof checkout.productFor>) =>
       </aside>
     </div>
     <section v-else class="app-card app-empty">
-      <h2 class="title">购物车为空</h2>
+      <h2 class="title">
+        {{ carts.totalCount ? "本店购物车为空" : "购物车为空" }}
+      </h2>
+      <CartSelector
+        v-if="carts.totalCount"
+        :carts="carts.carts"
+        :selected="storeId"
+        :count="0"
+        variant="modal"
+        @select="chooseStore"
+      />
       <p class="body-sm">去店铺挑选喜欢的商品</p>
       <Button variant="outline" @click="router.push(checkout.shopPath)"
         >继续选购</Button
@@ -246,7 +285,7 @@ const maxQty = (product: ReturnType<typeof checkout.productFor>) =>
   gap: var(--space-3);
   margin-bottom: var(--space-2);
 }
-.checkout-goods__head > div {
+.checkout-goods__head :deep(.xz-cart-selector) {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;

@@ -55,11 +55,6 @@ export async function quoteOrder(
     });
   }
   assert(
-    input.type === "PICKUP" || itemsCents >= store.minOrderCents,
-    409,
-    "未达到起送金额",
-  );
-  assert(
     Number.isSafeInteger(itemsCents) && itemsCents <= 2147383647,
     400,
     "订单金额超出限制",
@@ -75,6 +70,13 @@ export async function quoteOrder(
     ),
   );
   return {
+    minOrderCents: store.minOrderCents,
+    shortfallCents:
+      input.type === "PICKUP"
+        ? 0
+        : Math.max(0, store.minOrderCents - itemsCents),
+    checkoutAllowed:
+      input.type === "PICKUP" || itemsCents >= store.minOrderCents,
     items,
     itemsCents,
     deliveryFeeCents,
@@ -92,11 +94,12 @@ export async function createOrder(userId: string, body: unknown) {
   assert(input.type !== "DELIVERY" || address, 400, "请选择收货地址");
   return db.$transaction(async (tx) => {
     const quote = await quoteOrder(input, tx);
+    assert(quote.checkoutAllowed, 409, "未达到起送金额");
     for (const it of quote.items) {
       await reserveProduct(tx, input.storeId, it.productId, it.qty);
     }
-    const { items, count, ...amounts } = quote;
-    void count;
+    const { items, itemsCents, deliveryFeeCents, discountCents, payCents } =
+      quote;
     const serialOfDay =
       (await tx.order.count({
         where: { storeId: input.storeId, createdAt: { gte: shanghaiDay() } },
@@ -118,7 +121,10 @@ export async function createOrder(userId: string, body: unknown) {
               }
             : {},
         ),
-        ...amounts,
+        itemsCents,
+        deliveryFeeCents,
+        discountCents,
+        payCents,
         items: {
           create: items.map((it) => ({
             productId: it.productId,

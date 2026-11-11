@@ -2,11 +2,13 @@
 import {
   Button,
   CategoryNav,
+  useGroupScroll,
   Tabs,
   DishCard,
   Tag,
   Thumb,
   ScrollArea,
+  Dialog,
 } from "@waimai/ui";
 import CartPanel from "../../../components/CartPanel.vue";
 import { computed, onScopeDispose, ref, watch } from "vue";
@@ -23,18 +25,14 @@ import { useCart } from "../../../common/cart";
 import { useAuth } from "../../../common/auth";
 const route = useRoute(),
   router = useRouter(),
-  cart = useCart(),
+  carts = useCart(),
   auth = useAuth();
+const cart = carts.forStore(String(route.params.id));
 const store = ref<Store>(),
   category = ref("");
 const dishes = ref<InstanceType<typeof ScrollArea>>();
-watch(category, () => dishes.value?.scrollTo({ top: 0 }), { flush: "post" });
-const products = computed(
-  () =>
-    store.value?.products?.filter(
-      (p) => !category.value || p.dishCategoryId === category.value,
-    ) ?? [],
-);
+const { jump } = useGroupScroll(() => dishes.value?.getViewport(), category);
+const products = computed(() => store.value?.products ?? []);
 const selected = (p: Product) =>
   cart.lines.find((it) => it.product.id === p.id)?.qty ?? 0;
 function set(p: Product, qty: number) {
@@ -42,10 +40,19 @@ function set(p: Product, qty: number) {
 }
 async function checkout() {
   if (!auth.tokens.USER) {
-    await router.push({ path: "/login", query: { redirect: route.fullPath } });
+    await router.push({
+      path: "/login",
+      query: {
+        redirect: `/checkout?storeId=${encodeURIComponent(String(route.params.id))}`,
+      },
+    });
     return;
   }
-  await router.push("/checkout");
+  carts.selectStore(String(route.params.id));
+  await router.push({
+    path: "/checkout",
+    query: { storeId: String(route.params.id) },
+  });
 }
 
 watch(
@@ -56,6 +63,7 @@ watch(
   { deep: true },
 );
 const view = ref("dishes");
+const clearOpen = ref(false);
 const reviews = ref<
     { id: string; rating: number; content: string; reply: string | null }[]
   >([]),
@@ -104,10 +112,14 @@ watch(view, (value) => {
   }
 });
 const groups = computed(() =>
-  category.value
-    ? (store.value?.dishCategories ?? []).filter((c) => c.id === category.value)
-    : (store.value?.dishCategories ?? []),
+  (store.value?.dishCategories ?? []).filter((group) =>
+    products.value.some((p) => p.dishCategoryId === group.id),
+  ),
 );
+const categoryCount = (id: string) =>
+  cart.lines
+    .filter((line) => !id || line.product.dishCategoryId === id)
+    .reduce((sum, line) => sum + line.qty, 0);
 const storeReload = ref(0);
 const storeLoading = ref(false),
   storeError = ref("");
@@ -119,6 +131,7 @@ watch(
       active = false;
     });
     store.value = undefined;
+    cart.storeOpen = false;
     category.value = "";
     view.value = "dishes";
     ++reviewVersion;
@@ -133,6 +146,7 @@ watch(
       const result = await api<Store>("/public/stores/" + id);
       if (!active) return;
       store.value = result;
+      carts.rememberStore(result);
       cart.storeOpen = result.status === "OPEN";
       if (auth.tokens.USER && cart.count) await cart.refresh();
     } catch (cause) {
@@ -147,6 +161,19 @@ watch(
 );
 </script>
 <template>
+  <Dialog :open="clearOpen" title="清空本店" @close="clearOpen = false">
+    <p class="body-sm">清空 {{ store?.name }} 的已选商品，其他店铺不受影响</p>
+    <template #actions
+      ><Button variant="outline" @click="clearOpen = false">保留商品</Button
+      ><Button
+        @click="
+          cart.clear();
+          clearOpen = false;
+        "
+        >清空本店</Button
+      ></template
+    >
+  </Dialog>
   <p v-if="storeLoading && !store" class="app-empty body-sm" role="status">
     加载中
   </p>
@@ -211,12 +238,14 @@ watch(
     <div v-if="view === 'dishes'" class="ds-storelayout">
       <div class="ds-catcard">
         <CategoryNav
-          v-model="category"
+          :model-value="category"
+          @update:model-value="jump"
           :items="[
-            { key: '', label: '全部菜品' },
+            { key: '', label: '全部菜品', count: categoryCount('') },
             ...(store.dishCategories ?? []).map((c) => ({
               key: c.id,
               label: c.name,
+              count: categoryCount(c.id),
             })),
           ]"
         />
@@ -229,7 +258,12 @@ watch(
         content-class="ds-dishes__content"
         contain
       >
-        <section v-for="group in groups" :key="group.id" class="app-dish-group">
+        <section
+          v-for="group in groups"
+          :key="group.id"
+          :data-dish-group="group.id"
+          class="app-dish-group"
+        >
           <h2 class="ds-group body-md">{{ group.name }}</h2>
           <div class="app-dish-grid">
             <DishCard
@@ -274,17 +308,22 @@ watch(
           }))
         "
         :quote="cart.quote"
+        :min-order="store.minOrderCents"
+        :pickup="cart.type === 'PICKUP'"
         :updating="cart.quotePending && !!auth.tokens.USER"
         :disabled="
           store.status !== 'OPEN' || (!!auth.tokens.USER && !!cart.quoteError)
         "
         @quantity="
           (id, qty) => {
-            const p = store?.products?.find((p) => p.id === id);
+            const p =
+              store?.products?.find((p) => p.id === id) ??
+              cart.lines.find((line) => line.product.id === id)?.product;
             if (p) set(p, qty);
           }
         "
-        @clear="cart.clear"
+        @clear="clearOpen = true"
+        @pickup="cart.type = 'PICKUP'"
         @checkout="checkout"
       />
     </div>
@@ -335,6 +374,9 @@ watch(
     </ScrollArea>
     <p v-if="cart.quoteError" class="body-sm app-muted">
       {{ cart.quoteError }}
+      <Button variant="text" :disabled="cart.quotePending" @click="cart.refresh"
+        >重试</Button
+      >
     </p>
   </div>
 </template>

@@ -26,6 +26,9 @@ const product: Product = {
   monthlySales: 0,
 };
 const firstQuote: Quote = {
+  minOrderCents: 2000,
+  shortfallCents: 0,
+  checkoutAllowed: true,
   itemsCents: 2800,
   deliveryFeeCents: 300,
   discountCents: 0,
@@ -42,6 +45,9 @@ const firstQuote: Quote = {
   ],
 };
 const secondQuote: Quote = {
+  minOrderCents: 2000,
+  shortfallCents: 0,
+  checkoutAllowed: true,
   itemsCents: 5600,
   deliveryFeeCents: 300,
   discountCents: 500,
@@ -67,7 +73,7 @@ function deferredQuote() {
 }
 
 async function pricedCart() {
-  const cart = useCart();
+  const cart = useCart().forStore("store-1");
   cart.set(product, 1);
   preview.mockResolvedValueOnce(firstQuote);
   await cart.refresh();
@@ -101,7 +107,7 @@ describe("购物车报价更新", () => {
   });
 
   it("修改已有商品数量时保留购物车顺序", () => {
-    const cart = useCart();
+    const cart = useCart().forStore("store-1");
     cart.set(product, 1);
     cart.set({ ...product, id: "dish-2" }, 1);
     cart.set(product, 3);
@@ -144,12 +150,14 @@ describe("购物车报价更新", () => {
     expect(cart.quoteError).toBe("");
   });
 
-  it("切换店铺时清除之前店铺的金额", async () => {
+  it("切换店铺时分别读取各自金额，不清空原店商品", async () => {
     const cart = await pricedCart();
-    cart.set({ ...product, id: "dish-3", storeId: "store-2" }, 1);
-    expect(cart.quote).toBeNull();
-    expect(cart.lines).toHaveLength(1);
-    expect(cart.lines[0].product.storeId).toBe("store-2");
+    const other = useCart().forStore("store-2");
+    other.set({ ...product, id: "dish-3", storeId: "store-2" }, 1);
+    expect(other.quote).toBeNull();
+    expect(other.lines[0].product.storeId).toBe("store-2");
+    expect(cart.quote).toEqual(firstQuote);
+    expect(cart.count).toBe(1);
   });
 
   it("报价失败后清除失效金额并结束等待状态", async () => {

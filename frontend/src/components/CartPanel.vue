@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button, Icon, Price, Stepper, ScrollArea } from "@waimai/ui";
-import type { Quote } from "@waimai/shared";
+import { money, type Quote } from "@waimai/shared";
 defineProps<{
   items: {
     id: string;
@@ -13,10 +13,13 @@ defineProps<{
   label?: string;
   disabled?: boolean;
   updating?: boolean;
+  minOrder?: number;
+  pickup?: boolean;
 }>();
 const emit = defineEmits<{
   checkout: [];
   clear: [];
+  pickup: [];
   quantity: [id: string, qty: number];
 }>();
 </script>
@@ -64,13 +67,31 @@ const emit = defineEmits<{
         ><Price :value="quote.itemsCents / 100" tone="ink" size="sm" />
       </div>
       <div>
-        <span>配送费</span
-        ><Price :value="quote.deliveryFeeCents / 100" tone="ink" size="sm" />
+        <span>配送费</span><span v-if="!quote.deliveryFeeCents">免配送费</span
+        ><Price
+          v-else
+          :value="quote.deliveryFeeCents / 100"
+          tone="ink"
+          size="sm"
+        />
       </div>
       <div v-if="quote.discountCents" class="is-off">
         <span>满减优惠</span><span>-¥{{ quote.discountCents / 100 }}</span>
       </div>
     </div>
+    <p v-if="quote?.shortfallCents" class="body-sm app-muted app-cart-hint">
+      差 {{ money(quote.shortfallCents) }} 起送
+      <Button
+        size="sm"
+        variant="text"
+        :disabled="disabled"
+        @click="emit('pickup')"
+        >到店自提</Button
+      >
+    </p>
+    <p v-if="updating" class="body-sm app-muted app-cart-hint" role="status">
+      金额更新中
+    </p>
     <div class="xz-cartpanel__foot">
       <div v-if="quote" class="xz-cartpanel__total">
         <span class="body-md">合计</span
@@ -79,9 +100,18 @@ const emit = defineEmits<{
       <Button
         size="lg"
         block
-        :disabled="!items.length || disabled || updating"
+        :disabled="
+          !items.length ||
+          disabled ||
+          updating ||
+          quote?.checkoutAllowed === false
+        "
         @click="emit('checkout')"
-        >{{ label || "去结算" }}</Button
+        >{{
+          !items.length && minOrder && !pickup
+            ? money(minOrder) + " 起送"
+            : label || "去结算"
+        }}</Button
       >
     </div>
   </aside>
@@ -116,5 +146,13 @@ const emit = defineEmits<{
 .xz-cartpanel__empty {
   min-height: 0;
   overflow: hidden;
+}
+</style>
+
+<style scoped>
+.app-cart-hint {
+  flex: none;
+  padding: 0 var(--space-4);
+  margin: var(--space-1) 0;
 }
 </style>

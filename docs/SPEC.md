@@ -56,6 +56,8 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 | `/mobile/admin/me`、`/mobile/admin/login` | 我的 / 登录 |  |
 | `/mobile/__ui` | 组件画廊（仅开发环境） |  |
 
+购物车以店铺 ID 独立保存于当前浏览器 xz-cart v2，旧数组自动迁移；每店保存商品、配送方式、地址 ID 和备注，不保存报价或完整地址。两端确认订单通过 `?storeId=…` 指定单店，支持切换其他非空购物车，每次仅提交一家；成功只清理该店匹配的快照。店铺页仅展示自己的购物车，PC 顶栏角标为所有店铺商品总件数。
+
 PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/mobile/merchant/orders`）；没有对应页面的跳到该角色首页。设备自动分流优先使用 `navigator.userAgentData.mobile`（明确的 false 也有效），不支持时回退到手机 UA 与 `MacIntel + 多点触控` 的 iPad 辅助识别；未知设备默认 PC，Windows 触屏电脑保持 PC，窗口宽度不参与应用分流。两端在挂载前使用同一判断，切换时保留页面路径、查询参数与锚点。手动偏好保存为 `xz-device` 的 `{ version: 2, mode, detectedMode }` JSON，仅设备状态与保存时一致时应用，状态改变后清除覆盖，旧字符串与无效记录自动清理。
 
 ## 2. 账号与鉴权
@@ -80,7 +82,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 
 - `POST /auth/user/code`、`POST /auth/user/login`、`POST /auth/refresh`、`POST /auth/logout`
 - `GET|POST|PUT|DELETE /user/addresses`
-- `POST /user/orders/preview` 后端计算金额（小计、配送费、满减、实付）
+- `POST /user/orders/preview` 后端计算金额（小计、配送费、满减、实付），另返回 minOrderCents、shortfallCents、checkoutAllowed；未达起送价仍返回报价，创建订单时继续严格校验，PICKUP 不受起送价限制。
 - 报价的 `items` 包含 `productId`、`qty`、`name`、`priceCents`、`lineTotalCents`；行小计由后端计算，前端按商品 ID 匹配，等待报价时保留已显示金额。
 - `POST /user/orders` 下单（扣库存，事务）→ `POST /user/orders/:id/pay`（模拟支付）
 - `GET /user/orders?status`、`GET /user/orders/:id`

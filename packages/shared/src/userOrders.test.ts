@@ -25,6 +25,9 @@ function controller() {
     type: "DELIVERY" as "DELIVERY" | "PICKUP",
     clear: vi.fn(),
     set: vi.fn(),
+    forStore: vi.fn(() => ({ count: 2 }) as import("./cart").CheckoutCart),
+    replaceStore: vi.fn(),
+    rememberStore: vi.fn(),
   };
   const navigate = vi.fn();
   const scope = effectScope();
@@ -117,6 +120,34 @@ describe("订单请求与再次购买", () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(state.error.value).toBe("库存不足");
   });
+  it("目标店为空时直接再次购买，不因其他店的商品弹出替换确认", async () => {
+    const { state, request, cart } = controller();
+    cart.forStore.mockReturnValueOnce({
+      count: 0,
+    } as import("./cart").CheckoutCart);
+    request
+      .mockResolvedValueOnce({ products: [{ id: "p", storeId: "target" }] })
+      .mockResolvedValueOnce({ checkoutAllowed: true });
+    state
+      .actions({
+        storeId: "target",
+        status: "DONE",
+        type: "PICKUP",
+        items: [{ productId: "p", qty: 2 }],
+      } as Order)
+      .at(-1)
+      ?.onClick?.();
+    await nextTick();
+    await nextTick();
+    expect(state.replacement.value).toBeUndefined();
+    expect(cart.forStore).toHaveBeenCalledWith("target");
+    expect(cart.clear).not.toHaveBeenCalled();
+    expect(cart.replaceStore).toHaveBeenCalledWith(
+      "target",
+      [{ product: { id: "p", storeId: "target" }, qty: 2 }],
+      "PICKUP",
+    );
+  });
   it("现有购物车先确认，报价成功后使用最新商品和原数量重新选购", async () => {
     const { state, request, cart, navigate } = controller();
     const order = {
@@ -134,9 +165,13 @@ describe("订单请求与再次购买", () => {
     request.mockResolvedValueOnce({ products: [product] });
     request.mockResolvedValueOnce({ payCents: 9600 });
     await state.reorder(order);
-    expect(cart.clear).toHaveBeenCalledOnce();
-    expect(cart.set).toHaveBeenCalledWith(product, 3);
-    expect(cart.type).toBe("PICKUP");
+    expect(cart.replaceStore).toHaveBeenCalledOnce();
+    expect(cart.replaceStore).toHaveBeenCalledWith(
+      "store",
+      [{ product, qty: 3 }],
+      "PICKUP",
+    );
+    expect(cart.clear).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith("/store/store");
     expect(state.replacement.value).toBeUndefined();
   });

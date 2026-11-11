@@ -20,6 +20,7 @@ const root = ref<HTMLElement>(),
   viewport = ref<HTMLElement>(),
   content = ref<HTMLElement>();
 defineExpose({
+  getViewport: () => viewport.value ?? root.value,
   scrollTo(options: ScrollToOptions) {
     (viewport.value ?? root.value)?.scrollTo(options);
   },

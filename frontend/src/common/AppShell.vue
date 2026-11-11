@@ -12,11 +12,21 @@ import { api } from "./api";
 import { merchantStore } from "./merchantStatus";
 import { run } from "./feedback";
 import { useAuth } from "./auth";
+import { useCart } from "./cart";
 import { switchDevice } from "./device";
 const route = useRoute(),
   router = useRouter(),
   auth = useAuth();
 const { toggle } = useTheme();
+const carts = useCart();
+const pageBody = ref<InstanceType<typeof ScrollArea>>();
+watch(
+  () => route.query.storeId,
+  () => {
+    if (route.path === "/checkout") pageBody.value?.scrollTo({ top: 0 });
+  },
+  { flush: "post" },
+);
 const role = computed(
   () =>
     String(route.meta.role ?? "USER").toLowerCase() as
@@ -131,6 +141,7 @@ const go = (path: string) => router.push(path);
   >
     <SiteHeader
       :user="account"
+      :cart-count="carts.totalCount"
       :model-value="selected"
       @update:model-value="go"
       @login="go('/login')"
@@ -138,12 +149,24 @@ const go = (path: string) => router.push(path);
       @account="go('/me')"
     />
     <ScrollArea
+      ref="pageBody"
       class="xz-site-page__body"
       axis="both"
       label="页面内容"
       :disabled="containedScroll"
     >
-      <div class="xz-container"><RouterView /></div>
+      <div class="xz-container">
+        <RouterView
+          :key="
+            route.path === '/checkout'
+              ? 'checkout:' +
+                String(route.query.storeId ?? carts.resolveStoreId() ?? '')
+              : route.path.startsWith('/store/')
+                ? route.path
+                : undefined
+          "
+        />
+      </div>
     </ScrollArea>
   </div>
   <DesktopShell

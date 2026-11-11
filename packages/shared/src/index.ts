@@ -141,6 +141,9 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface Quote {
+  minOrderCents: number;
+  shortfallCents: number;
+  checkoutAllowed: boolean;
   itemsCents: number;
   deliveryFeeCents: number;
   discountCents: number;
@@ -274,3 +277,5 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     return result.data;
   };
 }
+export * from "./dishGroups";
+export * from "./publicStores";

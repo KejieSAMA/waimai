@@ -20,7 +20,7 @@ function setup() {
         save: vi.fn(),
       }),
     )!,
-  ) as CheckoutCart;
+  ).forStore("store") as CheckoutCart;
   return { cart, request, scope };
 }
 describe("两端共用购物车状态", () => {
@@ -46,7 +46,7 @@ describe("两端共用购物车状态", () => {
     cart.addressId = "address";
     expect(cart.quotePending).toBe(true);
   });
-  it("备注不触发重新报价，换店与下单清空备注，删除最后一项保留本次备注", async () => {
+  it("备注不触发重新报价，拒绝其他店的商品，清空本店清除备注", async () => {
     const { cart } = setup();
     cart.set(product, 1);
     await cart.refresh();
@@ -56,7 +56,8 @@ describe("两端共用购物车状态", () => {
     expect(cart.note).toBe("不要香菜");
     expect(cart.lastStoreId).toBe("store");
     cart.set({ ...product, id: "second", storeId: "other" }, 1);
-    expect(cart.note).toBe("");
+    expect(cart.note).toBe("不要香菜");
+    expect(cart.lines).toHaveLength(0);
     cart.note = "少辣";
     cart.clear();
     expect(cart.note).toBe("");
@@ -77,7 +78,7 @@ describe("两端共用购物车状态", () => {
           },
         }),
       )!,
-    ) as CheckoutCart;
+    ).forStore("store") as CheckoutCart;
     cart.set(product, 1);
     let finish!: (value: Quote) => void;
     request.mockReturnValueOnce(

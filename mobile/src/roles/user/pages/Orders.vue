@@ -59,7 +59,11 @@ const {
       title="重新选购"
       @close="replacement = undefined"
     >
-      再来一单将替换当前购物车中的商品，是否继续？
+      再来一单将替换
+      {{
+        replacement?.store?.name || "该店铺"
+      }}
+      的已选商品，其他店铺购物车不受影响。
       <p v-if="error" class="app-error body-sm" role="alert">{{ error }}</p>
       <template #actions
         ><Button

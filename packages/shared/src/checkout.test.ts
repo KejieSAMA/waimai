@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick, reactive } from "vue";
-import { useCartState, type CheckoutCart, type CheckoutRequest } from "./cart";
+import { useCartState, type CheckoutRequest } from "./cart";
 import { chooseCheckoutAddress, useCheckout } from "./checkout";
 import type { Address, Product, Quote, Store } from "./index";
 vi.mock("vue", async (original) => ({
@@ -44,6 +44,9 @@ const otherAddress: Address = {
   isDefault: false,
 };
 const initialQuote: Quote = {
+  minOrderCents: 2000,
+  shortfallCents: 0,
+  checkoutAllowed: true,
   itemsCents: 2800,
   deliveryFeeCents: 300,
   discountCents: 0,
@@ -112,14 +115,15 @@ function setup() {
   );
   const cartScope = effectScope();
   scopes.push(cartScope);
-  const cart = reactive(
+  const carts = reactive(
     cartScope.run(() =>
       useCartState(request as CheckoutRequest, {
         load: () => [{ product, qty: 1 }],
         save: vi.fn(),
       }),
     )!,
-  ) as CheckoutCart;
+  );
+  const cart = carts.forStore("store-1");
   const scope = effectScope();
   scopes.push(scope);
   const navigate = vi.fn().mockResolvedValue(undefined);
@@ -128,7 +132,7 @@ function setup() {
   )!;
   const orderCalls = () =>
     request.mock.calls.filter(([path]) => path === "/user/orders");
-  return { server, request, cart, state, scope, navigate, orderCalls };
+  return { server, request, carts, cart, state, scope, navigate, orderCalls };
 }
 describe("结算地址", () => {
   it("优先保留当前地址，缺失后回退默认、首项或空值", () => {
@@ -267,6 +271,40 @@ describe("可编辑清单与提交", () => {
       ).not.toBe("");
     },
   );
+  it("A 提交成功只清空 A，切换结算选择不会影响 B 或提交目标", async () => {
+    const { state, cart, carts, server, request } = setup();
+    const other = { ...product, id: "other", storeId: "store-2" };
+    carts.forStore("store-2").set(other, 4);
+    carts.forStore("store-2").note = "B 的备注";
+    await state.initialize();
+    const pending = deferred<{ id: string }>();
+    server.orderWait = pending.promise;
+    const submit = state.submit();
+    await flush();
+    carts.selectStore("store-2");
+    pending.resolve({ id: "order-a" });
+    await submit;
+    expect(cart.count).toBe(0);
+    expect(carts.forStore("store-2")).toMatchObject({
+      count: 4,
+      note: "B 的备注",
+    });
+    expect(
+      request.mock.calls.find(([path]) => path === "/user/orders")?.[1]?.body,
+    ).toMatchObject({ storeId: "store-1" });
+  });
+  it("低于起送价时禁止提交，即使预览返回完整金额", async () => {
+    const { server, state, orderCalls } = setup();
+    server.quote = {
+      ...initialQuote,
+      shortfallCents: 200,
+      checkoutAllowed: false,
+    };
+    await state.initialize();
+    expect(state.canSubmit.value).toBe(false);
+    await state.submit();
+    expect(orderCalls()).toHaveLength(0);
+  });
   it("提交前金额变化只更新报价，用户再次确认后才创建订单", async () => {
     const { server, state, cart, orderCalls, request } = setup();
     await state.initialize();

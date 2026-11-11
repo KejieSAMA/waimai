@@ -1,5 +1,6 @@
-import { onMounted, ref, watch } from "vue";
-import type { Action, Order, Page, Product, Store } from "./index";
+import type { CartLine, CheckoutCart } from "./cart";
+import { onMounted, onScopeDispose, ref, watch } from "vue";
+import type { Action, Order, Page, Quote, Store } from "./index";
 
 export const userOrderTabs = [
   { key: "all", label: "全部" },
@@ -55,10 +56,13 @@ type Request = <T>(
   options?: { method?: string; body?: unknown },
 ) => Promise<T>;
 interface Cart {
-  count: number;
-  type: "DELIVERY" | "PICKUP";
-  clear(): void;
-  set(product: Product, qty: number): void;
+  forStore(id: string): CheckoutCart;
+  replaceStore(
+    id: string,
+    lines: CartLine[],
+    type: "DELIVERY" | "PICKUP",
+  ): void;
+  rememberStore(store: Store): void;
 }
 
 export function useUserOrders(
@@ -75,7 +79,12 @@ export function useUserOrders(
     error = ref("");
   const replacement = ref<Order>();
   const reordering = ref(false);
-  let version = 0;
+  let version = 0,
+    active = true;
+  onScopeDispose(() => {
+    active = false;
+    ++version;
+  });
   async function load() {
     const current = ++version;
     pending.value = true;
@@ -122,7 +131,7 @@ export function useUserOrders(
       }));
       if (lines.some((line) => !line.product))
         throw new Error("部分商品已不可购买，请进入店铺重新选购");
-      await request("/user/orders/preview", {
+      const quote = await request<Quote>("/user/orders/preview", {
         method: "POST",
         body: {
           storeId: order.storeId,
@@ -133,9 +142,15 @@ export function useUserOrders(
           })),
         },
       });
-      cart.clear();
-      cart.type = order.type;
-      for (const line of lines) cart.set(line.product!, line.qty);
+      if (quote.checkoutAllowed === false)
+        throw new Error("未达到起送金额，请进入店铺重新选购");
+      if (!active) return;
+      cart.replaceStore(
+        order.storeId,
+        lines.map((line) => ({ product: line.product!, qty: line.qty })),
+        order.type,
+      );
+      cart.rememberStore(store);
       replacement.value = undefined;
       await navigate(`/store/${order.storeId}`);
     } catch (cause) {
@@ -150,7 +165,7 @@ export function useUserOrders(
       () => navigate(`/orders/${order.id}`),
       () => navigate(`/orders/${order.id}#review`),
       () => {
-        if (cart.count) replacement.value = order;
+        if (cart.forStore(order.storeId).count) replacement.value = order;
         else void reorder(order);
       },
     );

@@ -30,3 +30,6 @@ export { overlayScrollbarsKey } from "./scrollbarContext";
 export { selectPresentationKey } from "./selectContext";
 export { dialogPresentationKey } from "./dialogContext";
 export * from "./types";
+export { default as CartSelector } from "./CartSelector.vue";
+export { default as CartItems } from "./CartItems.vue";
+export { useGroupScroll } from "./useGroupScroll";

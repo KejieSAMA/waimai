@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { Icon } from "@waimai/ui";
+import {
+  Icon,
+  Dialog,
+  CartItems,
+  CheckoutFees,
+  Button,
+  Tabs,
+} from "@waimai/ui";
 import MobilePage from "../components/MobilePage.vue";
 import NavBar from "../components/NavBar.vue";
 import CartBar from "../components/CartBar.vue";
 import { useCart } from "./cart";
 import TabBar from "../components/TabBar.vue";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { pageChrome } from "./pageChrome";
-import { useRoleNotices, type Role } from "@waimai/shared";
+import { useRoleNotices, money, type Role } from "@waimai/shared";
 import { api } from "./api";
 import { useAuth } from "./auth";
 import type { NavItem } from "@waimai/ui";
@@ -65,10 +72,36 @@ const backTo = () => {
     );
   if (isStore.value) return router.push("/");
   if (route.path === "/checkout")
-    return router.push(cart.lastStoreId ? "/store/" + cart.lastStoreId : "/");
+    return router.push(
+      cart.checkoutStoreId ? "/store/" + cart.checkoutStoreId : "/",
+    );
   return router.back();
 };
 const cart = useCart();
+const pageBody = ref<InstanceType<typeof MobilePage>>();
+watch(
+  () => route.query.storeId,
+  () => {
+    if (route.path === "/checkout") pageBody.value?.scrollToTop();
+  },
+  { flush: "post" },
+);
+const storeCartOpen = ref(false),
+  clearCartOpen = ref(false);
+const storeMetadata = computed(
+  () => cart.storeInfo[String(route.params.id ?? "")],
+);
+watch(
+  () => route.params.id,
+  () => {
+    storeCartOpen.value = false;
+    clearCartOpen.value = false;
+  },
+);
+const storeProductFor = (line: import("@waimai/shared").CartLine) =>
+  storeMetadata.value?.products?.find((p) => p.id === line.product.id) ??
+  line.product;
+const storeCart = computed(() => cart.forStore(String(route.params.id ?? "")));
 const role = computed(
   () =>
     String(route.meta.role ?? "USER").toLowerCase() as
@@ -139,6 +172,7 @@ const tabs = computed(() =>
 </script>
 <template>
   <MobilePage
+    ref="pageBody"
     :bottom-tone="isStore ? 'clear' : 'raised'"
     :class="{ 'app-mobile-store': isStore }"
   >
@@ -181,18 +215,37 @@ const tabs = computed(() =>
       class="app-content"
       :class="{ 'app-content--edge': edge, 'app-content--store': isStore }"
     >
-      <RouterView />
+      <RouterView
+        :key="
+          route.path === '/checkout'
+            ? 'checkout:' +
+              String(route.query.storeId ?? cart.resolveStoreId() ?? '')
+            : route.path.startsWith('/store/')
+              ? route.path
+              : undefined
+        "
+      />
     </div>
     <template v-if="hasBottom" #bottom>
       <CartBar
         v-if="isStore"
-        :count="cart.count"
-        :total="cart.quote ? cart.quote.payCents / 100 : undefined"
+        :count="storeCart.count"
+        :total="storeCart.quote ? storeCart.quote.payCents / 100 : undefined"
         :delivery-fee="
-          cart.quote ? cart.quote.deliveryFeeCents / 100 : undefined
+          storeCart.quote ? storeCart.quote.deliveryFeeCents / 100 : undefined
         "
-        :disabled="!cart.storeOpen"
-        @checkout="go('/checkout')"
+        :disabled="!storeCart.storeOpen"
+        @checkout="
+          go('/checkout?storeId=' + encodeURIComponent(String(route.params.id)))
+        "
+        @open="storeCartOpen = true"
+        :updating="storeCart.quotePending"
+        :error="storeCart.quoteError"
+        :logged-in="!!auth.tokens.USER"
+        :shortfall="storeCart.quote?.shortfallCents"
+        :min-order="storeMetadata?.minOrderCents"
+        :checkout-allowed="storeCart.quote?.checkoutAllowed"
+        :pickup="storeCart.type === 'PICKUP'"
       />
       <div v-else-if="actionPage" id="mobile-page-actions" />
       <TabBar
@@ -203,6 +256,82 @@ const tabs = computed(() =>
         @update:model-value="go"
       />
     </template>
-    <template #overlay><div id="mobile-page-overlay" /></template>
+    <template #overlay
+      ><div id="mobile-page-overlay" />
+      <Dialog
+        :open="storeCartOpen"
+        variant="sheet"
+        :title="storeMetadata?.name || '本店购物车'"
+        @close="storeCartOpen = false"
+      >
+        <Tabs
+          v-model="storeCart.type"
+          :items="[
+            { key: 'DELIVERY', label: '外卖配送' },
+            { key: 'PICKUP', label: '到店自提' },
+          ]"
+        />
+        <p v-if="storeCart.quote?.shortfallCents" class="body-sm app-muted">
+          差
+          {{ money(storeCart.quote.shortfallCents) }} 起送，可继续选购或选择自提
+        </p>
+        <CartItems
+          :lines="storeCart.lines"
+          :quote="storeCart.quote"
+          :product-for="storeProductFor"
+          @quantity="storeCart.set($event.product, $event.qty)"
+        />
+        <CheckoutFees
+          :quote="storeCart.quote"
+          :updating="storeCart.quotePending"
+        />
+        <p v-if="storeCart.quoteError" class="app-error body-sm">
+          {{ storeCart.quoteError
+          }}<Button variant="text" @click="storeCart.refresh">重试</Button>
+        </p>
+        <template #actions
+          ><Button
+            variant="outline"
+            :disabled="!storeCart.count"
+            @click="clearCartOpen = true"
+            >清空本店</Button
+          ><Button
+            :disabled="
+              !storeCart.count ||
+              !storeCart.storeOpen ||
+              (!!auth.tokens.USER &&
+                (storeCart.quotePending ||
+                  !!storeCart.quoteError ||
+                  storeCart.quote?.checkoutAllowed === false))
+            "
+            @click="
+              storeCartOpen = false;
+              go(
+                '/checkout?storeId=' +
+                  encodeURIComponent(String(route.params.id)),
+              );
+            "
+            >去结算</Button
+          ></template
+        >
+      </Dialog>
+      <Dialog
+        :open="clearCartOpen"
+        title="清空本店"
+        @close="clearCartOpen = false"
+        ><p class="body-sm">清空本店已选商品，其他店铺不受影响</p>
+        <template #actions
+          ><Button variant="outline" @click="clearCartOpen = false"
+            >保留商品</Button
+          ><Button
+            @click="
+              storeCart.clear();
+              clearCartOpen = false;
+            "
+            >清空本店</Button
+          ></template
+        ></Dialog
+      >
+    </template>
   </MobilePage>
 </template>

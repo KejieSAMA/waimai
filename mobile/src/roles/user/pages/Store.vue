@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   CategoryNav,
+  useGroupScroll,
   DishCard,
   Tag,
   Thumb,
@@ -24,25 +25,33 @@ import { useAuth } from "../../../common/auth";
 import PageSlot from "../../../components/PageSlot.vue";
 import NavBarIcon from "../../../components/NavBarIcon.vue";
 const route = useRoute(),
-  cart = useCart(),
+  carts = useCart(),
   auth = useAuth();
+const cart = carts.forStore(String(route.params.id));
 const store = ref<Store>(),
   category = ref("");
 const keyword = ref(""),
   searchOpen = ref(false),
   dishList = ref<HTMLElement>();
-watch([category, keyword], () => dishList.value?.scrollTo({ top: 0 }), {
-  flush: "post",
-});
+const { jump } = useGroupScroll(() => dishList.value, category);
+watch(
+  keyword,
+  () => {
+    category.value = "";
+    dishList.value?.scrollTo({ top: 0 });
+  },
+  {
+    flush: "post",
+  },
+);
 const products = computed(
   () =>
     store.value?.products?.filter(
       (p) =>
-        (!category.value || p.dishCategoryId === category.value) &&
-        (!keyword.value.trim() ||
-          (p.name + " " + p.description)
-            .toLocaleLowerCase()
-            .includes(keyword.value.trim().toLocaleLowerCase())),
+        !keyword.value.trim() ||
+        (p.name + " " + p.description)
+          .toLocaleLowerCase()
+          .includes(keyword.value.trim().toLocaleLowerCase()),
     ) ?? [],
 );
 const selected = (p: Product) =>
@@ -107,10 +116,14 @@ watch(view, (value) => {
   }
 });
 const groups = computed(() =>
-  category.value
-    ? (store.value?.dishCategories ?? []).filter((c) => c.id === category.value)
-    : (store.value?.dishCategories ?? []),
+  (store.value?.dishCategories ?? []).filter((group) =>
+    products.value.some((p) => p.dishCategoryId === group.id),
+  ),
 );
+const categoryCount = (id: string) =>
+  cart.lines
+    .filter((line) => !id || line.product.dishCategoryId === id)
+    .reduce((sum, line) => sum + line.qty, 0);
 const storeReload = ref(0);
 const storeLoading = ref(false),
   storeError = ref("");
@@ -122,7 +135,9 @@ watch(
       active = false;
     });
     store.value = undefined;
+    cart.storeOpen = false;
     category.value = "";
+    keyword.value = "";
     view.value = "dishes";
     ++reviewVersion;
     reviewLoading.value = false;
@@ -136,6 +151,7 @@ watch(
       const result = await api<Store>("/public/stores/" + id);
       if (!active) return;
       store.value = result;
+      carts.rememberStore(result);
       cart.storeOpen = result.status === "OPEN";
       if (auth.tokens.USER && cart.count) await cart.refresh();
     } catch (cause) {
@@ -215,12 +231,14 @@ watch(
     />
     <div v-if="view === 'dishes'" class="sc-split">
       <CategoryNav
-        v-model="category"
+        :model-value="category"
+        @update:model-value="jump"
         :items="[
-          { key: '', label: '全部菜品' },
+          { key: '', label: '全部菜品', count: categoryCount('') },
           ...(store.dishCategories ?? []).map((c) => ({
             key: c.id,
             label: c.name,
+            count: categoryCount(c.id),
           })),
         ]"
       />
@@ -230,7 +248,9 @@ watch(
             products.some((p) => p.dishCategoryId === g.id),
           )"
           :key="group.id"
-          ><div class="sc-group body-sm">{{ group.name }}</div>
+          ><div :data-dish-group="group.id" class="sc-group body-sm">
+            {{ group.name }}
+          </div>
           <DishCard
             v-for="p in products.filter((p) => p.dishCategoryId === group.id)"
             :key="p.id"

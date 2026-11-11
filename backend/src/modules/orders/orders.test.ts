@@ -139,6 +139,74 @@ describe("订单金额、库存和权限", () => {
       lineTotalCents: 5700,
     });
   });
+  it("起送价以下仍返回报价，但创建严格拒绝；等于起送价和自提可创建", async () => {
+    const address = await db.address.create({
+      data: {
+        userId,
+        contact: "测试",
+        phone: "13911111111",
+        detail: "测试地址",
+      },
+    });
+    const body = {
+      storeId,
+      type: "DELIVERY",
+      addressId: address.id,
+      items: [{ productId, qty: 1 }],
+    };
+    await db.store.update({
+      where: { id: storeId },
+      data: { minOrderCents: 3000 },
+    });
+    try {
+      const quote = await orderService.quoteOrder(body);
+      expect(quote).toMatchObject({
+        minOrderCents: 3000,
+        shortfallCents: 150,
+        checkoutAllowed: false,
+        itemsCents: 2850,
+      });
+      await expect(orderService.createOrder(userId, body)).rejects.toThrow(
+        "未达到起送金额",
+      );
+      expect(
+        (
+          await orderService.quoteOrder({
+            ...body,
+            items: [{ productId, qty: 2 }],
+          })
+        ).checkoutAllowed,
+      ).toBe(true);
+      const pickup = await orderService.createOrder(userId, {
+        ...body,
+        type: "PICKUP",
+      });
+      expect(pickup.deliveryFeeCents).toBe(0);
+      expect(pickup).not.toHaveProperty("checkoutAllowed");
+      await orderService.actOnOrder(
+        pickup.id,
+        { id: userId, role: "USER" },
+        "cancel",
+      );
+      await db.store.update({
+        where: { id: storeId },
+        data: { minOrderCents: 2850 },
+      });
+      expect((await orderService.quoteOrder(body)).shortfallCents).toBe(0);
+      const delivery = await orderService.createOrder(userId, body);
+      expect(delivery.itemsCents).toBe(2850);
+      await orderService.actOnOrder(
+        delivery.id,
+        { id: userId, role: "USER" },
+        "cancel",
+      );
+    } finally {
+      await db.store.update({
+        where: { id: storeId },
+        data: { minOrderCents: 0 },
+      });
+    }
+  });
   it("配送订单必须使用本人地址", async () => {
     const response = await request(app)
       .post("/api/v1/user/orders")

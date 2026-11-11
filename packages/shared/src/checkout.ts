@@ -72,7 +72,9 @@ export function useCheckout(
     addresses.value.find((address) => address.id === cart.addressId),
   );
   const shopPath = computed(() =>
-    targetStoreId.value ? `/store/${targetStoreId.value}` : "/",
+    targetStoreId.value
+      ? `/store/${encodeURIComponent(targetStoreId.value)}`
+      : "/",
   );
   const locked = computed(
     () => submitting.value || addressSaving.value || !!createdOrderId.value,
@@ -108,6 +110,7 @@ export function useCheckout(
       cart.lines.length > 0 &&
       !cart.lines.some(itemIssue) &&
       !!cart.quote &&
+      cart.quote.checkoutAllowed !== false &&
       !cart.quotePending &&
       !cart.quoteError &&
       (cart.type === "PICKUP" ||
@@ -122,7 +125,9 @@ export function useCheckout(
     storeLoading.value = true;
     storeError.value = "";
     try {
-      const result = await request<Store>(`/public/stores/${id}`);
+      const result = await request<Store>(
+        `/public/stores/${encodeURIComponent(id)}`,
+      );
       if (!active || current !== storeVersion) return;
       store.value = result;
       cart.storeOpen = result.status === "OPEN";
@@ -272,6 +277,10 @@ export function useCheckout(
       }
       const fresh = await cart.refresh();
       if (!active || !fresh) return;
+      if (!fresh.checkoutAllowed) {
+        notice.value = "未达到起送金额，请继续选购或选择自提";
+        return;
+      }
       if (quoteSignature(fresh) !== displayed) {
         notice.value = "金额已更新，请核对后再次提交";
         return;
