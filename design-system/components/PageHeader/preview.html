@@ -1,0 +1,16 @@
+<!-- @dsCard group="桌面 · 布局与导航" height=200 width=960 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageHeader — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-5) var(--space-6)' } },
+    h(X.PageHeader, { breadcrumb: ['商品管理', '新增商品'], title: '新增商品', tag: h(X.Tag, { tone: 'neutral' }, '草稿'),
+      actions: h(React.Fragment, null, h(X.Button, { variant: 'outline' }, '取消'), h(X.Button, { variant: 'secondary' }, '存为草稿'), h(X.Button, null, '保存并上架')) }),
+    h(X.PageHeader, { title: '商家管理', subtitle: '共 1,286 家', actions: h(X.Button, { variant: 'outline' }, '导出') })));
+</script>
+</body>
+</html>

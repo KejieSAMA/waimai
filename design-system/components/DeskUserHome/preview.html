@@ -1,0 +1,84 @@
+<!-- @dsCard group="桌面页面 · 用户端" height=940 width=1480 page subtitle="网页首页：类目、排序、附近商家" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskUserHome — 预览</title><style>
+.ds-grid { display: grid; gap: var(--space-4); }
+.ds-stats { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-stats5 { grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: var(--space-4); align-items: start; }
+.ds-cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ds-section { display: flex; align-items: center; justify-content: space-between; margin: var(--space-2) 0 var(--space-3); }
+.ds-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.ds-col { display: flex; flex-direction: column; gap: var(--space-3); min-height: 640px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ds-col__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.ds-form { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ds-card { padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-card__title { margin: 0 0 var(--space-4); }
+.ds-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-5); }
+.ds-upload { display: flex; gap: var(--space-3); }
+.ds-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.ds-muted { color: var(--ink-muted); }
+.ds-preview { overflow: hidden; border-radius: var(--radius-lg); box-shadow: 0 0 0 1px var(--line); }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.ds-doc b { color: var(--ink); font-weight: 600; }
+.ds-block { margin: var(--space-6) 0 var(--space-3); color: var(--ink); }
+.ds-head { display: flex; align-items: center; gap: var(--space-4); }
+.ds-head__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-head__top { display: flex; align-items: center; gap: var(--space-2); }
+.ds-log { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--ink-muted); }
+.ds-log b { color: var(--ink); font-weight: 400; margin-left: var(--space-2); }
+.ds-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.ds-tabs { margin-bottom: var(--space-4); }
+.ds-chips { padding: 0; flex-wrap: wrap; }
+.ds-sort { display: flex; align-items: center; gap: var(--space-5); margin: var(--space-4) 0; color: var(--ink-muted); }
+.ds-sort b { color: var(--ink); font-weight: 600; }
+.ds-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-storehead { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-storehead .xz-logo { width: var(--size-thumb); height: var(--size-thumb); }
+.ds-storehead__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-storehead__kv { display: flex; gap: var(--space-6); }
+.ds-storehead__kv > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ds-storehead__kv .xz-num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.ds-storelayout { display: grid; grid-template-columns: 120px minmax(0, 1fr) var(--size-cart-panel); gap: var(--space-4); align-items: start; }
+.ds-catcard { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-catcard .xz-catnav { width: 100%; }
+.ds-group { margin: 0 0 var(--space-3); color: var(--ink-muted); }
+.ds-dishes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.ds-dishes .xz-dish { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-account { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.ds-orders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-desk-stage' }, h('div', { className: 'xz-desk-frame' }, page))); }
+function F() { return h.apply(null, [React.Fragment, null].concat([].slice.call(arguments))); }
+function section(title, more) { return h('div', { className: 'ds-section' }, h('span', { className: 'title-sm' }, title), more || null); }
+var C = X.ListCell;
+var ost = X.ProductRow.statuses, mst = X.MerchantRow.statuses;
+
+var stores = [
+  { name: '老张家牛肉面（望京店）', rating: 4.8, sales: '3000+', time: '30 分钟', distance: '1.2km', minOrder: 20, deliveryFee: 3, tags: ['满 30 减 5', '满 50 减 10', '首单立减 8'] },
+  { name: '阿香米线', rating: 4.6, sales: '1500+', time: '35 分钟', distance: '2.0km', minOrder: 15, deliveryFee: 0, tags: [{ label: '新店', tone: 'accent' }, '满 25 减 3'] },
+  { name: '一碗好粥', rating: 4.7, sales: '2200+', time: '28 分钟', distance: '0.9km', minOrder: 15, deliveryFee: 2, tags: ['满 20 减 4'] },
+  { name: '川味小厨', rating: 4.5, sales: '1800+', time: '38 分钟', distance: '2.3km', minOrder: 25, deliveryFee: 3, tags: ['满 40 减 8', '满 60 减 12'] },
+  { name: '江南小笼', rating: 4.8, sales: '960+', time: '32 分钟', distance: '1.6km', minOrder: 20, deliveryFee: 2, tags: ['满 30 减 6'] },
+  { name: '鲜果茶研所', rating: 4.7, sales: '4100+', time: '25 分钟', distance: '0.8km', minOrder: 15, deliveryFee: 0, tags: [{ label: '爆款', tone: 'brand', variant: 'solid' }, '第二杯半价'] },
+  { name: '东北饺子馆', rating: 4.6, sales: '1300+', time: '33 分钟', distance: '1.9km', minOrder: 20, deliveryFee: 3, tags: ['满 35 减 5'] },
+  { name: '轻食沙拉实验室', rating: 4.4, sales: '700+', time: '30 分钟', distance: '1.4km', minOrder: 25, deliveryFee: 4, tags: ['满 50 减 10'] },
+  { name: '深夜烧烤研究所', rating: 4.7, sales: '800+', time: '40 分钟', distance: '2.6km', minOrder: 30, deliveryFee: 4, status: 'closed', notice: '17:00 开始营业' }
+];
+mount(h('div', { className: 'xz-site-page xz-desk' },
+  h(X.SiteHeader, { location: '望京 SOHO', user: { name: '小王' } }),
+  h('div', { className: 'xz-site-page__body' }, h('div', { className: 'xz-container' },
+    h(X.Tabs, { variant: 'chip', className: 'ds-chips', items: ['全部', '快餐便当', '米粉面馆', '奶茶饮品', '烧烤夜宵', '甜品', '粥粉面点', '轻食沙拉', '地方菜'] }),
+    h('div', { className: 'ds-sort body-md' }, h('b', null, '综合排序'), h('span', null, '距离最近'), h('span', null, '销量最高'), h('span', null, '起送价最低'),
+      h('span', { style: { marginLeft: 'auto' } }, h(X.Select, { options: ['全部商家', '免配送费', '新店', '30 分钟内送达'], width: 180 }))),
+    h('div', { className: 'ds-stores' }, stores.map(function (s, i) { return h(X.StoreCard, Object.assign({ key: i }, s)); }))))));
+</script>
+</body>
+</html>

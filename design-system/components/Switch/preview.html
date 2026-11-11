@@ -1,0 +1,16 @@
+<!-- @dsCard group="表单" height=104 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Switch — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h('div', { className: 'xz-row', style: { gap: 'var(--space-6)' } },
+      h(X.Switch, { label: '营业中', defaultChecked: true }), h(X.Switch, { label: '上架' }),
+      h(X.Switch, { label: '审核中', disabled: true }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+design-system/
+node_modules/
+dist/
+pnpm-lock.yaml
+
+packages/tokens/src/tokens.css
+packages/tokens/src/components.css
+
+docs/SPEC.md
+docs/KICKOFF.md

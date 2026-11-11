@@ -1,0 +1,97 @@
+<!-- @dsCard group="桌面页面 · 用户端" height=940 width=1480 page subtitle="网页店铺点餐：分类、菜品、购物车面板" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskUserStore — 预览</title><style>
+.ds-grid { display: grid; gap: var(--space-4); }
+.ds-stats { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-stats5 { grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: var(--space-4); align-items: start; }
+.ds-cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ds-section { display: flex; align-items: center; justify-content: space-between; margin: var(--space-2) 0 var(--space-3); }
+.ds-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.ds-col { display: flex; flex-direction: column; gap: var(--space-3); min-height: 640px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ds-col__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.ds-form { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ds-card { padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-card__title { margin: 0 0 var(--space-4); }
+.ds-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-5); }
+.ds-upload { display: flex; gap: var(--space-3); }
+.ds-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.ds-muted { color: var(--ink-muted); }
+.ds-preview { overflow: hidden; border-radius: var(--radius-lg); box-shadow: 0 0 0 1px var(--line); }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.ds-doc b { color: var(--ink); font-weight: 600; }
+.ds-block { margin: var(--space-6) 0 var(--space-3); color: var(--ink); }
+.ds-head { display: flex; align-items: center; gap: var(--space-4); }
+.ds-head__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-head__top { display: flex; align-items: center; gap: var(--space-2); }
+.ds-log { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--ink-muted); }
+.ds-log b { color: var(--ink); font-weight: 400; margin-left: var(--space-2); }
+.ds-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.ds-tabs { margin-bottom: var(--space-4); }
+.ds-chips { padding: 0; flex-wrap: wrap; }
+.ds-sort { display: flex; align-items: center; gap: var(--space-5); margin: var(--space-4) 0; color: var(--ink-muted); }
+.ds-sort b { color: var(--ink); font-weight: 600; }
+.ds-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-storehead { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-storehead .xz-logo { width: var(--size-thumb); height: var(--size-thumb); }
+.ds-storehead__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-storehead__kv { display: flex; gap: var(--space-6); }
+.ds-storehead__kv > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ds-storehead__kv .xz-num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.ds-storelayout { display: grid; grid-template-columns: 120px minmax(0, 1fr) var(--size-cart-panel); gap: var(--space-4); align-items: start; }
+.ds-catcard { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-catcard .xz-catnav { width: 100%; }
+.ds-group { margin: 0 0 var(--space-3); color: var(--ink-muted); }
+.ds-dishes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.ds-dishes .xz-dish { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-account { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.ds-orders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-desk-stage' }, h('div', { className: 'xz-desk-frame' }, page))); }
+function F() { return h.apply(null, [React.Fragment, null].concat([].slice.call(arguments))); }
+function section(title, more) { return h('div', { className: 'ds-section' }, h('span', { className: 'title-sm' }, title), more || null); }
+var C = X.ListCell;
+var ost = X.ProductRow.statuses, mst = X.MerchantRow.statuses;
+
+function dish(o) { return h(X.DishCard, o); }
+mount(h('div', { className: 'xz-site-page xz-desk' },
+  h(X.SiteHeader, { location: '望京 SOHO', cartCount: 4, user: { name: '小王' } }),
+  h('div', { className: 'xz-site-page__body' }, h('div', { className: 'xz-container' },
+    h('div', { className: 'ds-storehead' },
+      h('span', { className: 'xz-logo' }, h('span', { className: 'display' }, '老')),
+      h('div', { className: 'ds-storehead__main' },
+        h('span', { className: 'title-lg' }, '老张家牛肉面（望京店）'),
+        h('span', { className: 'body-md ds-muted' }, '评分 4.8 · 月售 3000+ · 约 30 分钟 · 1.2km'),
+        h('div', { className: 'xz-row', style: { gap: 'var(--space-1)' } }, h(X.Tag, { tone: 'brand', variant: 'outline' }, '满 30 减 5'), h(X.Tag, { tone: 'brand', variant: 'outline' }, '满 50 减 10'), h(X.Tag, { tone: 'brand', variant: 'outline' }, '首单立减 8')),
+        h('span', { className: 'body-sm ds-muted' }, '公告：汤底每日现熬，11:00 前下单优先出餐')),
+      h('div', { className: 'ds-storehead__kv' },
+        h('div', null, h('span', { className: 'xz-num' }, '¥20'), h('span', { className: 'caption ds-muted' }, '起送')),
+        h('div', null, h('span', { className: 'xz-num' }, '¥3'), h('span', { className: 'caption ds-muted' }, '配送费')),
+        h('div', null, h('span', { className: 'xz-num' }, '10:00–22:00'), h('span', { className: 'caption ds-muted' }, '营业时间')))),
+    h(X.Tabs, { className: 'ds-tabs', items: ['点菜', '评价 4.8', '商家'] }),
+    h('div', { className: 'ds-storelayout' },
+      h('div', { className: 'ds-catcard' }, h(X.CategoryNav, { defaultValue: 'noodle', items: [{ key: 'hot', label: '热销' }, { key: 'noodle', label: '招牌面', count: 2 }, { key: 'rice', label: '盖浇饭' }, { key: 'side', label: '小菜', count: 2 }, { key: 'drink', label: '饮品' }, { key: 'set', label: '套餐' }] })),
+      h('div', null,
+        h('div', { className: 'ds-group body-md' }, '招牌面'),
+        h('div', { className: 'ds-dishes' },
+          dish({ name: '红烧牛肉面（大碗）', desc: '汤底每日现熬，牛肉选用牛腱', sales: '1200+', price: 28, original: 32, tags: ['招牌'], count: 1 }),
+          dish({ name: '番茄肥牛面', desc: '酸甜番茄汤底，肥牛现切', sales: '860+', price: 26, count: 1 }),
+          dish({ name: '藤椒鸡丝凉面', desc: '微麻，夏季限定', sales: '420+', price: 22 }),
+          dish({ name: '招牌肥肠面', desc: '肥肠卤制 4 小时', sales: '380+', price: 30 })),
+        h('div', { className: 'ds-group body-md' }, '小菜'),
+        h('div', { className: 'ds-dishes' },
+          dish({ name: '卤蛋', desc: '老汤卤制', sales: '2000+', price: 3, count: 2 }),
+          dish({ name: '卤牛肉拼盘', desc: '五香卤制，冷吃', sales: '300+', price: 38, soldOut: true }))),
+      h(X.CartPanel, { deliveryFee: 3, discount: 5, discountLabel: '满 30 减 5', minOrder: 20, items: [
+        { name: '红烧牛肉面（大碗）', price: 28, qty: 1, spec: '微辣' }, { name: '番茄肥牛面', price: 26, qty: 1 }, { name: '卤蛋', price: 3, qty: 2 }] }))))));
+</script>
+</body>
+</html>

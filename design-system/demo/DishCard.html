@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>DishCard — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h('div', { style: { borderRadius: 'var(--radius-lg)', overflow: 'hidden' } },
+      h(X.DishCard, { name: '红烧牛肉面（大碗）', desc: '汤底每日现熬，牛肉选用牛腱', sales: '1200+', price: 28, original: 32, tags: ['招牌'], count: 1 }),
+      h(X.DishCard, { name: '卤牛肉拼盘', desc: '五香卤制，冷吃', sales: '300+', price: 38, soldOut: true })),
+    h('div', { className: 'xz-grid2' },
+      h(X.DishCard, { layout: 'grid', name: '番茄肥牛面', sales: '860+', price: 26 }),
+      h(X.DishCard, { layout: 'grid', name: '酸辣粉', sales: '640+', price: 18, count: 2 }))));
+</script>
+</body>
+</html>

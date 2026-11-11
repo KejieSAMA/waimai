@@ -1,0 +1,16 @@
+<!-- @dsCard group="业务 · 用户端" height=240 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>CartBar — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { gap: 'var(--space-6)', paddingTop: 'var(--space-6)' } },
+    h(X.CartBar, { count: 3, total: 56.5, deliveryFee: 3, minOrder: 20 }),
+    h(X.CartBar, { count: 1, total: 12, deliveryFee: 3, minOrder: 20 }),
+    h(X.CartBar, { count: 0, minOrder: 20 })));
+</script>
+</body>
+</html>

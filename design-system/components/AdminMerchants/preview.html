@@ -1,0 +1,53 @@
+<!-- @dsCard group="页面 · 管理端" height=820 width=415 page subtitle="商家管理：审核、冻结、解冻" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>AdminMerchants — 预览</title><style>
+.sc-sort { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--ink-muted); }
+.sc-sort b { color: var(--ink); font-weight: 600; }
+.sc-sort span { display: inline-flex; align-items: center; gap: 2px; }
+.sc-sort .sc-push { margin-left: auto; }
+.sc-strip { background: var(--surface-raised); }
+.sc-head { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--surface-raised); }
+.sc-head__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sc-muted { color: var(--ink-muted); }
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.sc-fill { height: 100%; display: flex; flex-direction: column; }
+.sc-split { flex: 1; min-height: 0; display: flex; background: var(--surface-raised); }
+.sc-split__list { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 96px; scrollbar-width: none; }
+.sc-group { padding: var(--space-2) var(--space-3) 0; color: var(--ink-muted); }
+.sc-fab { position: absolute; right: var(--space-3); bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3)); z-index: 6; }
+.sc-fab .xz-btn { box-shadow: var(--shadow-float); }
+.sc-actions { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.sc-actions > :first-child { flex: 0 0 34%; }
+.sc-actions > :last-child { flex: 1; }
+.sc-upload { display: flex; gap: var(--space-2); }
+.sc-upload__add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.sc-card { margin: 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.sc-form { margin: 0 var(--space-3); overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.sc-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sc-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.sc-doc b { color: var(--ink); font-weight: 600; }
+.sc-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.sc-hero .xz-stat { padding: var(--space-2) var(--space-1) var(--space-1); }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-stage' }, h('div', { className: 'xz-device' }, page))); }
+function section(title, more) { return h('div', { className: 'xz-section' }, h('span', { className: 'title-sm' }, title), more ? h('span', { className: 'xz-section__more body-sm' }, more) : null); }
+
+mount(h(X.MobilePage, {
+  statusBar: 'admin',
+  navBar: h(X.NavBar, { tone: 'admin', title: '商家管理', subtitle: '共 1,286 家', right: h(X.NavBar.Icon, { name: 'filter', label: '筛选' }) }),
+  bottom: h(X.TabBar, { role: 'admin', defaultValue: 'merchants', badges: { audit: 12 } })
+},
+  h('div', { className: 'sc-strip', style: { padding: '0 var(--space-3)' } }, h(X.SearchBar, { placeholder: '搜索商家名称 / 负责人' })),
+  h(X.Tabs, { items: [{ key: 'all', label: '全部' }, { key: 'pending', label: '待审核', count: 12, alert: true }, { key: 'open', label: '营业中' }, { key: 'frozen', label: '已冻结', count: 9 }] }),
+  h('div', { className: 'xz-list', style: { paddingTop: 'var(--space-3)', paddingBottom: 'var(--space-3)' } },
+    h(X.MerchantRow, { name: '阿香米线（望京店）', category: '米粉面馆', city: '北京', owner: '李女士', joined: '11-10 14:22', status: 'pending' }),
+    h(X.MerchantRow, { name: '老张家牛肉面（望京店）', category: '米粉面馆', city: '北京', joined: '2025-03', orders: '3,420', rating: 4.8, status: 'open' }),
+    h(X.MerchantRow, { name: '甜蜜工坊', category: '甜品', city: '北京', joined: '2025-11', orders: 0, status: 'frozen', reason: '冻结原因：食品经营许可证已过期（11-02 冻结）' }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!-- @dsCard group="基础" height=220 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Icon — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var names = X.Icon.names;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { maxWidth: 'none' } },
+    h('div', { className: 'xz-row', style: { gap: 'var(--space-1)', color: 'var(--ink)' } }, names.map(function (n) {
+      return h('span', { key: n, title: n, style: { display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 52, padding: '6px 0' } },
+        h(X.Icon, { name: n, size: 24 }), h('span', { className: 'caption', style: { color: 'var(--ink-muted)', whiteSpace: 'nowrap' } }, n));
+    }))));
+</script>
+</body>
+</html>

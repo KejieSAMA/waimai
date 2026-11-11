@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>OrderCard — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var items = [{ name: '红烧牛肉面（大碗）', qty: 2, price: 56 }, { name: '卤蛋', qty: 1, price: 3 }, { name: '冰豆浆', qty: 1, price: 6 }];
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h('div', { className: 'caption', style: { color: 'var(--ink-muted)' } }, '用户端'),
+    h(X.OrderCard, { view: 'user', title: '老张家牛肉面（望京店）', status: 'delivering', items: items, total: 59.5, time: '今天 12:08', actions: [{ label: '联系骑手' }, { label: '查看订单', variant: 'secondary' }] }),
+    h('div', { className: 'caption', style: { color: 'var(--ink-muted)' } }, '商家端'),
+    h(X.OrderCard, { view: 'merchant', serial: 12, title: '外卖 · 尾号 3381', status: 'pending', items: items, total: 59.5, time: '12:03 下单 · 预计 12:40 送达', note: '不要香菜，汤多一点', actions: [{ label: '拒单', variant: 'danger-outline' }, { label: '接单', variant: 'primary' }] }),
+    h('div', { className: 'caption', style: { color: 'var(--ink-muted)' } }, '管理端'),
+    h(X.OrderCard, { view: 'admin', title: '订单 2026111112030012', meta: '老张家牛肉面 → 用户 尾号 3381', status: 'refunding', items: items.slice(0, 1), total: 56, time: '11-11 12:03', actions: [{ label: '查看沟通记录' }, { label: '介入处理', variant: 'primary' }] })));
+</script>
+</body>
+</html>

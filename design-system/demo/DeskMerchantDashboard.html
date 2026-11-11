@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>DeskMerchantDashboard — 预览</title><style>
+.ds-grid { display: grid; gap: var(--space-4); }
+.ds-stats { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-stats5 { grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: var(--space-4); align-items: start; }
+.ds-cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ds-section { display: flex; align-items: center; justify-content: space-between; margin: var(--space-2) 0 var(--space-3); }
+.ds-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.ds-col { display: flex; flex-direction: column; gap: var(--space-3); min-height: 640px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ds-col__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.ds-form { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ds-card { padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-card__title { margin: 0 0 var(--space-4); }
+.ds-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-5); }
+.ds-upload { display: flex; gap: var(--space-3); }
+.ds-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.ds-muted { color: var(--ink-muted); }
+.ds-preview { overflow: hidden; border-radius: var(--radius-lg); box-shadow: 0 0 0 1px var(--line); }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.ds-doc b { color: var(--ink); font-weight: 600; }
+.ds-block { margin: var(--space-6) 0 var(--space-3); color: var(--ink); }
+.ds-head { display: flex; align-items: center; gap: var(--space-4); }
+.ds-head__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-head__top { display: flex; align-items: center; gap: var(--space-2); }
+.ds-log { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--ink-muted); }
+.ds-log b { color: var(--ink); font-weight: 400; margin-left: var(--space-2); }
+.ds-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.ds-tabs { margin-bottom: var(--space-4); }
+.ds-chips { padding: 0; flex-wrap: wrap; }
+.ds-sort { display: flex; align-items: center; gap: var(--space-5); margin: var(--space-4) 0; color: var(--ink-muted); }
+.ds-sort b { color: var(--ink); font-weight: 600; }
+.ds-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-storehead { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-storehead .xz-logo { width: var(--size-thumb); height: var(--size-thumb); }
+.ds-storehead__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-storehead__kv { display: flex; gap: var(--space-6); }
+.ds-storehead__kv > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ds-storehead__kv .xz-num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.ds-storelayout { display: grid; grid-template-columns: 120px minmax(0, 1fr) var(--size-cart-panel); gap: var(--space-4); align-items: start; }
+.ds-catcard { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-catcard .xz-catnav { width: 100%; }
+.ds-group { margin: 0 0 var(--space-3); color: var(--ink-muted); }
+.ds-dishes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.ds-dishes .xz-dish { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-account { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.ds-orders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-desk-stage' }, h('div', { className: 'xz-desk-frame' }, page))); }
+function F() { return h.apply(null, [React.Fragment, null].concat([].slice.call(arguments))); }
+function section(title, more) { return h('div', { className: 'ds-section' }, h('span', { className: 'title-sm' }, title), more || null); }
+var C = X.ListCell;
+var ost = X.ProductRow.statuses, mst = X.MerchantRow.statuses;
+
+var days = ['11-05', '11-06', '11-07', '11-08', '11-09', '11-10', '11-11'];
+var vals = [2680.5, 3120, 2890, 3410.5, 4020, 3655, 3286.5];
+var items = [{ name: '红烧牛肉面（大碗）', qty: 2, price: 56 }, { name: '卤蛋', qty: 1, price: 3 }, { name: '冰豆浆', qty: 1, price: 6 }];
+var acts = [{ label: '拒单', variant: 'danger-outline' }, { label: '接单', variant: 'primary' }];
+mount(h(X.DesktopShell, { role: 'merchant', search: '搜索订单号、商品', notices: 3, user: { name: '老张', role: '店长' }, nav: { value: 'desk', badges: { orders: 3 }, footer: h(X.Switch, { label: '营业中', defaultChecked: true }) } },
+  h(X.PageHeader, { title: '工作台', subtitle: '老张家牛肉面（望京店）· 今日 10:00–22:00', actions: F(h(X.Button, { variant: 'outline' }, '营业时间'), h(X.Button, { icon: 'plus' }, '新增商品')) }),
+  h('div', { className: 'ds-grid ds-stats' },
+    h(X.StatCard, { tone: 'brand', label: '今日营业额（元）', value: '3,286.50', delta: 12.4 }),
+    h(X.StatCard, { label: '有效订单', value: '126', unit: '单', delta: 8.1 }),
+    h(X.StatCard, { label: '进店人数', value: '1,024', unit: '人', delta: 3.6 }),
+    h(X.StatCard, { label: '下单转化率', value: '12.3', unit: '%', delta: 1.2 })),
+  h('div', { className: 'ds-grid ds-main' },
+    h(X.TrendChart, { title: '近 7 日营业额', subtitle: '单位：元', prefix: '¥', height: 236, tickFormat: function (v) { return v.toLocaleString('en-US'); }, data: days.map(function (d, i) { return { label: d, value: vals[i] }; }) }),
+    h(C.Group, { title: '待处理' },
+      h(C, { icon: 'order', title: '新订单', extra: h(X.Tag, { tone: 'brand', variant: 'solid' }, '3'), arrow: true }),
+      h(C, { icon: 'wallet', title: '退款申请', extra: h(X.Tag, { tone: 'danger' }, '1'), arrow: true }),
+      h(C, { icon: 'box', title: '库存预警', value: '2 件低于 5 份', arrow: true }),
+      h(C, { icon: 'star', title: '差评待回复', value: '1 条', arrow: true }),
+      h(C, { icon: 'clock', title: '营业执照', value: '2027-03 到期', arrow: true }))),
+  section('新订单', h(X.Button, { variant: 'text', size: 'sm' }, '查看全部订单')),
+  h('div', { className: 'ds-grid ds-cards3' },
+    h(X.OrderCard, { view: 'merchant', serial: 14, title: '外卖 · 尾号 3381', status: 'pending', items: items, total: 59.5, time: '12:03 下单 · 预计 12:40 送达', note: '不要香菜，汤多一点', actions: acts }),
+    h(X.OrderCard, { view: 'merchant', serial: 15, title: '到店自提 · 尾号 0927', status: 'pending', items: [{ name: '番茄肥牛面', qty: 1, price: 26 }], total: 26, time: '12:05 下单 · 12:30 到店', actions: acts }),
+    h(X.OrderCard, { view: 'merchant', serial: 16, title: '外卖 · 尾号 5172', status: 'pending', items: [{ name: '藤椒鸡丝凉面', qty: 2, price: 44 }], total: 41, time: '12:06 下单 · 预计 12:45 送达', actions: acts }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>CartBar — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { gap: 'var(--space-6)', paddingTop: 'var(--space-6)' } },
+    h(X.CartBar, { count: 3, total: 56.5, deliveryFee: 3, minOrder: 20 }),
+    h(X.CartBar, { count: 1, total: 12, deliveryFee: 3, minOrder: 20 }),
+    h(X.CartBar, { count: 0, minOrder: 20 })));
+</script>
+</body>
+</html>

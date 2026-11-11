@@ -1,0 +1,50 @@
+<!-- @dsCard group="页面 · 商家端" height=820 width=415 page subtitle="订单：接单、拒单、出餐" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>MerchantOrders — 预览</title><style>
+.sc-sort { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--ink-muted); }
+.sc-sort b { color: var(--ink); font-weight: 600; }
+.sc-sort span { display: inline-flex; align-items: center; gap: 2px; }
+.sc-sort .sc-push { margin-left: auto; }
+.sc-strip { background: var(--surface-raised); }
+.sc-head { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--surface-raised); }
+.sc-head__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sc-muted { color: var(--ink-muted); }
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.sc-fill { height: 100%; display: flex; flex-direction: column; }
+.sc-split { flex: 1; min-height: 0; display: flex; background: var(--surface-raised); }
+.sc-split__list { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 96px; scrollbar-width: none; }
+.sc-group { padding: var(--space-2) var(--space-3) 0; color: var(--ink-muted); }
+.sc-fab { position: absolute; right: var(--space-3); bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3)); z-index: 6; }
+.sc-fab .xz-btn { box-shadow: var(--shadow-float); }
+.sc-actions { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.sc-actions > :first-child { flex: 0 0 34%; }
+.sc-actions > :last-child { flex: 1; }
+.sc-upload { display: flex; gap: var(--space-2); }
+.sc-upload__add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.sc-card { margin: 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.sc-form { margin: 0 var(--space-3); overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.sc-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sc-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.sc-doc b { color: var(--ink); font-weight: 600; }
+.sc-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.sc-hero .xz-stat { padding: var(--space-2) var(--space-1) var(--space-1); }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-stage' }, h('div', { className: 'xz-device' }, page))); }
+function section(title, more) { return h('div', { className: 'xz-section' }, h('span', { className: 'title-sm' }, title), more ? h('span', { className: 'xz-section__more body-sm' }, more) : null); }
+
+mount(h(X.MobilePage, {
+  navBar: h(X.NavBar, { title: '订单', bordered: false, right: h(X.NavBar.Icon, { name: 'search', label: '搜索订单' }) }),
+  bottom: h(X.TabBar, { role: 'merchant', defaultValue: 'orders', badges: { orders: 3 } })
+},
+  h(X.Tabs, { items: [{ key: 'new', label: '新订单', count: 3, alert: true }, { key: 'prep', label: '备餐中', count: 2 }, { key: 'send', label: '配送中', count: 5 }, { key: 'refund', label: '退款', count: 1 }] }),
+  h('div', { className: 'xz-list', style: { paddingTop: 'var(--space-3)', paddingBottom: 'var(--space-3)' } },
+    h(X.OrderCard, { view: 'merchant', serial: 14, title: '外卖 · 尾号 3381', status: 'pending', items: [{ name: '红烧牛肉面（大碗）', qty: 2, price: 56 }, { name: '卤蛋', qty: 1, price: 3 }, { name: '冰豆浆', qty: 1, price: 6 }], total: 59.5, time: '12:03 下单 · 预计 12:40 送达', note: '不要香菜，汤多一点', actions: [{ label: '拒单', variant: 'danger-outline' }, { label: '接单', variant: 'primary' }] }),
+    h(X.OrderCard, { view: 'merchant', serial: 15, title: '到店自提 · 尾号 0927', status: 'pending', items: [{ name: '番茄肥牛面', qty: 1, price: 26 }], total: 26, time: '12:05 下单 · 12:30 到店', actions: [{ label: '拒单', variant: 'danger-outline' }, { label: '接单', variant: 'primary' }] }))));
+</script>
+</body>
+</html>

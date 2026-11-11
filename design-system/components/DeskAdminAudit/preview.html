@@ -1,0 +1,119 @@
+<!-- @dsCard group="桌面页面 · 管理端" height=940 width=1480 page subtitle="运营后台入驻审核：表格 + 右侧审核抽屉" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskAdminAudit — 预览</title><style>
+.ds-grid { display: grid; gap: var(--space-4); }
+.ds-stats { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-stats5 { grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: var(--space-4); align-items: start; }
+.ds-cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ds-section { display: flex; align-items: center; justify-content: space-between; margin: var(--space-2) 0 var(--space-3); }
+.ds-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.ds-col { display: flex; flex-direction: column; gap: var(--space-3); min-height: 640px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ds-col__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.ds-form { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ds-card { padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-card__title { margin: 0 0 var(--space-4); }
+.ds-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-5); }
+.ds-upload { display: flex; gap: var(--space-3); }
+.ds-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.ds-muted { color: var(--ink-muted); }
+.ds-preview { overflow: hidden; border-radius: var(--radius-lg); box-shadow: 0 0 0 1px var(--line); }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.ds-doc b { color: var(--ink); font-weight: 600; }
+.ds-block { margin: var(--space-6) 0 var(--space-3); color: var(--ink); }
+.ds-head { display: flex; align-items: center; gap: var(--space-4); }
+.ds-head__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-head__top { display: flex; align-items: center; gap: var(--space-2); }
+.ds-log { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--ink-muted); }
+.ds-log b { color: var(--ink); font-weight: 400; margin-left: var(--space-2); }
+.ds-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.ds-tabs { margin-bottom: var(--space-4); }
+.ds-chips { padding: 0; flex-wrap: wrap; }
+.ds-sort { display: flex; align-items: center; gap: var(--space-5); margin: var(--space-4) 0; color: var(--ink-muted); }
+.ds-sort b { color: var(--ink); font-weight: 600; }
+.ds-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-storehead { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-storehead .xz-logo { width: var(--size-thumb); height: var(--size-thumb); }
+.ds-storehead__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-storehead__kv { display: flex; gap: var(--space-6); }
+.ds-storehead__kv > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ds-storehead__kv .xz-num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.ds-storelayout { display: grid; grid-template-columns: 120px minmax(0, 1fr) var(--size-cart-panel); gap: var(--space-4); align-items: start; }
+.ds-catcard { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-catcard .xz-catnav { width: 100%; }
+.ds-group { margin: 0 0 var(--space-3); color: var(--ink-muted); }
+.ds-dishes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.ds-dishes .xz-dish { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-account { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.ds-orders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-desk-stage' }, h('div', { className: 'xz-desk-frame' }, page))); }
+function F() { return h.apply(null, [React.Fragment, null].concat([].slice.call(arguments))); }
+function section(title, more) { return h('div', { className: 'ds-section' }, h('span', { className: 'title-sm' }, title), more || null); }
+var C = X.ListCell;
+var ost = X.ProductRow.statuses, mst = X.MerchantRow.statuses;
+
+var rows = [
+  { id: 'M10241', name: '阿香米线（望京店）', cat: '米粉面馆', city: '北京', owner: '李女士', joined: '11-10 14:22', orders: '—', rating: '—', status: 'pending' },
+  { id: 'M10239', name: '好运来麻辣烫', cat: '快餐便当', city: '北京', owner: '王先生', joined: '11-10 09:41', orders: '—', rating: '—', status: 'pending' },
+  { id: 'M10086', name: '老张家牛肉面（望京店）', cat: '米粉面馆', city: '北京', owner: '张先生', joined: '2025-03-12', orders: '3,420', rating: 4.8, status: 'open' },
+  { id: 'M10112', name: '鲜果茶研所（国贸店）', cat: '奶茶饮品', city: '北京', owner: '刘女士', joined: '2025-06-02', orders: '6,105', rating: 4.7, status: 'open' },
+  { id: 'M10157', name: '深夜烧烤研究所', cat: '烧烤夜宵', city: '北京', owner: '赵先生', joined: '2026-01-08', orders: '860', rating: 4.7, status: 'closed' },
+  { id: 'M10133', name: '甜蜜工坊', cat: '甜品', city: '北京', owner: '孙女士', joined: '2025-11-20', orders: '0', rating: 4.3, status: 'frozen' },
+  { id: 'M10098', name: '川味小厨', cat: '地方菜', city: '北京', owner: '周先生', joined: '2025-04-18', orders: '2,980', rating: 4.5, status: 'open' },
+  { id: 'M10201', name: '江南小笼', cat: '粥粉面点', city: '上海', owner: '吴女士', joined: '2026-05-30', orders: '1,410', rating: 4.8, status: 'open' }
+];
+function opsFor(r) {
+  var b = function (label, v) { return h(X.Button, { key: label, size: 'sm', variant: v || 'text' }, label); };
+  if (r.status === 'pending') return h('span', { className: 'xz-cell-actions' }, b('审核'), b('驳回', 'danger-text'));
+  if (r.status === 'frozen') return h('span', { className: 'xz-cell-actions' }, b('查看'), b('解冻'));
+  return h('span', { className: 'xz-cell-actions' }, b('查看'), b('冻结', 'danger-text'));
+}
+var cols = [
+  { key: 'name', title: '商家', render: function (r) { return h(X.DataTable.Media, { kind: 'logo', name: r.name, sub: '编号 ' + r.id }); } },
+  { key: 'cat', title: '类目' }, { key: 'city', title: '城市' }, { key: 'owner', title: '负责人' },
+  { key: 'joined', title: '入驻 / 提交', num: true },
+  { key: 'orders', title: '月订单', num: true, align: 'right' }, { key: 'rating', title: '评分', num: true, align: 'right' },
+  { key: 'status', title: '状态', render: function (r) { return h(X.Tag, { tone: mst[r.status][1] }, mst[r.status][0]); } },
+  { key: 'op', title: '操作', width: 132, render: opsFor }
+];
+
+var pending = rows.filter(function (r) { return r.status === 'pending'; }).concat([
+  { id: 'M10236', name: '小渔村海鲜粥', cat: '粥粉面点', city: '北京', owner: '郑先生', joined: '11-09 18:03', orders: '—', rating: '—', status: 'pending' },
+  { id: 'M10230', name: '轻食沙拉实验室（三里屯）', cat: '轻食沙拉', city: '北京', owner: '何女士', joined: '11-09 11:27', orders: '—', rating: '—', status: 'pending' }]);
+var drawer = h(X.Dialog, { variant: 'drawer', title: '入驻审核', actions: [{ label: '驳回', variant: 'danger-outline' }, { label: '审核通过', variant: 'primary' }] },
+  h('div', { className: 'ds-head' },
+    h(X.Thumb, { kind: 'logo', name: '阿香米线', size: 'lg' }),
+    h('div', { className: 'ds-head__main' },
+      h('div', { className: 'ds-head__top' }, h('span', { className: 'title' }, '阿香米线（望京店）'), h(X.Tag, { tone: 'warning' }, '待审核')),
+      h('span', { className: 'body-md ds-muted' }, '编号 M10241 · 米粉面馆 · 北京 · 第 1 次提交'))),
+  h('h3', { className: 'ds-block title-sm' }, '店铺信息'),
+  h(X.InfoList, { items: [
+    { label: '门店地址', value: '朝阳区望京街 9 号 1 层' }, { label: '营业时间', value: '10:00–21:30' },
+    { label: '负责人', value: '李女士 · 尾号 6620' }, { label: '起送 / 配送', value: '¥15 / ¥2' }, { label: '提交时间', value: '2026-11-10 14:22' }] }),
+  h('h3', { className: 'ds-block title-sm' }, '资质证照'),
+  h('div', { className: 'ds-docs' },
+    h('div', { className: 'ds-doc' }, h(X.Icon, { name: 'shield', size: 24 }), h('b', { className: 'body-md' }, '营业执照'), h('span', { className: 'caption' }, '有效期至 2031-04-30')),
+    h('div', { className: 'ds-doc' }, h(X.Icon, { name: 'shield', size: 24 }), h('b', { className: 'body-md' }, '食品经营许可证'), h('span', { className: 'caption' }, '有效期至 2029-08-15'))),
+  h('h3', { className: 'ds-block title-sm' }, '审核记录'),
+  h('ul', { className: 'ds-log body-md' },
+    h('li', null, h('span', { className: 'xz-num' }, '11-10 14:22'), h('b', null, '商家提交入驻资料')),
+    h('li', null, h('span', { className: 'xz-num' }, '11-11 09:05'), h('b', null, '陈运营 开始审核'))));
+mount(h(X.DesktopShell, { role: 'admin', search: '搜索商家、订单号', notices: 5, user: { name: '陈运营', role: '运营' }, nav: { value: 'audit', badges: { audit: 12, disputes: 5 } }, overlay: drawer },
+  h(X.PageHeader, { title: '入驻审核', subtitle: '待审核 12 家 · 平均 3.2 小时完成' }),
+  h(X.FilterBar, null,
+    h(X.SearchBar, { placeholder: '商家名称 / 负责人 / 手机尾号' }),
+    h(X.Select, { label: '类目', options: ['全部', '快餐便当', '米粉面馆', '奶茶饮品'] }),
+    h(X.Select, { label: '提交', options: ['不限', '今天', '近 3 天'] })),
+  h(X.DataTable, { rowKey: 'id', rows: pending, columns: cols, activeKey: 'M10241', footer: h(X.Pagination, { total: 12, pageSize: 20 }) })));
+</script>
+</body>
+</html>

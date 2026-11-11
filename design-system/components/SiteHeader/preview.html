@@ -1,0 +1,14 @@
+<!-- @dsCard group="桌面 · 布局与导航" height=110 width=1240 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>SiteHeader — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-3) 0' } },
+    h(X.SiteHeader, { location: '望京 SOHO', cartCount: 3, user: { name: '小王' } })));
+</script>
+</body>
+</html>

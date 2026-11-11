@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>ProductRow — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(X.ProductRow, { name: '红烧牛肉面（大碗）', price: 28, original: 32, sales: '1200+', stock: 36, status: 'on' }),
+    h(X.ProductRow, { name: '卤牛肉拼盘', price: 38, sales: '300+', stock: 0, status: 'soldout' }),
+    h(X.ProductRow, { name: '藤椒鸡丝凉面', price: 22, sales: 0, stock: 50, status: 'review' }),
+    h(X.ProductRow, { name: '招牌肥肠面', price: 30, stock: 20, status: 'rejected', reason: '商品图片与实物不符，请上传实拍图' })));
+</script>
+</body>
+</html>

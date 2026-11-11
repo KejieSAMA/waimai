@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>NavBar — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { gap: 'var(--space-3)' } },
+    h(X.NavBar, { tone: 'brand', left: h('button', { type: 'button', className: 'xz-nav__place title-sm' }, h(X.Icon, { name: 'location', size: 18 }), '望京 SOHO', h(X.Icon, { name: 'chevron-down', size: 16 })), right: h(X.NavBar.Icon, { name: 'bell', label: '消息', badge: true }) },
+      h(X.SearchBar, { tone: 'brand', placeholder: '搜索店铺、菜品' })),
+    h(X.NavBar, { title: '编辑商品', back: true, right: h(X.Button, { variant: 'text', size: 'sm' }, '预览') }),
+    h(X.NavBar, { tone: 'admin', title: '商家管理', subtitle: '共 1,286 家', right: h(X.NavBar.Icon, { name: 'filter', label: '筛选' }) })));
+</script>
+</body>
+</html>

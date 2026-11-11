@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+backend/uploads/*
+!backend/uploads/.gitkeep
+*.log
+.DS_Store

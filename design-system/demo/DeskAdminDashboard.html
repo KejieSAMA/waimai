@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>DeskAdminDashboard — 预览</title><style>
+.ds-grid { display: grid; gap: var(--space-4); }
+.ds-stats { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-stats5 { grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: var(--space-4); align-items: start; }
+.ds-cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ds-section { display: flex; align-items: center; justify-content: space-between; margin: var(--space-2) 0 var(--space-3); }
+.ds-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.ds-col { display: flex; flex-direction: column; gap: var(--space-3); min-height: 640px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ds-col__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.ds-form { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ds-card { padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-card__title { margin: 0 0 var(--space-4); }
+.ds-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-5); }
+.ds-upload { display: flex; gap: var(--space-3); }
+.ds-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.ds-muted { color: var(--ink-muted); }
+.ds-preview { overflow: hidden; border-radius: var(--radius-lg); box-shadow: 0 0 0 1px var(--line); }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.ds-doc b { color: var(--ink); font-weight: 600; }
+.ds-block { margin: var(--space-6) 0 var(--space-3); color: var(--ink); }
+.ds-head { display: flex; align-items: center; gap: var(--space-4); }
+.ds-head__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-head__top { display: flex; align-items: center; gap: var(--space-2); }
+.ds-log { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--ink-muted); }
+.ds-log b { color: var(--ink); font-weight: 400; margin-left: var(--space-2); }
+.ds-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.ds-tabs { margin-bottom: var(--space-4); }
+.ds-chips { padding: 0; flex-wrap: wrap; }
+.ds-sort { display: flex; align-items: center; gap: var(--space-5); margin: var(--space-4) 0; color: var(--ink-muted); }
+.ds-sort b { color: var(--ink); font-weight: 600; }
+.ds-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-storehead { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-storehead .xz-logo { width: var(--size-thumb); height: var(--size-thumb); }
+.ds-storehead__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-storehead__kv { display: flex; gap: var(--space-6); }
+.ds-storehead__kv > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ds-storehead__kv .xz-num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.ds-storelayout { display: grid; grid-template-columns: 120px minmax(0, 1fr) var(--size-cart-panel); gap: var(--space-4); align-items: start; }
+.ds-catcard { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-catcard .xz-catnav { width: 100%; }
+.ds-group { margin: 0 0 var(--space-3); color: var(--ink-muted); }
+.ds-dishes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.ds-dishes .xz-dish { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-account { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.ds-orders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-desk-stage' }, h('div', { className: 'xz-desk-frame' }, page))); }
+function F() { return h.apply(null, [React.Fragment, null].concat([].slice.call(arguments))); }
+function section(title, more) { return h('div', { className: 'ds-section' }, h('span', { className: 'title-sm' }, title), more || null); }
+var C = X.ListCell;
+var ost = X.ProductRow.statuses, mst = X.MerchantRow.statuses;
+
+var days = ['10-29', '10-30', '10-31', '11-01', '11-02', '11-03', '11-04', '11-05', '11-06', '11-07', '11-08', '11-09', '11-10', '11-11'];
+var vals = [986200, 1042300, 1128400, 1210500, 1186000, 1004300, 998700, 1051200, 1089900, 1163000, 1240600, 1302100, 1221800, 1286430];
+var ranking = [
+  { id: 1, name: '老张家牛肉面（望京店）', cat: '米粉面馆', orders: 412, gmv: '18,240.50', rating: 4.8, status: 'open' },
+  { id: 2, name: '鲜果茶研所（国贸店）', cat: '奶茶饮品', orders: 389, gmv: '11,602.00', rating: 4.7, status: 'open' },
+  { id: 3, name: '一碗好粥（望京店）', cat: '粥粉面点', orders: 351, gmv: '9,877.00', rating: 4.7, status: 'open' },
+  { id: 4, name: '川味小厨', cat: '地方菜', orders: 298, gmv: '14,310.50', rating: 4.5, status: 'open' },
+  { id: 5, name: '江南小笼', cat: '粥粉面点', orders: 276, gmv: '10,212.00', rating: 4.8, status: 'closed' }
+];
+mount(h(X.DesktopShell, { role: 'admin', search: '搜索商家、订单号', notices: 5, user: { name: '陈运营', role: '运营' }, nav: { value: 'overview', badges: { audit: 12, disputes: 5 } } },
+  h(X.PageHeader, { title: '数据总览', subtitle: '11 月 11 日 · 实时', actions: F(h(X.Select, { options: ['今日', '近 7 日', '近 30 日'], width: 140 }), h(X.Button, { variant: 'outline' }, '导出报表')) }),
+  h('div', { className: 'ds-grid ds-stats5' },
+    h(X.StatCard, { tone: 'chrome', label: '平台今日 GMV（元）', value: '1,286,430.00', delta: 5.2, deltaLabel: '较上周同日' }),
+    h(X.StatCard, { label: '订单量', value: '48,216', unit: '单', delta: 4.7 }),
+    h(X.StatCard, { label: '在营商家', value: '1,031', unit: '家', delta: 0.8 }),
+    h(X.StatCard, { label: '新入驻', value: '18', unit: '家', delta: 12.5 }),
+    h(X.StatCard, { label: '退款率', value: '1.6', unit: '%', delta: -0.4 })),
+  h('div', { className: 'ds-grid ds-main' },
+    h(X.TrendChart, { title: '近 14 日 GMV', subtitle: '单位：元', prefix: '¥', height: 236, data: days.map(function (d, i) { return { label: d, value: vals[i] }; }) }),
+    h(C.Group, { title: '待办' },
+      h(C, { icon: 'shield', title: '商家入驻待审核', extra: h(X.Tag, { tone: 'warning' }, '12'), arrow: true }),
+      h(C, { icon: 'box', title: '商品待审核', extra: h(X.Tag, { tone: 'info' }, '38'), arrow: true }),
+      h(C, { icon: 'alert', title: '退款纠纷', extra: h(X.Tag, { tone: 'danger' }, '5'), arrow: true }),
+      h(C, { icon: 'clock', title: '证照 30 天内到期', value: '7 家', arrow: true }),
+      h(C, { icon: 'bell', title: '待发布公告', value: '1 条', arrow: true }))),
+  section('今日商家订单量排行', h(X.Button, { variant: 'text', size: 'sm' }, '查看全部')),
+  h(X.DataTable, { rowKey: 'id', rows: ranking, columns: [
+    { key: 'id', title: '排名', width: 64, render: function (r) { return h('span', { className: 'ds-rank' }, r.id); } },
+    { key: 'name', title: '商家', render: function (r) { return h(X.DataTable.Media, { kind: 'logo', name: r.name, sub: r.cat }); } },
+    { key: 'orders', title: '今日订单', num: true, align: 'right' },
+    { key: 'gmv', title: '今日 GMV（元）', num: true, align: 'right' },
+    { key: 'rating', title: '评分', num: true, align: 'right' },
+    { key: 'status', title: '状态', render: function (r) { return h(X.Tag, { tone: mst[r.status][1] }, mst[r.status][0]); } }
+  ] })));
+</script>
+</body>
+</html>

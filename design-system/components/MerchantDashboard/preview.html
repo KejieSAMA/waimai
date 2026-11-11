@@ -1,0 +1,60 @@
+<!-- @dsCard group="页面 · 商家端" height=820 width=415 page subtitle="工作台：营业开关、今日数据、待处理" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>MerchantDashboard — 预览</title><style>
+.sc-sort { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--ink-muted); }
+.sc-sort b { color: var(--ink); font-weight: 600; }
+.sc-sort span { display: inline-flex; align-items: center; gap: 2px; }
+.sc-sort .sc-push { margin-left: auto; }
+.sc-strip { background: var(--surface-raised); }
+.sc-head { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--surface-raised); }
+.sc-head__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sc-muted { color: var(--ink-muted); }
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.sc-fill { height: 100%; display: flex; flex-direction: column; }
+.sc-split { flex: 1; min-height: 0; display: flex; background: var(--surface-raised); }
+.sc-split__list { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 96px; scrollbar-width: none; }
+.sc-group { padding: var(--space-2) var(--space-3) 0; color: var(--ink-muted); }
+.sc-fab { position: absolute; right: var(--space-3); bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3)); z-index: 6; }
+.sc-fab .xz-btn { box-shadow: var(--shadow-float); }
+.sc-actions { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.sc-actions > :first-child { flex: 0 0 34%; }
+.sc-actions > :last-child { flex: 1; }
+.sc-upload { display: flex; gap: var(--space-2); }
+.sc-upload__add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.sc-card { margin: 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.sc-form { margin: 0 var(--space-3); overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.sc-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sc-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.sc-doc b { color: var(--ink); font-weight: 600; }
+.sc-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.sc-hero .xz-stat { padding: var(--space-2) var(--space-1) var(--space-1); }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-stage' }, h('div', { className: 'xz-device' }, page))); }
+function section(title, more) { return h('div', { className: 'xz-section' }, h('span', { className: 'title-sm' }, title), more ? h('span', { className: 'xz-section__more body-sm' }, more) : null); }
+
+var C = X.ListCell;
+mount(h(X.MobilePage, {
+  navBar: h(X.NavBar, { align: 'left', title: '老张家牛肉面', bordered: false, right: h(X.NavBar.Icon, { name: 'bell', label: '消息', badge: 3 }) }),
+  bottom: h(X.TabBar, { role: 'merchant', badges: { orders: 3 } })
+},
+  h('div', { className: 'xz-list', style: { paddingTop: 'var(--space-3)', paddingBottom: 'var(--space-3)' } },
+    h(C.Group, null, h(C, { icon: 'store', title: '营业中', desc: '今日 10:00–22:00 · 关闭后用户无法下单', extra: h(X.Switch, { defaultChecked: true, 'aria-label': '营业状态' }) })),
+    h(X.StatCard, { tone: 'brand', label: '今日营业额（元）', value: '3,286.50', delta: 12.4 }),
+    h('div', { className: 'xz-grid2' },
+      h(X.StatCard, { size: 'sm', label: '有效订单', value: '126', unit: '单', delta: 8.1 }),
+      h(X.StatCard, { size: 'sm', label: '进店人数', value: '1,024', unit: '人', delta: 3.6 }),
+      h(X.StatCard, { size: 'sm', label: '下单转化率', value: '12.3', unit: '%', delta: 1.2 }),
+      h(X.StatCard, { size: 'sm', label: '退款', value: '2', unit: '单', delta: -33.3 })),
+    h(C.Group, { title: '待处理' },
+      h(C, { icon: 'order', title: '新订单', extra: h(X.Tag, { tone: 'brand', variant: 'solid' }, '3'), arrow: true }),
+      h(C, { icon: 'wallet', title: '退款申请', extra: h(X.Tag, { tone: 'danger' }, '1'), arrow: true }),
+      h(C, { icon: 'box', title: '库存预警', value: '2 件低于 5 份', arrow: true }),
+      h(C, { icon: 'star', title: '差评待回复', value: '1 条', arrow: true })))));
+</script>
+</body>
+</html>

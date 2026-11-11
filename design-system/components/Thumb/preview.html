@@ -1,0 +1,16 @@
+<!-- @dsCard group="基础" height=100 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Thumb — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { maxWidth: 'none' } },
+    h('div', { className: 'xz-row', style: { gap: 'var(--space-4)' } },
+      h(X.Thumb, { name: '红烧牛肉面' }), h(X.Thumb, { name: '红烧牛肉面', size: 'lg' }),
+      h(X.Thumb, { kind: 'logo', name: '老张家牛肉面' }), h(X.Thumb, { kind: 'logo', name: '阿香米线', size: 'lg' }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>UserHome — 预览</title><style>
+.sc-sort { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--ink-muted); }
+.sc-sort b { color: var(--ink); font-weight: 600; }
+.sc-sort span { display: inline-flex; align-items: center; gap: 2px; }
+.sc-sort .sc-push { margin-left: auto; }
+.sc-strip { background: var(--surface-raised); }
+.sc-head { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--surface-raised); }
+.sc-head__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sc-muted { color: var(--ink-muted); }
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.sc-fill { height: 100%; display: flex; flex-direction: column; }
+.sc-split { flex: 1; min-height: 0; display: flex; background: var(--surface-raised); }
+.sc-split__list { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 96px; scrollbar-width: none; }
+.sc-group { padding: var(--space-2) var(--space-3) 0; color: var(--ink-muted); }
+.sc-fab { position: absolute; right: var(--space-3); bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3)); z-index: 6; }
+.sc-fab .xz-btn { box-shadow: var(--shadow-float); }
+.sc-actions { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.sc-actions > :first-child { flex: 0 0 34%; }
+.sc-actions > :last-child { flex: 1; }
+.sc-upload { display: flex; gap: var(--space-2); }
+.sc-upload__add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.sc-card { margin: 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.sc-form { margin: 0 var(--space-3); overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.sc-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sc-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.sc-doc b { color: var(--ink); font-weight: 600; }
+.sc-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.sc-hero .xz-stat { padding: var(--space-2) var(--space-1) var(--space-1); }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-stage' }, h('div', { className: 'xz-device' }, page))); }
+function section(title, more) { return h('div', { className: 'xz-section' }, h('span', { className: 'title-sm' }, title), more ? h('span', { className: 'xz-section__more body-sm' }, more) : null); }
+
+mount(h(X.MobilePage, {
+  statusBar: 'brand',
+  navBar: h(X.NavBar, { tone: 'brand',
+    left: h('button', { type: 'button', className: 'xz-nav__place title-sm' }, h(X.Icon, { name: 'location', size: 18 }), '望京 SOHO', h(X.Icon, { name: 'chevron-down', size: 16 })),
+    right: h(X.NavBar.Icon, { name: 'bell', label: '消息', badge: true }) },
+    h(X.SearchBar, { tone: 'brand', placeholder: '搜索店铺、菜品' })),
+  bottom: h(X.TabBar, { role: 'user', badges: { orders: 1 } })
+},
+  h('div', { className: 'sc-strip' }, h(X.Tabs, { variant: 'chip', items: ['全部', '快餐便当', '米粉面馆', '奶茶饮品', '烧烤夜宵', '甜品'] })),
+  h('div', { className: 'sc-sort body-sm' },
+    h('b', null, '综合排序'), h('span', null, '距离最近'), h('span', null, '销量最高'), h('span', { className: 'sc-push' }, '筛选', h(X.Icon, { name: 'filter', size: 14 }))),
+  h('div', { className: 'xz-list' },
+    h(X.StoreCard, { name: '老张家牛肉面（望京店）', rating: 4.8, sales: '3000+', time: '30 分钟', distance: '1.2km', minOrder: 20, deliveryFee: 3, tags: ['满 30 减 5', '满 50 减 10', '首单立减 8'] }),
+    h(X.StoreCard, { name: '阿香米线', rating: 4.6, sales: '1500+', time: '35 分钟', distance: '2.0km', minOrder: 15, deliveryFee: 0, tags: [{ label: '新店', tone: 'accent' }, '满 25 减 3'] }),
+    h(X.StoreCard, { name: '一碗好粥', rating: 4.7, sales: '2200+', time: '28 分钟', distance: '0.9km', minOrder: 15, deliveryFee: 2, tags: ['满 20 减 4'] }),
+    h(X.StoreCard, { name: '深夜烧烤研究所', rating: 4.7, sales: '800+', time: '40 分钟', distance: '2.6km', minOrder: 30, deliveryFee: 4, status: 'closed', notice: '17:00 开始营业' }))));
+</script>
+</body>
+</html>

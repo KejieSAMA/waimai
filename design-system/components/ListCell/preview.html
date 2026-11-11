@@ -1,0 +1,20 @@
+<!-- @dsCard group="导航与布局" height=330 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ListCell — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var C = X.ListCell;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(C.Group, null,
+      h(C, { icon: 'store', title: '店铺信息', desc: '名称、Logo、公告', arrow: true }),
+      h(C, { icon: 'clock', title: '营业时间', value: '10:00–22:00', arrow: true }),
+      h(C, { icon: 'wallet', title: '结算账户', value: '已绑定', arrow: true }),
+      h(C, { icon: 'bell', title: '新订单语音提醒', extra: h(X.Switch, { defaultChecked: true, 'aria-label': '新订单语音提醒' }) })),
+    h(C.Group, null, h(C, { title: '退出登录', danger: true, onClick: function () {} }))));
+</script>
+</body>
+</html>

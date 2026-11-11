@@ -1,0 +1,20 @@
+<!-- @dsCard group="桌面 · 布局与导航" height=600 width=1320 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DesktopShell — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { style: { padding: 'var(--space-3)' } },
+    h('div', { style: { height: 560, borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: '0 0 0 1px var(--line)' } },
+      h(X.DesktopShell, { role: 'merchant', nav: { defaultValue: 'desk', badges: { orders: 3 } }, search: '搜索订单号、商品', notices: 3, user: { name: '老张', role: '店长' } },
+        h(X.PageHeader, { title: '页面标题', subtitle: '副标题', actions: h(X.Button, null, '主操作') }),
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' } },
+          ['nav：SideNav 的参数', 'search / topLeft / topRight：顶栏内容', 'children：页面内容（自带 space-6 内边距，独立滚动）', 'user / notices：右上角账号与消息', 'overlay：Dialog（modal / drawer）', 'role：merchant 或 admin'].map(function (t, i) {
+            return h('div', { key: i, className: 'body-md', style: { background: 'var(--surface-raised)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', color: 'var(--ink-muted)', boxShadow: 'var(--shadow-card)' } }, t);
+          }))))));
+</script>
+</body>
+</html>

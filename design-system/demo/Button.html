@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>Button — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(X.Button, { size: 'lg', block: true }, '去结算'),
+    h('div', { className: 'xz-row' },
+      h(X.Button, null, '保存并上架'), h(X.Button, { variant: 'secondary' }, '存为草稿'), h(X.Button, { variant: 'outline' }, '取消')),
+    h('div', { className: 'xz-row' },
+      h(X.Button, { size: 'sm' }, '接单'), h(X.Button, { size: 'sm', variant: 'outline' }, '再来一单'),
+      h(X.Button, { size: 'sm', variant: 'danger-outline' }, '拒单'), h(X.Button, { size: 'sm', variant: 'danger' }, '确认冻结'),
+      h(X.Button, { size: 'sm', variant: 'text', icon: 'edit' }, '编辑'), h(X.Button, { size: 'sm', disabled: true }, '已出餐'))));
+</script>
+</body>
+</html>

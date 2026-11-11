@@ -1,0 +1,31 @@
+<!-- @dsCard group="桌面 · 数据" height=470 width=1040 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DataTable — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var rows = [
+  { id: 1, name: '红烧牛肉面（大碗）', cat: '招牌面', price: 28, sales: '1,200+', stock: 36, status: 'on' },
+  { id: 2, name: '番茄肥牛面', cat: '招牌面', price: 26, sales: '860+', stock: 3, status: 'on' },
+  { id: 3, name: '卤牛肉拼盘', cat: '小菜', price: 38, sales: '300+', stock: 0, status: 'soldout' },
+  { id: 4, name: '藤椒鸡丝凉面', cat: '招牌面', price: 22, sales: '0', stock: 50, status: 'review' }
+];
+var st = X.ProductRow.statuses;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-4)' } },
+    h(X.DataTable, { rowKey: 'id', selectable: true, defaultSelected: [2], batchActions: [{ label: '批量上架' }, { label: '批量下架' }],
+      columns: [
+        { key: 'name', title: '商品', render: function (r) { return h(X.DataTable.Media, { name: r.name, sub: r.cat }); } },
+        { key: 'price', title: '售价', num: true, align: 'right', render: function (r) { return '¥' + r.price; } },
+        { key: 'sales', title: '月售', num: true, align: 'right' },
+        { key: 'stock', title: '库存', num: true, align: 'right', render: function (r) { return h('span', { className: r.stock <= 5 ? 'tone-warning' : undefined, style: r.stock <= 5 ? { fontWeight: 600 } : undefined }, r.stock); } },
+        { key: 'status', title: '状态', render: function (r) { return h(X.Tag, { tone: st[r.status][1] }, st[r.status][0]); } },
+        { key: 'op', title: '操作', render: function () { return h('span', { className: 'xz-cell-actions' }, h(X.Button, { size: 'sm', variant: 'text' }, '编辑'), h(X.Button, { size: 'sm', variant: 'text' }, '下架')); } }
+      ],
+      rows: rows,
+      footer: h(X.Pagination, { total: 29, pageSize: 10 }) })));
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>TrendChart — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var days = ['11-05', '11-06', '11-07', '11-08', '11-09', '11-10', '11-11'];
+var vals = [2680.5, 3120, 2890, 3410.5, 4020, 3655, 3286.5];
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-4)' } },
+    h(X.TrendChart, { title: '近 7 日营业额', subtitle: '单位：元', prefix: '¥', tickFormat: function (v) { return v.toLocaleString('en-US'); }, data: days.map(function (d, i) { return { label: d, value: vals[i] }; }) })));
+</script>
+</body>
+</html>

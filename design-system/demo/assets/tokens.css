@@ -1,0 +1,119 @@
+/* 小灶 — generated from tokens.json */
+:root, [data-theme="light"] {
+  --surface: #f6f3ef;
+  --surface-raised: #ffffff;
+  --surface-sunken: #efebe6;
+  --surface-hover: #faf7f3;
+  --ink: #1f1a17;
+  --ink-muted: #655c55;
+  --line: #e9e3dd;
+  --line-strong: #8c827a;
+  --brand: #d23c0a;
+  --brand-pressed: #b3320a;
+  --on-brand: #ffffff;
+  --brand-text: #b5320a;
+  --brand-soft: #ffede4;
+  --accent: #ffc233;
+  --on-accent: #3d2600;
+  --chrome: #2a221d;
+  --on-chrome: #f6f1ec;
+  --on-chrome-muted: #bfb3a9;
+  --chrome-raised: #3d332c;
+  --success: #0a7558;
+  --success-soft: #e2f3ec;
+  --warning: #9e5400;
+  --warning-soft: #fff1d9;
+  --danger: #c21a2e;
+  --danger-soft: #fde8ea;
+  --on-danger: #ffffff;
+  --info: #1e5bb8;
+  --info-soft: #e6eefb;
+  --focus-ring: var(--brand-text);
+  --scrim: rgba(20, 14, 10, 0.55);
+  --shadow-card: 0 1px 2px rgba(31, 26, 23, 0.06);
+  --shadow-bar: 0 -1px 0 #e9e3dd;
+  --shadow-float: 0 6px 20px rgba(31, 26, 23, 0.18);
+  --shadow-raise: 0 4px 16px rgba(31, 26, 23, 0.10);
+}
+[data-theme="dark"] {
+  --surface: #141110;
+  --surface-raised: #1f1b18;
+  --surface-sunken: #2a2521;
+  --surface-hover: #27221e;
+  --ink: #f4eee9;
+  --ink-muted: #b4a99f;
+  --line: #332d28;
+  --line-strong: #81766d;
+  --brand: #ff7a45;
+  --brand-pressed: #e8672f;
+  --on-brand: #1f1009;
+  --brand-text: #ff8f61;
+  --brand-soft: #3b2016;
+  --accent: #ffc233;
+  --on-accent: #3d2600;
+  --chrome: #2b2420;
+  --on-chrome: #f4eee9;
+  --on-chrome-muted: #b4a99f;
+  --chrome-raised: #40372f;
+  --success: #44c99d;
+  --success-soft: #11302a;
+  --warning: #f0b254;
+  --warning-soft: #35270f;
+  --danger: #ff7682;
+  --danger-soft: #3a161a;
+  --on-danger: #2a0a0e;
+  --info: #7eaaff;
+  --info-soft: #152541;
+  --focus-ring: var(--brand-text);
+  --scrim: rgba(0, 0, 0, 0.65);
+  --shadow-card: none;
+  --shadow-bar: 0 -1px 0 #332d28;
+  --shadow-float: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-raise: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --size-tap: 44px;
+  --size-navbar: 44px;
+  --size-tabbar: 50px;
+  --size-button-lg: 48px;
+  --size-button-md: 40px;
+  --size-button-sm: 32px;
+  --size-thumb: 88px;
+  --size-thumb-sm: 64px;
+  --size-logo: 48px;
+  --size-safe-bottom: 34px;
+  --size-topbar: 56px;
+  --size-sidebar: 232px;
+  --size-sidebar-collapsed: 64px;
+  --size-content: 1200px;
+  --size-cart-panel: 320px;
+  --size-row: 56px;
+  --size-modal: 480px;
+  --size-drawer: 560px;
+  --font-sans: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-num: Barlow, "DIN Alternate", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+}
+.display { font-family: var(--font-sans); font-size: 28px; line-height: 36px; font-weight: 700; }
+.title-lg { font-family: var(--font-sans); font-size: 20px; line-height: 28px; font-weight: 600; }
+.title { font-family: var(--font-sans); font-size: 17px; line-height: 24px; font-weight: 600; }
+.title-sm { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 400; }
+.body-sm { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 400; }
+.body-md { font-family: var(--font-sans); font-size: 14px; line-height: 22px; font-weight: 400; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 400; }
+.stat { font-family: var(--font-num); font-size: 30px; line-height: 36px; font-weight: 600; }
+.price-lg { font-family: var(--font-num); font-size: 26px; line-height: 30px; font-weight: 600; }
+.price { font-family: var(--font-num); font-size: 18px; line-height: 22px; font-weight: 600; }
+.price-sm { font-family: var(--font-num); font-size: 14px; line-height: 18px; font-weight: 500; }

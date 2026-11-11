@@ -1,0 +1,17 @@
+<!-- @dsCard group="桌面 · 数据" height=170 width=760 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>InfoList — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-5)', background: 'var(--surface-raised)' } },
+    h(X.InfoList, { columns: 2, items: [
+      { label: '店铺名称', value: '阿香米线（望京店）' }, { label: '经营类目', value: '米粉面馆' },
+      { label: '门店地址', value: '朝阳区望京街 9 号 1 层' }, { label: '营业时间', value: '10:00–21:30' },
+      { label: '负责人', value: '李女士 · 尾号 6620' }, { label: '提交时间', value: '2026-11-10 14:22' }] })));
+</script>
+</body>
+</html>

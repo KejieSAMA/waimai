@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>Input — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(X.Input, { label: '商品名称', required: true, placeholder: '例如：红烧牛肉面（大碗）', hint: '最多 30 个字' }),
+    h(X.Input, { label: '起送价', value: '15', suffix: '元', error: '起送价不能低于 ¥20（平台规则）' }),
+    h('div', { style: { borderRadius: 'var(--radius-lg)', overflow: 'hidden' } },
+      h(X.Input, { layout: 'horizontal', label: '售价', required: true, value: '28', prefix: '¥' }),
+      h(X.Input, { layout: 'horizontal', label: '库存', placeholder: '不填为不限量', suffix: '份' }))));
+</script>
+</body>
+</html>

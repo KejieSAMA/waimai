@@ -1,0 +1,16 @@
+<!-- @dsCard group="基础" height=120 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Price — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { maxWidth: 'none' } },
+    h('div', { className: 'xz-row', style: { gap: 'var(--space-6)', alignItems: 'baseline' } },
+      h(X.Price, { value: 56.5, size: 'lg' }), h(X.Price, { value: 28, original: 32 }), h(X.Price, { value: 9.9, size: 'sm' }),
+      h(X.Price, { value: 128, tone: 'ink' }))));
+</script>
+</body>
+</html>

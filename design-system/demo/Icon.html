@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>Icon — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var names = X.Icon.names;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { maxWidth: 'none' } },
+    h('div', { className: 'xz-row', style: { gap: 'var(--space-1)', color: 'var(--ink)' } }, names.map(function (n) {
+      return h('span', { key: n, title: n, style: { display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 52, padding: '6px 0' } },
+        h(X.Icon, { name: n, size: 24 }), h('span', { className: 'caption', style: { color: 'var(--ink-muted)', whiteSpace: 'nowrap' } }, n));
+    }))));
+</script>
+</body>
+</html>

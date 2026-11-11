@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>ListCell — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var C = X.ListCell;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(C.Group, null,
+      h(C, { icon: 'store', title: '店铺信息', desc: '名称、Logo、公告', arrow: true }),
+      h(C, { icon: 'clock', title: '营业时间', value: '10:00–22:00', arrow: true }),
+      h(C, { icon: 'wallet', title: '结算账户', value: '已绑定', arrow: true }),
+      h(C, { icon: 'bell', title: '新订单语音提醒', extra: h(X.Switch, { defaultChecked: true, 'aria-label': '新订单语音提醒' }) })),
+    h(C.Group, null, h(C, { title: '退出登录', danger: true, onClick: function () {} }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!-- @dsCard group="业务 · 用户端" height=380 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>StoreCard — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(X.StoreCard, { name: '老张家牛肉面（望京店）', rating: 4.8, sales: '3000+', time: '30 分钟', distance: '1.2km', minOrder: 20, deliveryFee: 3, tags: ['满 30 减 5', '满 50 减 10', '首单立减 8'] }),
+    h(X.StoreCard, { name: '阿香米线', rating: 4.6, sales: '1500+', time: '35 分钟', distance: '2.0km', minOrder: 15, deliveryFee: 0, tags: [{ label: '新店', tone: 'accent' }, '满 25 减 3'] }),
+    h(X.StoreCard, { name: '深夜烧烤研究所', rating: 4.7, sales: '800+', time: '40 分钟', distance: '2.6km', minOrder: 30, deliveryFee: 4, status: 'closed', notice: '17:00 开始营业' })));
+</script>
+</body>
+</html>

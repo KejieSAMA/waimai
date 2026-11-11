@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+  - frontend
+  - mobile
+  - backend
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - esbuild

@@ -1,0 +1,16 @@
+<!-- @dsCard group="桌面 · 数据" height=340 width=760 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>TrendChart — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+var days = ['11-05', '11-06', '11-07', '11-08', '11-09', '11-10', '11-11'];
+var vals = [2680.5, 3120, 2890, 3410.5, 4020, 3655, 3286.5];
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-4)' } },
+    h(X.TrendChart, { title: '近 7 日营业额', subtitle: '单位：元', prefix: '¥', tickFormat: function (v) { return v.toLocaleString('en-US'); }, data: days.map(function (d, i) { return { label: d, value: vals[i] }; }) })));
+</script>
+</body>
+</html>

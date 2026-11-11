@@ -1,0 +1,97 @@
+<!-- @dsCard group="桌面页面 · 商家端" height=940 width=1480 page subtitle="商家后台新增商品：表单 + 用户端预览" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskMerchantProductEdit — 预览</title><style>
+.ds-grid { display: grid; gap: var(--space-4); }
+.ds-stats { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-stats5 { grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+.ds-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: var(--space-4); align-items: start; }
+.ds-cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ds-section { display: flex; align-items: center; justify-content: space-between; margin: var(--space-2) 0 var(--space-3); }
+.ds-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.ds-col { display: flex; flex-direction: column; gap: var(--space-3); min-height: 640px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ds-col__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.ds-form { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ds-card { padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-card__title { margin: 0 0 var(--space-4); }
+.ds-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-5); }
+.ds-upload { display: flex; gap: var(--space-3); }
+.ds-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.ds-muted { color: var(--ink-muted); }
+.ds-preview { overflow: hidden; border-radius: var(--radius-lg); box-shadow: 0 0 0 1px var(--line); }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.ds-doc b { color: var(--ink); font-weight: 600; }
+.ds-block { margin: var(--space-6) 0 var(--space-3); color: var(--ink); }
+.ds-head { display: flex; align-items: center; gap: var(--space-4); }
+.ds-head__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-head__top { display: flex; align-items: center; gap: var(--space-2); }
+.ds-log { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--ink-muted); }
+.ds-log b { color: var(--ink); font-weight: 400; margin-left: var(--space-2); }
+.ds-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.ds-tabs { margin-bottom: var(--space-4); }
+.ds-chips { padding: 0; flex-wrap: wrap; }
+.ds-sort { display: flex; align-items: center; gap: var(--space-5); margin: var(--space-4) 0; color: var(--ink-muted); }
+.ds-sort b { color: var(--ink); font-weight: 600; }
+.ds-stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-storehead { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.ds-storehead .xz-logo { width: var(--size-thumb); height: var(--size-thumb); }
+.ds-storehead__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-storehead__kv { display: flex; gap: var(--space-6); }
+.ds-storehead__kv > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ds-storehead__kv .xz-num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.ds-storelayout { display: grid; grid-template-columns: 120px minmax(0, 1fr) var(--size-cart-panel); gap: var(--space-4); align-items: start; }
+.ds-catcard { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-catcard .xz-catnav { width: 100%; }
+.ds-group { margin: 0 0 var(--space-3); color: var(--ink-muted); }
+.ds-dishes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.ds-dishes .xz-dish { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.ds-account { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.ds-orders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-desk-stage' }, h('div', { className: 'xz-desk-frame' }, page))); }
+function F() { return h.apply(null, [React.Fragment, null].concat([].slice.call(arguments))); }
+function section(title, more) { return h('div', { className: 'ds-section' }, h('span', { className: 'title-sm' }, title), more || null); }
+var C = X.ListCell;
+var ost = X.ProductRow.statuses, mst = X.MerchantRow.statuses;
+
+function field(label, req, el) { return h('div', { className: 'xz-field' }, h('span', { className: 'xz-field__label body-sm' }, label, req ? h('span', { className: 'xz-field__req' }, '*') : null), el); }
+mount(h(X.DesktopShell, { role: 'merchant', search: '搜索订单号、商品', notices: 3, user: { name: '老张', role: '店长' }, nav: { value: 'products', badges: { orders: 3 }, footer: h(X.Switch, { label: '营业中', defaultChecked: true }) } },
+  h(X.PageHeader, { breadcrumb: ['商品管理', '新增商品'], title: '新增商品', tag: h(X.Tag, { tone: 'neutral' }, '草稿'),
+    actions: F(h(X.Button, { variant: 'outline' }, '取消'), h(X.Button, { variant: 'secondary' }, '存为草稿'), h(X.Button, null, '保存并上架')) }),
+  h('div', { className: 'ds-grid ds-form' },
+    h('div', { className: 'ds-stack' },
+      h('div', { className: 'ds-card' }, h('h2', { className: 'ds-card__title title' }, '基础信息'),
+        h('div', { className: 'ds-fields' },
+          h(X.Input, { label: '商品名称', required: true, value: '藤椒鸡丝凉面', hint: '最多 30 个字' }),
+          field('所属分类', true, h(X.Select, { options: ['招牌面', '盖浇饭', '小菜', '饮品', '套餐'], width: '100%' })),
+          h(X.Input, { label: '售价', required: true, value: '22', prefix: '¥' }),
+          h(X.Input, { label: '划线价', placeholder: '选填，需高于售价', prefix: '¥' }),
+          h(X.Input, { label: '库存', value: '50', suffix: '份', hint: '低于 5 份时提醒' }),
+          h(X.Input, { label: '每单限购', placeholder: '不限', suffix: '份' }))),
+      h('div', { className: 'ds-card' }, h('h2', { className: 'ds-card__title title' }, '商品图片'),
+        h('div', { className: 'ds-upload' },
+          h('span', { className: 'xz-img' }, h(X.Icon, { name: 'bowl', size: 32 })),
+          h('span', { className: 'ds-add' }, h(X.Icon, { name: 'camera', size: 24 }), h('span', { className: 'caption' }, '添加图片'))),
+        h('div', { className: 'body-sm ds-muted', style: { marginTop: 'var(--space-3)' } }, '第一张为主图，请上传 1:1 实拍图，最多 5 张，单张不超过 5MB')),
+      h('div', { className: 'ds-card' }, h('h2', { className: 'ds-card__title title' }, '商品描述'),
+        h(X.Input, { multiline: true, placeholder: '口味、用料、分量，最多 60 字', value: '鸡腿肉手撕，藤椒油现拌，微麻不辣' }))),
+    h('div', { className: 'ds-stack' },
+      h('div', { className: 'ds-card' }, h('h2', { className: 'ds-card__title title' }, '用户端预览'),
+        h('div', { className: 'ds-preview' }, h(X.DishCard, { name: '藤椒鸡丝凉面', desc: '鸡腿肉手撕，藤椒油现拌，微麻不辣', price: 22, tags: ['新品'] })),
+        h('div', { className: 'body-sm ds-muted', style: { marginTop: 'var(--space-3)' } }, '用户在店铺点餐页看到的样子，随左侧填写实时更新')),
+      h('div', { className: 'ds-card' }, h('h2', { className: 'ds-card__title title' }, '上架设置'),
+        h('div', { className: 'ds-checks' },
+          h(X.Checkbox, { label: '保存后立即上架', defaultChecked: true }),
+          h(X.Checkbox, { label: '同时用于到店点餐', defaultChecked: true }),
+          field('上架时段', false, h(X.Select, { options: ['全天', '仅午市 10:00–14:00', '仅晚市 17:00–22:00'], width: '100%' })),
+          h('div', { className: 'body-sm ds-muted' }, '平台已开启商品审核，保存后进入“审核中”，通过后自动在售。')))))));
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>MerchantRow — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(X.MerchantRow, { name: '阿香米线（望京店）', category: '米粉面馆', city: '北京', owner: '李女士', joined: '11-10 14:22', status: 'pending' }),
+    h(X.MerchantRow, { name: '老张家牛肉面（望京店）', category: '米粉面馆', city: '北京', joined: '2025-03', orders: '3,420', rating: 4.8, status: 'open' }),
+    h(X.MerchantRow, { name: '深夜烧烤研究所', category: '烧烤夜宵', city: '北京', joined: '2026-01', orders: 860, status: 'closed' }),
+    h(X.MerchantRow, { name: '甜蜜工坊', category: '甜品', city: '北京', joined: '2025-11', orders: 0, status: 'frozen', reason: '冻结原因：食品经营许可证已过期（11-02 冻结）' })));
+</script>
+</body>
+</html>

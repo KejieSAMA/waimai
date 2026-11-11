@@ -1,0 +1,13 @@
+<!-- @dsCard group="桌面 · 数据" height=80 width=720 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Pagination — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-4)' } }, h(X.Pagination, { total: 1286, pageSize: 20, defaultPage: 5 })));
+</script>
+</body>
+</html>

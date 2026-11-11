@@ -1,0 +1,17 @@
+<!-- @dsCard group="表单" height=120 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Select — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo xz-desk', style: { maxWidth: 'none' } },
+    h('div', { className: 'xz-row', style: { gap: 'var(--space-3)' } },
+      h(X.Select, { label: '类目', options: ['全部', '快餐便当', '米粉面馆', '奶茶饮品', '烧烤夜宵', '甜品'] }),
+      h(X.Select, { label: '城市', options: ['全部', '北京', '上海', '杭州'] }),
+      h(X.Select, { options: ['今日', '近 7 日', '近 30 日'], width: 140 }))));
+</script>
+</body>
+</html>

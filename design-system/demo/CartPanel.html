@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>CartPanel — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-row xz-desk', style: { padding: 'var(--space-4)', alignItems: 'flex-start', flexWrap: 'nowrap', gap: 'var(--space-4)' } },
+    h(X.CartPanel, { deliveryFee: 3, discount: 5, discountLabel: '满 30 减 5', minOrder: 20, items: [
+      { name: '红烧牛肉面（大碗）', price: 28, qty: 1, spec: '微辣' }, { name: '番茄肥牛面', price: 26, qty: 1 }, { name: '卤蛋', price: 3, qty: 2 }] }),
+    h(X.CartPanel, { minOrder: 20, items: [] })));
+</script>
+</body>
+</html>

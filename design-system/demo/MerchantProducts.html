@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>MerchantProducts — 预览</title><style>
+.sc-sort { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--ink-muted); }
+.sc-sort b { color: var(--ink); font-weight: 600; }
+.sc-sort span { display: inline-flex; align-items: center; gap: 2px; }
+.sc-sort .sc-push { margin-left: auto; }
+.sc-strip { background: var(--surface-raised); }
+.sc-head { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--surface-raised); }
+.sc-head__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sc-muted { color: var(--ink-muted); }
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.sc-fill { height: 100%; display: flex; flex-direction: column; }
+.sc-split { flex: 1; min-height: 0; display: flex; background: var(--surface-raised); }
+.sc-split__list { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 96px; scrollbar-width: none; }
+.sc-group { padding: var(--space-2) var(--space-3) 0; color: var(--ink-muted); }
+.sc-fab { position: absolute; right: var(--space-3); bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3)); z-index: 6; }
+.sc-fab .xz-btn { box-shadow: var(--shadow-float); }
+.sc-actions { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.sc-actions > :first-child { flex: 0 0 34%; }
+.sc-actions > :last-child { flex: 1; }
+.sc-upload { display: flex; gap: var(--space-2); }
+.sc-upload__add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.sc-card { margin: 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.sc-form { margin: 0 var(--space-3); overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.sc-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sc-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.sc-doc b { color: var(--ink); font-weight: 600; }
+.sc-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.sc-hero .xz-stat { padding: var(--space-2) var(--space-1) var(--space-1); }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-stage' }, h('div', { className: 'xz-device' }, page))); }
+function section(title, more) { return h('div', { className: 'xz-section' }, h('span', { className: 'title-sm' }, title), more ? h('span', { className: 'xz-section__more body-sm' }, more) : null); }
+
+mount(h(X.MobilePage, {
+  navBar: h(X.NavBar, { title: '商品管理', bordered: false, right: h(X.Button, { variant: 'text', size: 'sm' }, '批量') }),
+  bottom: h(X.TabBar, { role: 'merchant', defaultValue: 'products', badges: { orders: 3 } }),
+  overlay: h('div', { className: 'sc-fab' }, h(X.Button, { icon: 'plus' }, '新增商品'))
+},
+  h('div', { className: 'sc-strip', style: { padding: '0 var(--space-3)' } }, h(X.SearchBar, { placeholder: '搜索商品名称' })),
+  h(X.Tabs, { items: [{ key: 'on', label: '在售', count: 24 }, { key: 'off', label: '已下架', count: 3 }, { key: 'review', label: '审核中', count: 2 }] }),
+  h('div', { className: 'xz-list', style: { paddingTop: 'var(--space-3)', paddingBottom: 72 } },
+    h(X.ProductRow, { name: '红烧牛肉面（大碗）', price: 28, original: 32, sales: '1200+', stock: 36, status: 'on' }),
+    h(X.ProductRow, { name: '番茄肥牛面', price: 26, sales: '860+', stock: 3, status: 'on' }),
+    h(X.ProductRow, { name: '卤牛肉拼盘', price: 38, sales: '300+', stock: 0, status: 'soldout' }),
+    h(X.ProductRow, { name: '卤蛋', price: 3, sales: '2000+', stock: 120, status: 'on' }))));
+</script>
+</body>
+</html>

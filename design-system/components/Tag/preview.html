@@ -1,0 +1,19 @@
+<!-- @dsCard group="基础" height=150 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Tag — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo', style: { maxWidth: 'none' } },
+    h('div', { className: 'xz-row' },
+      h(X.Tag, { tone: 'success' }, '在售'), h(X.Tag, { tone: 'warning' }, '待审核'), h(X.Tag, { tone: 'info' }, '审核中'),
+      h(X.Tag, { tone: 'danger' }, '已冻结'), h(X.Tag, { tone: 'neutral' }, '已下架'), h(X.Tag, { tone: 'brand' }, '招牌')),
+    h('div', { className: 'xz-row' },
+      h(X.Tag, { tone: 'brand', variant: 'outline' }, '满 30 减 5'), h(X.Tag, { tone: 'brand', variant: 'outline' }, '首单立减 8'),
+      h(X.Tag, { tone: 'accent' }, '新店'), h(X.Tag, { tone: 'brand', variant: 'solid' }, '爆款'), h(X.Tag, { tone: 'neutral', variant: 'solid' }, '自营'))));
+</script>
+</body>
+</html>

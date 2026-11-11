@@ -1,0 +1,17 @@
+<!-- @dsCard group="桌面 · 布局与导航" height=600 width=560 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>SideNav — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-row xz-desk', style: { padding: 'var(--space-3)', alignItems: 'stretch', flexWrap: 'nowrap', height: 580 } },
+    h('div', { style: { width: 232, borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', boxShadow: '0 0 0 1px var(--line)' } },
+      h(X.SideNav, { role: 'merchant', defaultValue: 'products', badges: { orders: 3 }, className: '', footer: h(X.Switch, { label: '营业中', defaultChecked: true }) })),
+    h('div', { style: { width: 232, borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex' } },
+      h(X.SideNav, { role: 'admin', defaultValue: 'merchants', badges: { audit: 12, disputes: 5 } }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>SideNav — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-row xz-desk', style: { padding: 'var(--space-3)', alignItems: 'stretch', flexWrap: 'nowrap', height: 580 } },
+    h('div', { style: { width: 232, borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', boxShadow: '0 0 0 1px var(--line)' } },
+      h(X.SideNav, { role: 'merchant', defaultValue: 'products', badges: { orders: 3 }, className: '', footer: h(X.Switch, { label: '营业中', defaultChecked: true }) })),
+    h('div', { style: { width: 232, borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex' } },
+      h(X.SideNav, { role: 'admin', defaultValue: 'merchants', badges: { audit: 12, disputes: 5 } }))));
+</script>
+</body>
+</html>

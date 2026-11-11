@@ -1,0 +1,18 @@
+<!-- @dsCard group="业务 · 通用" height=344 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>StatCard — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-demo' },
+    h(X.StatCard, { tone: 'brand', label: '今日营业额（元）', value: '3,286.50', delta: 12.4 }),
+    h('div', { className: 'xz-grid2' },
+      h(X.StatCard, { size: 'sm', label: '有效订单', value: '126', unit: '单', delta: 8.1 }),
+      h(X.StatCard, { size: 'sm', label: '退款', value: '2', unit: '单', delta: -33.3 })),
+    h(X.StatCard, { tone: 'chrome', icon: 'chart', label: '平台今日 GMV（元）', value: '1,286,430.00', delta: 5.2, deltaLabel: '较上周同日' })));
+</script>
+</body>
+</html>

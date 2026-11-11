@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/bundle.css">
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/bundle.js"></script>
+<meta charset="utf-8"><title>FilterBar — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-desk', style: { padding: 'var(--space-4)' } },
+    h(X.FilterBar, null,
+      h(X.SearchBar, { placeholder: '商家名称 / 负责人 / 手机尾号' }),
+      h(X.Select, { label: '类目', options: ['全部', '快餐便当', '米粉面馆', '奶茶饮品'] }),
+      h(X.Select, { label: '城市', options: ['全部', '北京', '上海'] }),
+      h(X.Select, { label: '入驻', options: ['不限', '近 7 天', '近 30 天'] }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!-- @dsCard group="导航与布局" height=560 -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>MobilePage — 预览</title></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h('div', { className: 'xz-stage', style: { minHeight: 0 } },
+    h('div', { className: 'xz-device', style: { height: 520 } },
+      h(X.MobilePage, {
+        navBar: h(X.NavBar, { title: '页面标题', back: true }),
+        bottom: h(X.TabBar, { role: 'merchant', defaultValue: 'products' })
+      },
+        h('div', { className: 'xz-list', style: { paddingTop: 'var(--space-3)' } },
+          ['statusBar：状态栏，跟随顶栏颜色', 'navBar：放 NavBar', 'children：可滚动的页面内容', 'bottom：TabBar 或底部操作栏', 'overlay：Dialog 等浮层'].map(function (t, i) {
+            return h('div', { key: i, className: 'body-sm', style: { background: 'var(--surface-raised)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3)', color: 'var(--ink-muted)' } }, t);
+          }))))));
+</script>
+</body>
+</html>

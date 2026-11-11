@@ -1,0 +1,64 @@
+<!-- @dsCard group="页面 · 管理端" height=820 width=415 page subtitle="入驻审核：查看资料、通过或驳回" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>AdminMerchantAudit — 预览</title><style>
+.sc-sort { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--ink-muted); }
+.sc-sort b { color: var(--ink); font-weight: 600; }
+.sc-sort span { display: inline-flex; align-items: center; gap: 2px; }
+.sc-sort .sc-push { margin-left: auto; }
+.sc-strip { background: var(--surface-raised); }
+.sc-head { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--surface-raised); }
+.sc-head__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sc-muted { color: var(--ink-muted); }
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.sc-fill { height: 100%; display: flex; flex-direction: column; }
+.sc-split { flex: 1; min-height: 0; display: flex; background: var(--surface-raised); }
+.sc-split__list { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 96px; scrollbar-width: none; }
+.sc-group { padding: var(--space-2) var(--space-3) 0; color: var(--ink-muted); }
+.sc-fab { position: absolute; right: var(--space-3); bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3)); z-index: 6; }
+.sc-fab .xz-btn { box-shadow: var(--shadow-float); }
+.sc-actions { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.sc-actions > :first-child { flex: 0 0 34%; }
+.sc-actions > :last-child { flex: 1; }
+.sc-upload { display: flex; gap: var(--space-2); }
+.sc-upload__add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); width: var(--size-thumb); height: var(--size-thumb); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); color: var(--ink-muted); }
+.sc-card { margin: 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-card); }
+.sc-form { margin: 0 var(--space-3); overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.sc-docs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sc-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); aspect-ratio: 4 / 3; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink-muted); text-align: center; }
+.sc-doc b { color: var(--ink); font-weight: 600; }
+.sc-rank { display: inline-block; width: 20px; color: var(--brand-text); font-family: var(--font-num); font-weight: 600; }
+.sc-hero .xz-stat { padding: var(--space-2) var(--space-1) var(--space-1); }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var X = window.Xiaozao, h = React.createElement;
+function mount(page) { ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'xz-stage' }, h('div', { className: 'xz-device' }, page))); }
+function section(title, more) { return h('div', { className: 'xz-section' }, h('span', { className: 'title-sm' }, title), more ? h('span', { className: 'xz-section__more body-sm' }, more) : null); }
+
+var C = X.ListCell;
+mount(h(X.MobilePage, {
+  statusBar: 'admin',
+  navBar: h(X.NavBar, { tone: 'admin', title: '入驻审核', subtitle: '提交于 11-10 14:22', back: true }),
+  bottom: h('div', { className: 'sc-actions' }, h(X.Button, { size: 'lg', variant: 'danger-outline' }, '驳回'), h(X.Button, { size: 'lg' }, '审核通过'))
+},
+  h('div', { style: { display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-3)' } },
+    h('div', { className: 'xz-store', style: { alignItems: 'center' } },
+      h('span', { className: 'xz-logo' }, h('span', { className: 'title-lg' }, '阿')),
+      h('div', { className: 'xz-store__main' },
+        h('div', { className: 'xz-merchant__top' }, h('span', { className: 'title-sm' }, '阿香米线（望京店）'), h(X.Tag, { tone: 'warning' }, '待审核')),
+        h('span', { className: 'body-sm sc-muted' }, '米粉面馆 · 北京 · 第 1 次提交'))),
+    h(C.Group, { title: '店铺信息' },
+      h(C, { title: '门店地址', value: '朝阳区望京街 9 号 1 层' }),
+      h(C, { title: '营业时间', value: '10:00–21:30' }),
+      h(C, { title: '负责人', value: '李女士 · 尾号 6620' })),
+    h('div', { className: 'xz-cellgroup', style: { padding: 'var(--space-3)' } },
+      h('div', { className: 'body-sm sc-muted', style: { marginBottom: 'var(--space-2)' } }, '资质证照'),
+      h('div', { className: 'sc-docs' },
+        h('div', { className: 'sc-doc' }, h(X.Icon, { name: 'shield', size: 24 }), h('b', { className: 'body-sm' }, '营业执照'), h('span', { className: 'caption' }, '有效期至 2031-04-30')),
+        h('div', { className: 'sc-doc' }, h(X.Icon, { name: 'shield', size: 24 }), h('b', { className: 'body-sm' }, '食品经营许可证'), h('span', { className: 'caption' }, '有效期至 2029-08-15')))),
+    h('div', { className: 'body-sm sc-muted', style: { padding: '0 var(--space-1)' } }, '通过后商家可上架商品并开始营业；驳回需选择原因，商家修改后可重新提交。'))));
+</script>
+</body>
+</html>
