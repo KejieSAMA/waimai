@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Input, Price, Select, Tabs } from "@waimai/ui";
 import { onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -57,7 +58,7 @@ async function submit() {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">确认订单</h1>
+    <PageHeader title="确认订单" />
     <template v-if="cart.lines.length"
       ><Tabs
         v-model="cart.type"

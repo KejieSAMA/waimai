@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, OrderItem } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../../db";
 import { assert, pagination, pageResult, shanghaiDay } from "../../http";
@@ -124,7 +124,7 @@ export async function createOrder(userId: string, body: unknown) {
       },
       include,
     });
-    return { ...order, store: safeStore(order.store) };
+    return serializeOrder(order, "USER");
   });
 }
 function scopedWhere(
@@ -138,9 +138,20 @@ function scopedWhere(
       : {};
 }
 function serializeOrder<
-  T extends { store: Parameters<typeof safeStore>[0]; addressSnapshot: string },
+  T extends {
+    store: Parameters<typeof safeStore>[0];
+    addressSnapshot: string;
+    items: OrderItem[];
+  },
 >(order: T, role: string) {
-  const safe = { ...order, store: safeStore(order.store) };
+  const safe = {
+    ...order,
+    store: safeStore(order.store),
+    items: order.items.map((item) => ({
+      ...item,
+      lineTotalCents: item.priceCentsSnapshot * item.qty,
+    })),
+  };
   if (role === "MERCHANT") {
     const address = JSON.parse(order.addressSnapshot);
     return {
@@ -160,6 +171,10 @@ export async function listOrders(
   disputes = false,
 ) {
   const p = pagination(query);
+  const stage = z
+    .enum(["PENDING", "PREPARING", "DELIVERING", "REFUNDING"])
+    .optional()
+    .parse(query.stage);
   const tab = z
     .enum(["all", "ongoing", "unreviewed", "refund"])
     .default("all")
@@ -189,7 +204,16 @@ export async function listOrders(
     ...(disputes ? { disputed: true, status: "REFUNDING" } : {}),
     ...(p.status ? { status: p.status } : {}),
     ...(p.keyword ? { orderNo: { contains: p.keyword } } : {}),
-    AND: userFilter,
+    AND: [
+      userFilter,
+      actor.role === "MERCHANT" && stage
+        ? {
+            status: {
+              in: stage === "DELIVERING" ? ["DELIVERING", "PICKUP"] : [stage],
+            },
+          }
+        : {},
+    ],
   };
   const [list, total] = await Promise.all([
     db.order.findMany({
@@ -388,17 +412,69 @@ export async function orderStats(
     storeId,
     createdAt: { gte: start, ...(end ? { lt: end } : {}) },
   };
-  const [orders, revenue, pending] = await Promise.all([
-    db.order.count({ where }),
-    db.order.aggregate({
-      where: {
-        ...where,
-        paidAt: { not: null },
-        status: { notIn: ["CANCELLED", "REFUNDING"] },
-      },
-      _sum: { payCents: true },
+  const [orders, revenue, pending, refunds, refundPending, badReviews] =
+    await Promise.all([
+      db.order.count({ where }),
+      db.order.aggregate({
+        where: {
+          ...where,
+          paidAt: { not: null },
+          status: { notIn: ["CANCELLED", "REFUNDING"] },
+        },
+        _sum: { payCents: true },
+        _count: { id: true },
+      }),
+      db.order.count({ where: { storeId, status: "PENDING" } }),
+      db.order.count({
+        where: {
+          ...where,
+          OR: [
+            { status: "REFUNDING" },
+            { status: "CANCELLED", refundReason: { not: null } },
+          ],
+        },
+      }),
+      db.order.count({ where: { storeId, status: "REFUNDING" } }),
+      db.review.count({ where: { storeId, rating: { lte: 2 }, reply: null } }),
+    ]);
+  return {
+    orders,
+    validOrders: revenue._count.id,
+    revenueCents: revenue._sum.payCents ?? 0,
+    pending,
+    refunds,
+    refundPending,
+    badReviews,
+    refundRate: orders ? Number(((refunds / orders) * 100).toFixed(1)) : 0,
+  };
+}
+
+export function dailyStoreOrders() {
+  return db.order.groupBy({
+    by: ["storeId"],
+    where: {
+      createdAt: { gte: shanghaiDay() },
+      paidAt: { not: null },
+      status: { notIn: ["CANCELLED", "REFUNDING"] },
+    },
+    _count: { id: true },
+    _sum: { payCents: true },
+  });
+}
+export async function publicReviews(
+  storeId: string,
+  query: Record<string, unknown>,
+) {
+  const p = pagination(query);
+  const [list, total] = await Promise.all([
+    db.review.findMany({
+      where: { storeId },
+      select: { id: true, rating: true, content: true, reply: true },
+      skip: p.skip,
+      take: p.take,
+      orderBy: { id: "desc" },
     }),
-    db.order.count({ where: { storeId, status: "PENDING" } }),
+    db.review.count({ where: { storeId } }),
   ]);
-  return { orders, revenueCents: revenue._sum.payCents ?? 0, pending };
+  return pageResult(list, total, p);
 }

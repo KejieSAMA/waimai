@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageSlot from "../../../components/PageSlot.vue";
 import { onMounted, reactive, ref } from "vue";
 import {
   Button,
@@ -48,7 +49,6 @@ async function remove() {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">收货地址</h1>
     <ListCellGroup
       ><ListCell
         v-for="a in list"
@@ -64,7 +64,11 @@ async function remove() {
         ></ListCell
       ></ListCellGroup
     >
-    <form class="app-card app-form" @submit.prevent="save">
+    <form
+      id="mobile-edit-form"
+      class="app-card app-form"
+      @submit.prevent="save"
+    >
       <h2 class="title-sm">{{ editing ? "编辑地址" : "新增地址" }}</h2>
       <Input v-model="form.contact" label="收货人" required /><Input
         v-model="form.phone"
@@ -76,7 +80,16 @@ async function remove() {
         label="默认地址"
       />
       <div class="app-row">
-        <Button type="submit" :disabled="busy">保存地址</Button
+        <PageSlot name="actions"
+          ><div class="sc-full-actions">
+            <Button
+              size="lg"
+              form="mobile-edit-form"
+              type="submit"
+              :disabled="busy"
+              >保存地址</Button
+            >
+          </div></PageSlot
         ><Button v-if="editing" variant="outline" @click="clear"
           >取消编辑</Button
         >

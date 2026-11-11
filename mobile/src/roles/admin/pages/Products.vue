@@ -12,7 +12,7 @@ import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const list = ref<Product[]>([]),
   keyword = ref(""),
-  status = ref(""),
+  status = ref(new URLSearchParams(location.search).get("status") || ""),
   page = ref(1),
   total = ref(0),
   reason = ref(""),
@@ -55,7 +55,6 @@ async function send(id: string, action: string) {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">商品巡检</h1>
     <Tabs
       v-model="status"
       :items="[

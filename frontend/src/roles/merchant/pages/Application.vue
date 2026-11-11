@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from "../../../components/PageHeader.vue";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import { Button, Input, Select, Tag, Thumb } from "@waimai/ui";
 import { onMounted, reactive, ref } from "vue";
@@ -90,7 +91,7 @@ async function save() {
 </script>
 <template>
   <form class="app-stack" @submit.prevent="save">
-    <h1 class="title-lg">{{ application ? "入驻申请" : "店铺设置" }}</h1>
+    <PageHeader :title="application ? '入驻申请' : '店铺设置'" />
     <div v-if="store" class="app-row">
       <Tag :tone="storeStatuses[store.status].tone">{{
         storeStatuses[store.status].label

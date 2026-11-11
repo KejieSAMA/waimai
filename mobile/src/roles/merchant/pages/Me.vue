@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useTheme } from "@waimai/tokens";
 import { ListCell, ListCellGroup } from "@waimai/ui";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../../common/auth";
 import { switchDevice } from "../../../common/device";
 import { run } from "../../../common/feedback";
+const { toggle } = useTheme();
 const auth = useAuth(),
   router = useRouter();
 const role = "MERCHANT" as const;
@@ -30,6 +32,10 @@ async function logout() {
         icon="shield"
         arrow
         @click="router.push('/merchant/apply')" /><ListCell
+        title="切换主题"
+        icon="sun"
+        arrow
+        @click="toggle" /><ListCell
         title="电脑版"
         icon="grid"
         arrow

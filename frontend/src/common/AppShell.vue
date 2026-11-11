@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { Button, ScrollArea } from "@waimai/ui";
+import { Button, ScrollArea, Switch } from "@waimai/ui";
 import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
-import { computed } from "vue";
+import { computed, watch, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "@waimai/tokens";
 import type { NavItem, NavGroup } from "@waimai/ui";
-import type { Role } from "@waimai/shared";
+import type { Role, Store, Stats } from "@waimai/shared";
+import { api } from "./api";
+import { merchantStore } from "./merchantStatus";
+import { run } from "./feedback";
 import { useAuth } from "./auth";
 import { switchDevice } from "./device";
 const route = useRoute(),
@@ -46,7 +49,75 @@ const menus: Record<string, NavItem[]> = {
   ],
 };
 const nav = computed(() => menus[role.value]);
-const groups = computed<NavGroup[]>(() => [{ items: nav.value }]);
+const groups = computed<NavGroup[]>(() =>
+  role.value === "merchant"
+    ? [
+        { items: nav.value.slice(0, 3) },
+        { title: "店铺", items: nav.value.slice(3) },
+      ]
+    : role.value === "admin"
+      ? [
+          { items: nav.value.slice(0, 1) },
+          { title: "商家", items: nav.value.slice(1, 4) },
+          { title: "交易", items: nav.value.slice(4, 6) },
+          { title: "平台", items: nav.value.slice(6) },
+        ]
+      : [{ items: nav.value }],
+);
+const changingStore = ref(false);
+const notices = ref(0);
+watch([() => route.path, merchantStore], async () => {
+  if (
+    !["merchant", "admin"].includes(role.value) ||
+    route.path.endsWith("/login") ||
+    (role.value === "merchant" && !merchantStore.value)
+  )
+    return;
+  await run(async () => {
+    const stats = await api<Stats>(
+      role.value === "merchant"
+        ? "/merchant/stats/today"
+        : "/admin/stats/overview",
+      {},
+      role.value === "merchant" ? "MERCHANT" : "ADMIN",
+    );
+    notices.value = stats.pending;
+  });
+});
+watch(
+  [role, () => account.value?.id],
+  async ([value, accountId], _old, cleanup) => {
+    let active = true;
+    cleanup(() => {
+      active = false;
+    });
+    if (value !== "merchant" || !accountId) {
+      merchantStore.value = undefined;
+      return;
+    }
+    if (value === "merchant")
+      await run(async () => {
+        const store = await api<Store | null>(
+          "/merchant/application",
+          {},
+          "MERCHANT",
+        );
+        if (active) merchantStore.value = store;
+      });
+  },
+  { immediate: true },
+);
+async function setOpen(open: boolean) {
+  changingStore.value = true;
+  await run(async () => {
+    merchantStore.value = await api<Store>(
+      "/merchant/store/open",
+      { method: "PUT", body: { open } },
+      "MERCHANT",
+    );
+  });
+  changingStore.value = false;
+}
 const selected = computed(
   () =>
     nav.value.find(
@@ -86,8 +157,29 @@ const go = (path: string) => router.push(path);
     :role="role"
     :groups="groups"
     :model-value="selected"
-    :user="account"
+    :user="
+      account
+        ? { name: account.name, role: role === 'merchant' ? '店长' : '运营' }
+        : undefined
+    "
+    :notices="notices"
+    @notices="go(role === 'merchant' ? '/merchant/orders' : '/admin/audit')"
     @update:model-value="go"
+  >
+    <template v-if="role === 'merchant' && merchantStore" #footer
+      ><Switch
+        :label="
+          merchantStore.status === 'OPEN'
+            ? '营业中'
+            : merchantStore.status === 'CLOSED'
+              ? '休息中'
+              : '营业状态'
+        "
+        :model-value="merchantStore.status === 'OPEN'"
+        :disabled="
+          changingStore || !['OPEN', 'CLOSED'].includes(merchantStore.status)
+        "
+        @update:model-value="setOpen" /></template
     ><template #topRight
       ><Button size="sm" variant="text" @click="toggle">切换主题</Button
       ><Button size="sm" variant="text" @click="switchDevice(true)"

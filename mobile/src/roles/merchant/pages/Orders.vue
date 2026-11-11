@@ -1,30 +1,53 @@
 <script setup lang="ts">
+import PageSlot from "../../../components/PageSlot.vue";
+import NavBarIcon from "../../../components/NavBarIcon.vue";
 import { Button, Dialog, Input, OrderCard, Switch, Tabs } from "@waimai/ui";
 import { computed, onMounted, ref, watch } from "vue";
 import { type Order, type Page, orderStatuses, time } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 import { useOrderStream } from "../../../common/events";
+const toolsOpen = ref(false),
+  keyword = ref("");
+const counts = ref<Record<string, number>>({});
 const list = ref<Order[]>([]),
-  status = ref(""),
+  status = ref(new URLSearchParams(location.search).get("status") || "PENDING"),
   page = ref(1),
   total = ref(0),
   reason = ref(""),
   pending = ref<{ id: string; action: string } | null>(null);
-const filtered = computed(() =>
-  status.value
-    ? list.value.filter((o) => o.status === status.value)
-    : list.value,
-);
-async function load() {
+const filtered = computed(() => list.value);
+async function load(append = false) {
   await run(async () => {
     const result = await api<Page<Order>>(
-      `/merchant/orders?status=${status.value}&page=${page.value}`,
+      `/merchant/orders?stage=${status.value}&keyword=${encodeURIComponent(keyword.value)}&page=${page.value}`,
       {},
       "MERCHANT",
     );
-    list.value = result.list;
+    list.value = append
+      ? [
+          ...list.value.filter(
+            (old) => !result.list.some((item) => item.id === old.id),
+          ),
+          ...result.list,
+        ]
+      : result.list;
     total.value = result.total;
+    const groups = await Promise.all(
+      ["PENDING", "PREPARING", "DELIVERING", "REFUNDING"].map((stage) =>
+        api<Page<Order>>(
+          `/merchant/orders?stage=${stage}&pageSize=1`,
+          {},
+          "MERCHANT",
+        ),
+      ),
+    );
+    counts.value = Object.fromEntries(
+      ["PENDING", "PREPARING", "DELIVERING", "REFUNDING"].map((stage, i) => [
+        stage,
+        groups[i].total,
+      ]),
+    );
   });
 }
 const stream = useOrderStream(load);
@@ -49,30 +72,61 @@ async function send(id: string, action: string) {
       "MERCHANT",
     );
     pending.value = null;
+    page.value = 1;
     await load();
   });
 }
 </script>
 <template>
-  <div class="app-stack">
-    <h1 class="title-lg">订单</h1>
-    <div class="app-row">
-      <Switch
-        label="开启提醒"
+  <div class="app-merchant-orders">
+    <PageSlot name="right"
+      ><NavBarIcon name="search" label="搜索订单" @click="toolsOpen = true"
+    /></PageSlot>
+    <Dialog
+      :open="toolsOpen"
+      title="搜索订单"
+      variant="sheet"
+      @close="toolsOpen = false"
+      ><Input v-model="keyword" label="订单号" /><Switch
+        label="开启新订单提醒"
         :model-value="stream.enabled.value"
         @update:model-value="stream.toggle"
-      /><Button variant="outline" @click="load">刷新订单</Button>
-    </div>
+      /><template #actions
+        ><Button
+          @click="
+            page = 1;
+            load();
+            toolsOpen = false;
+          "
+          >查询订单</Button
+        ></template
+      ></Dialog
+    >
     <Tabs
       v-model="status"
       :items="[
-        { key: '', label: '全部' },
-        ...Object.entries(orderStatuses)
-          .filter(([k]) => k !== 'PENDING_PAY')
-          .map(([key, s]) => ({ key, label: s.label })),
+        { key: 'PENDING', label: '新订单', count: counts.PENDING, alert: true },
+        {
+          key: 'PREPARING',
+          label: '备餐中',
+          count: counts.PREPARING,
+          alert: false,
+        },
+        {
+          key: 'DELIVERING',
+          label: '配送中',
+          count: counts.DELIVERING,
+          alert: false,
+        },
+        {
+          key: 'REFUNDING',
+          label: '退款',
+          count: counts.REFUNDING,
+          alert: false,
+        },
       ]"
     />
-    <div class="xz-list">
+    <div class="xz-list sc-page-list">
       <section
         v-for="column in [
           {
@@ -83,32 +137,35 @@ async function send(id: string, action: string) {
           },
         ]"
         :key="column.key"
-        class="app-stack"
+        class="app-order-column"
       >
-        <h2 class="title-sm">{{ column.label }}</h2>
         <OrderCard
           v-for="o in filtered"
           :key="o.id"
           view="merchant"
-          :title="o.type === 'PICKUP' ? '到店自提' : '外卖配送'"
+          :title="
+            (o.type === 'PICKUP' ? '到店自提' : '外卖') +
+            (JSON.parse(o.addressSnapshot).phone
+              ? ' · ' + JSON.parse(o.addressSnapshot).phone
+              : '')
+          "
           :serial="o.serialOfDay"
           :status="o.status"
           :items="
             o.items.map((i) => ({
               name: i.nameSnapshot,
               qty: i.qty,
-              price: i.priceCentsSnapshot / 100,
+              price: (i.lineTotalCents ?? i.priceCentsSnapshot) / 100,
             }))
           "
           :total="o.payCents / 100"
           :time="time(o.createdAt)"
-          :meta="JSON.parse(o.addressSnapshot).phone"
           :note="o.note"
           ><template #actions
             ><template v-if="o.status === 'PENDING'"
               ><Button
                 size="sm"
-                variant="outline"
+                variant="danger-outline"
                 :disabled="busy"
                 @click="act(o.id, 'reject')"
                 >拒单</Button
@@ -126,7 +183,7 @@ async function send(id: string, action: string) {
               <template v-else
                 ><Button
                   size="sm"
-                  variant="outline"
+                  variant="danger-outline"
                   :disabled="busy"
                   @click="act(o.id, 'refund-reject')"
                   >拒绝退款</Button
@@ -143,27 +200,21 @@ async function send(id: string, action: string) {
       </section>
     </div>
     <p v-if="!list.length" class="app-empty body">暂无订单</p>
-    <div class="app-row">
+    <div v-if="list.length < total" class="sc-full-actions">
       <Button
-        :disabled="page <= 1"
-        @click="
-          page--;
-          load();
-        "
-        >上一页</Button
-      ><Button
-        :disabled="page * 20 >= total"
+        variant="text"
+        :disabled="busy"
         @click="
           page++;
-          load();
+          load(true);
         "
-        >下一页</Button
+        >加载更多</Button
       >
     </div>
     <Dialog
       :open="!!pending"
       title="填写原因"
-      variant="modal"
+      variant="sheet"
       @close="pending = null"
       ><Input v-model="reason" label="处理原因" multiline /><template #actions
         ><Button
@@ -175,3 +226,14 @@ async function send(id: string, action: string) {
     >
   </div>
 </template>
+
+<style scoped>
+.app-order-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.app-merchant-orders > .app-row {
+  padding: var(--space-2) var(--space-3);
+}
+</style>

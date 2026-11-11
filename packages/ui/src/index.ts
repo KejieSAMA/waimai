@@ -1,5 +1,7 @@
 export { default as Icon } from "./Icon.vue";
 export { default as Button } from "./Button.vue";
+export { default as ImageUpload } from "./ImageUpload.vue";
+export { default as DesignReferenceGallery } from "./DesignReferenceGallery.vue";
 export { default as Tag } from "./Tag.vue";
 export { default as Price } from "./Price.vue";
 export { default as Thumb } from "./Thumb.vue";

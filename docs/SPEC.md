@@ -70,6 +70,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `GET /public/categories` 平台类目
 - `GET /public/stores?categoryId&sort=default|distance|sales|minOrder&page` 营业中 + 休息中的店铺（冻结、待审核、驳回的不返回）
 - `GET /public/stores/:id` 店铺详情 + 菜品分组 + 在售 / 售罄商品
+- `GET /public/stores/:id/reviews?page&pageSize` 可见店铺的公开评价，仅 ID、评分、正文、商家回复。
 
 用户 `user`
 
@@ -79,6 +80,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `POST /user/orders` 下单（扣库存，事务）→ `POST /user/orders/:id/pay`（模拟支付）
 - `GET /user/orders?status`、`GET /user/orders/:id`
 - 用户列表另支持 `tab=all|ongoing|unreviewed|refund`：进行中包括待支付到待自提；待评价仅已完成且无评价；退款仅退款中。与 status 条件取交集后统一分页和计数；列表及详情返回 `review: { id } | null`。
+- 订单创建、列表、详情及操作响应的商品项包含后端计算的 `lineTotalCents`（快照单价 × 数量），供商家卡片展示行金额；前端不重新计算金额。
 - `POST /user/orders/:id/cancel`、`POST /user/orders/:id/refund`、`POST /user/orders/:id/review`
 
 商家 `merchant`
@@ -88,9 +90,11 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `GET|PUT /merchant/store`、`PUT /merchant/store/open`（营业 / 休息）
 - `GET|POST|PUT|DELETE /merchant/dish-categories`
 - `GET /merchant/products?status&keyword&categoryId&stock=low|soldout&page`
+- 商品列表可选 `group=on|off|review`，review 包含 REVIEW 与 REJECTED；原 status 条件保留并取交集。
 - `POST /merchant/products`、`PUT /merchant/products/:id`、`PUT /merchant/products/:id/listing`（上架 / 下架）
 - `POST /merchant/products/batch`（批量上架 / 下架 / 改库存）
 - `GET /merchant/orders?status`、`GET /merchant/orders/stream`（SSE 新订单推送）
+- 订单列表另支持 `stage=PENDING|PREPARING|DELIVERING|REFUNDING`，配送分组包含待自提，供四列看板分别分页。
 - `POST /merchant/orders/:id/accept|reject|ready|refund-approve|refund-reject`
 - `GET /merchant/stats/today`、`GET /merchant/stats/trend?days=7`、`GET /merchant/todos`
 
@@ -99,6 +103,7 @@ PC ↔ 手机路径对应：`/x` ↔ `/mobile/x`（如 `/merchant/orders` ↔ `/
 - `POST /auth/admin/login`
 - `GET /admin/stats/overview`、`GET /admin/stats/trend?days=14`、`GET /admin/stats/ranking`、`GET /admin/todos`
 - `GET /admin/merchants?status&keyword&categoryId&city&page`、`GET /admin/merchants/:id`
+- 管理列表附带 `counts`（同类目／城市／关键词范围内各状态及 all 数量），管理资料附带负责人姓名，公开列表不提供管理状态计数或负责人信息。
 - `POST /admin/merchants/:id/approve|reject|freeze|unfreeze`（reject、freeze 必须带 reason）
 - `GET /admin/products?status&keyword`、`POST /admin/products/:id/approve|reject|force-off`
 - `GET /admin/orders?status&keyword`、`GET /admin/disputes`、`POST /admin/disputes/:id/resolve`

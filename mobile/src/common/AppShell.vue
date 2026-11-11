@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button } from "@waimai/ui";
+import { Icon } from "@waimai/ui";
 import MobilePage from "../components/MobilePage.vue";
 import NavBar from "../components/NavBar.vue";
 import CartBar from "../components/CartBar.vue";
@@ -7,12 +7,61 @@ import { useCart } from "./cart";
 import TabBar from "../components/TabBar.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useTheme } from "@waimai/tokens";
+import { pageChrome } from "./pageChrome";
 import type { NavItem } from "@waimai/ui";
 
 const route = useRoute(),
   router = useRouter();
-const { toggle } = useTheme();
+const isStore = computed(() => route.path.startsWith("/store/"));
+const isProductEdit = computed(() =>
+  /^\/merchant\/products\/(new|[^/]+\/edit)$/.test(route.path),
+);
+const isAuditDetail = computed(() =>
+  /^\/admin\/audit\/[^/]+$/.test(route.path),
+);
+const actionPage = computed(
+  () =>
+    isProductEdit.value ||
+    isAuditDetail.value ||
+    ["/checkout", "/merchant/store", "/merchant/apply", "/addresses"].includes(
+      route.path,
+    ),
+);
+const rootTab = computed(() =>
+  [
+    "/",
+    "/orders",
+    "/me",
+    "/merchant/dashboard",
+    "/merchant/orders",
+    "/merchant/products",
+    "/merchant/me",
+    "/admin/overview",
+    "/admin/merchants",
+    "/admin/audit",
+    "/admin/me",
+  ].includes(route.path),
+);
+const hasBottom = computed(
+  () => rootTab.value || actionPage.value || isStore.value,
+);
+const back = computed(() => !rootTab.value && !route.path.endsWith("/login"));
+const edge = computed(
+  () =>
+    (rootTab.value && !route.path.endsWith("/me")) ||
+    isStore.value ||
+    isProductEdit.value ||
+    isAuditDetail.value,
+);
+const backTo = () => {
+  if (isProductEdit.value) return router.push("/merchant/products");
+  if (isAuditDetail.value)
+    return router.push(
+      route.query.from === "merchants" ? "/admin/merchants" : "/admin/audit",
+    );
+  if (isStore.value) return router.push("/");
+  return router.back();
+};
 const cart = useCart();
 const role = computed(
   () =>
@@ -75,44 +124,70 @@ const tabs = computed(() =>
 </script>
 <template>
   <MobilePage
-    ><template #navBar
+    :bottom-tone="isStore ? 'clear' : 'raised'"
+    :class="{ 'app-mobile-store': isStore }"
+  >
+    <template #navBar
       ><NavBar
-        :title="String(route.meta.title || '盟信')"
-        :bordered="route.path !== '/orders'"
+        :title="
+          pageChrome.title ||
+          (isStore || route.path === '/'
+            ? ''
+            : String(route.meta.title || '盟信'))
+        "
+        :subtitle="pageChrome.subtitle"
+        :align="route.path === '/merchant/dashboard' ? 'left' : undefined"
+        :bordered="!rootTab && !isStore"
         :tone="
           role === 'admin' ? 'admin' : route.path === '/' ? 'brand' : 'light'
         "
-        :back="
-          route.path.includes('/store/') ||
-          route.path.includes('/edit') ||
-          route.path === '/checkout'
-        "
-        @back="router.back()"
-        ><template v-if="route.path !== '/orders'" #right
-          ><Button size="sm" variant="text" @click="toggle"
-            >主题</Button
-          ></template
-        ></NavBar
-      ></template
-    >
+        :back="back"
+        @back="backTo"
+      >
+        <template v-if="route.path === '/'" #left
+          ><button
+            type="button"
+            class="xz-nav__place title-sm"
+            @click="go('/addresses')"
+          >
+            <Icon name="location" :size="18" />收货地址<Icon
+              name="chevron-down"
+              :size="16"
+            /></button
+        ></template>
+        <template #right><div id="mobile-page-right" /></template>
+        <template
+          v-if="route.path === '/' || route.path === '/admin/overview'"
+          #default
+          ><div id="mobile-page-extra"
+        /></template> </NavBar
+    ></template>
     <div
       class="app-content"
-      :class="{ 'app-content--orders': route.path === '/orders' }"
+      :class="{ 'app-content--edge': edge, 'app-content--store': isStore }"
     >
       <RouterView />
     </div>
-    <template #bottom>
+    <template v-if="hasBottom" #bottom>
       <CartBar
-        v-if="role === 'user' && route.path.startsWith('/store/')"
+        v-if="isStore"
         :count="cart.count"
         :total="cart.quote ? cart.quote.payCents / 100 : undefined"
+        :delivery-fee="
+          cart.quote ? cart.quote.deliveryFeeCents / 100 : undefined
+        "
         :disabled="!cart.storeOpen"
-        @checkout="go('/checkout')" />
+        @checkout="go('/checkout')"
+      />
+      <div v-else-if="actionPage" id="mobile-page-actions" />
       <TabBar
         v-else
         :role="role"
         :items="tabs"
         :model-value="selected"
-        @update:model-value="go" /></template
-  ></MobilePage>
+        @update:model-value="go"
+      />
+    </template>
+    <template #overlay><div id="mobile-page-overlay" /></template>
+  </MobilePage>
 </template>

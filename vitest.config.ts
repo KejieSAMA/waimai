@@ -5,6 +5,7 @@ export default defineConfig({
       "packages/**/*.test.ts",
       "backend/**/*.test.ts",
       "frontend/src/**/*.test.ts",
+      "mobile/src/**/*.test.ts",
     ],
     fileParallelism: false,
     testTimeout: 20000,

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import FilterBar from "../../../components/FilterBar.vue";
+import InfoList from "../../../components/InfoList.vue";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import {
   Button,
   Dialog,
   Input,
-  ListCell,
-  ListCellGroup,
+  Thumb,
   SearchBar,
   Select,
   Tabs,
@@ -30,6 +31,7 @@ import { run, busy } from "../../../common/feedback";
 const route = useRoute(),
   router = useRouter();
 const auditOnly = computed(() => route.path.startsWith("/admin/audit"));
+const counts = ref<Record<string, number>>({});
 const list = ref<Store[]>([]),
   categories = ref<Category[]>([]),
   status = ref(auditOnly.value ? "PENDING" : ""),
@@ -48,6 +50,9 @@ const columns = [
   { key: "name", title: "商家" },
   { key: "category", title: "类目" },
   { key: "city", title: "城市" },
+  { key: "owner", title: "负责人" },
+  { key: "createdAt", title: auditOnly.value ? "提交时间" : "入驻时间" },
+  { key: "rating", title: "评分", num: true, align: "right" as const },
   { key: "status", title: "状态" },
   { key: "monthlySales", title: "月订单", num: true, align: "right" as const },
   { key: "actions", title: "操作" },
@@ -61,6 +66,7 @@ async function load() {
     );
     list.value = result.list;
     total.value = result.total;
+    counts.value = result.counts ?? {};
   });
 }
 async function open(id: string) {
@@ -124,14 +130,24 @@ async function send(id: string, action: string) {
       v-if="!auditOnly"
       v-model="status"
       :items="[
-        { key: '', label: '全部商家' },
-        ...Object.entries(storeStatuses).map(([key, s]) => ({
-          key,
-          label: s.label,
-        })),
+        { key: '', label: '全部', count: counts.all },
+        { key: 'PENDING', label: '待审核', count: counts.PENDING, alert: true },
+        { key: 'OPEN', label: '营业中', count: counts.OPEN },
+        { key: 'CLOSED', label: '休息中', count: counts.CLOSED },
+        { key: 'FROZEN', label: '已冻结', count: counts.FROZEN },
       ]"
     />
-    <div class="app-row">
+    <FilterBar
+      @search="
+        page = 1;
+        load();
+      "
+      @reset="
+        keyword = category = city = '';
+        page = 1;
+        load();
+      "
+    >
       <SearchBar
         v-model="keyword"
         placeholder="搜索商家"
@@ -159,14 +175,18 @@ async function send(id: string, action: string) {
         "
         >查询商家</Button
       >
-    </div>
-    <DataTable :rows="list" :columns="columns"
+    </FilterBar>
+    <DataTable :rows="list" :columns="columns" :active-key="detail?.id"
       ><template #name="{ row }"
         ><DataTableMedia
           :name="row.name"
           :src="row.logo"
           kind="logo"
           :sub="row.rejectReason || row.frozenReason || undefined" /></template
+      ><template #owner="{ row }">{{ row.owner?.name || "未提供" }}</template
+      ><template #createdAt="{ row }">{{
+        row.createdAt ? time(row.createdAt) : "未提供"
+      }}</template
       ><template #category="{ row }">{{ row.category?.name }}</template
       ><template #status="{ row }"
         ><Tag :tone="storeStatuses[row.status].tone">{{
@@ -198,26 +218,46 @@ async function send(id: string, action: string) {
       @update:model-value="load"
     /><Dialog
       :open="!!detail"
-      :title="detail?.name"
+      :title="auditOnly ? '入驻审核' : '商家详情'"
       variant="drawer"
       @close="close"
       ><div v-if="detail" class="app-stack">
-        <Tag :tone="storeStatuses[detail.status].tone">{{
-          storeStatuses[detail.status].label
-        }}</Tag
-        ><ListCellGroup title="店铺信息"
-          ><ListCell title="经营类目" :value="detail.category?.name" /><ListCell
-            title="所在城市"
-            :value="detail.city" /><ListCell
-            title="店铺地址"
-            :value="detail.address" /><ListCell
-            title="联系电话"
-            :value="phoneTail(detail.contactPhone)" /><ListCell
-            title="营业时间"
-            :value="detail.openHours"
-        /></ListCellGroup>
-        <div class="app-grid">
-          <div>
+        <div class="ds-head">
+          <Thumb kind="logo" size="lg" :src="detail.logo" :name="detail.name" />
+          <div class="ds-head__main">
+            <div class="ds-head__top">
+              <span class="title">{{ detail.name }}</span
+              ><Tag :tone="storeStatuses[detail.status].tone">{{
+                storeStatuses[detail.status].label
+              }}</Tag>
+            </div>
+            <span class="body-md app-muted"
+              >{{ detail.category?.name }} · {{ detail.city }} · 第
+              {{ detail.submitCount || 1 }} 次提交</span
+            >
+          </div>
+        </div>
+        <h3 class="ds-block title-sm">店铺信息</h3>
+        <InfoList
+          :items="[
+            { label: '门店地址', value: detail.address },
+            { label: '营业时间', value: detail.openHours },
+            {
+              label: '负责人',
+              value:
+                (detail.owner?.name || '') +
+                ' · ' +
+                phoneTail(detail.contactPhone),
+            },
+            {
+              label: '提交时间',
+              value: detail.createdAt ? time(detail.createdAt) : '未提供',
+            },
+          ]"
+        />
+        <h3 class="ds-block title-sm">资质证照</h3>
+        <div class="ds-docs">
+          <div class="ds-doc">
             <h3 class="title-sm">营业执照</h3>
             <ProtectedImage
               v-if="detail.licenseImage"
@@ -229,7 +269,7 @@ async function send(id: string, action: string) {
             <p v-else class="body-sm app-muted">尚未上传</p>
             <p class="body-sm">{{ detail.licenseExpireAt?.slice(0, 10) }}</p>
           </div>
-          <div>
+          <div class="ds-doc">
             <h3 class="title-sm">食品经营许可证</h3>
             <ProtectedImage
               v-if="detail.foodPermitImage"
@@ -256,7 +296,7 @@ async function send(id: string, action: string) {
             @click="act(detail.id, 'reject')"
             >驳回</Button
           ><Button :disabled="busy" @click="act(detail.id, 'approve')"
-            >通过</Button
+            >审核通过</Button
           ></template
         ><Button
           v-if="detail && ['OPEN', 'CLOSED'].includes(detail.status)"

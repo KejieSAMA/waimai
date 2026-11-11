@@ -1,66 +1,101 @@
 <script setup lang="ts">
-import { ListCell, ListCellGroup, StatCard } from "@waimai/ui";
-import { onMounted, ref } from "vue";
+import NavBarIcon from "../../../components/NavBarIcon.vue";
+import { ListCell, ListCellGroup, StatCard, Tag } from "@waimai/ui";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { type Stats, type Store, dashboardMoney } from "@waimai/shared";
+import { type Stats, dashboardMoney } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run } from "../../../common/feedback";
 const router = useRouter(),
-  stats = ref<Stats>(),
-  trend = ref<{ label: string; value: number }[]>([]),
-  ranking = ref<Store[]>([]);
+  stats = ref<Stats>();
+const todos = computed(() =>
+  stats.value
+    ? [
+        {
+          label: "商家入驻待审核",
+          count: stats.value.pending,
+          tone: "warning" as const,
+          icon: "shield" as const,
+          path: "/admin/audit",
+        },
+        {
+          label: "商品待审核",
+          count: stats.value.pendingProducts,
+          tone: "info" as const,
+          icon: "box" as const,
+          path: "/admin/products?status=REVIEW",
+        },
+        {
+          label: "退款纠纷",
+          count: stats.value.refundPending,
+          tone: "danger" as const,
+          icon: "alert" as const,
+          path: "/admin/disputes",
+        },
+        {
+          label: "证照 30 天内到期",
+          count: stats.value.expiringLicenses,
+          tone: "neutral" as const,
+          icon: "clock" as const,
+          path: "/admin/merchants",
+        },
+      ]
+    : [],
+);
+import PageSlot from "../../../components/PageSlot.vue";
 onMounted(() =>
   run(async () => {
-    const [a, b, c] = await Promise.all([
-      api<Stats>("/admin/stats/overview", {}, "ADMIN"),
-      api<{ label: string; value: number }[]>(
-        "/admin/stats/trend?days=14",
-        {},
-        "ADMIN",
-      ),
-      api<Store[]>("/admin/stats/ranking", {}, "ADMIN"),
-    ]);
-    stats.value = a;
-    trend.value = b;
-    ranking.value = c;
+    stats.value = await api<Stats>("/admin/stats/overview", {}, "ADMIN");
   }),
 );
 </script>
 <template>
-  <div class="app-stack">
-    <h1 class="title-lg">数据总览</h1>
-    <div v-if="stats" class="app-grid">
+  <PageSlot name="right"
+    ><NavBarIcon
+      name="bell"
+      label="待办消息"
+      :badge="stats?.pending"
+      @click="router.push('/admin/audit')"
+  /></PageSlot>
+  <div v-if="stats" class="xz-list sc-page-list">
+    <PageSlot name="extra"
+      ><div class="sc-hero">
+        <StatCard
+          tone="chrome"
+          label="平台今日 GMV（元）"
+          :value="dashboardMoney(stats.revenueCents)"
+        /></div
+    ></PageSlot>
+    <div class="xz-grid2">
       <StatCard
-        label="今日 GMV（元）"
-        :value="dashboardMoney(stats.revenueCents)"
-        tone="chrome"
-      /><StatCard label="今日订单" :value="stats.orders" unit="单" /><StatCard
+        size="sm"
+        label="订单量"
+        :value="stats.orders"
+        unit="单"
+      /><StatCard
+        size="sm"
         label="在营商家"
         :value="stats.stores"
         unit="家"
-      /><StatCard label="待审核" :value="stats.pending" unit="家" />
+      /><StatCard
+        size="sm"
+        label="新入驻"
+        :value="stats.newStores"
+        unit="家"
+      /><StatCard size="sm" label="退款率" :value="stats.refundRate" unit="%" />
     </div>
-    <ListCellGroup title="待处理"
+    <ListCellGroup title="待办"
       ><ListCell
-        title="商家待审核"
-        :value="stats?.pending"
-        icon="shield"
+        v-for="item in todos"
+        :key="item.label"
+        :title="item.label"
+        :icon="item.icon"
         arrow
-        @click="router.push('/admin/audit')" /><ListCell
-        title="退款纠纷"
-        icon="alert"
-        arrow
-        @click="router.push('/admin/disputes')"
-    /></ListCellGroup>
-    <div class="app-card">
-      <h2 class="title-sm">商家销量排行</h2>
-      <ListCell
-        v-for="(store, i) in ranking"
-        :key="store.id"
-        :title="i + 1 + '. ' + store.name"
-        :value="store.monthlySales + ' 单'"
-        :desc="store.category?.name"
-      />
-    </div>
+        @click="router.push(item.path)"
+        ><template #extra
+          ><Tag :tone="item.tone">{{ item.count }}</Tag></template
+        ></ListCell
+      ></ListCellGroup
+    >
   </div>
 </template>

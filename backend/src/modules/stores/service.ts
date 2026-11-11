@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Prisma, type Store } from "@prisma/client";
 import { db } from "../../db";
-import { assert, pagination, pageResult } from "../../http";
+import { assert, pagination, pageResult, shanghaiDay } from "../../http";
 import { storeTransition } from "../../domain/storeMachine";
 import { recordAudit } from "../audit/service";
 import { privateOwner } from "../uploads/service";
@@ -69,17 +69,33 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
       orderBy,
       skip: p.skip,
       take: p.take,
-      include: { category: true, promotions: true },
+      include: {
+        category: true,
+        promotions: true,
+        owner: admin ? { select: { name: true } } : false,
+      },
     }),
     db.store.count({ where }),
   ]);
-  return pageResult(admin ? list : list.map(safeStore), total, p);
+  const result = pageResult(admin ? list : list.map(safeStore), total, p);
+  if (!admin) return result;
+  const groups = await db.store.groupBy({
+    by: ["status"],
+    where: { ...where, status: undefined },
+    _count: { id: true },
+  });
+  const counts: Record<string, number> = {
+    all: groups.reduce((sum, group) => sum + group._count.id, 0),
+  };
+  for (const group of groups) counts[group.status] = group._count.id;
+  return { ...result, counts };
 }
 export async function storeDetail(id: string, admin = false) {
   const store = await db.store.findUnique({
     where: { id },
     include: {
       category: true,
+      owner: admin ? { select: { name: true } } : false,
       promotions: true,
       dishCategories: { orderBy: { sort: "asc" } },
       products: admin
@@ -197,16 +213,28 @@ export async function moderateStore(
     });
   });
 }
-export const storeCounts = async () => ({
-  stores: await db.store.count({ where: { status: "OPEN" } }),
-  pending: await db.store.count({ where: { status: "PENDING" } }),
+export const storeCounts = async (storeId?: string) => ({
+  stores: await db.store.count({ where: { id: storeId, status: "OPEN" } }),
+  pending: await db.store.count({ where: { id: storeId, status: "PENDING" } }),
+  newStores: await db.store.count({
+    where: { id: storeId, createdAt: { gte: shanghaiDay() } },
+  }),
 });
-export const rankings = async () =>
+export async function expiringLicenses(storeId?: string) {
+  const end = new Date(Date.now() + 30 * 86400000);
+  return db.store.count({
+    where: {
+      id: storeId,
+      OR: [{ licenseExpireAt: { lte: end } }, { permitExpireAt: { lte: end } }],
+    },
+  });
+}
+export const rankings = async (ids?: string[]) =>
   (
     await db.store.findMany({
-      where: { status: "OPEN" },
+      where: ids ? { id: { in: ids } } : { status: "OPEN" },
       orderBy: { monthlySales: "desc" },
-      take: 10,
+      take: ids ? undefined : 10,
       include: { category: true },
     })
   ).map(safeStore);

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
 import { onMounted, ref } from "vue";
@@ -53,7 +54,7 @@ async function remove() {
 <template>
   <div class="app-stack">
     <div class="app-row">
-      <h1 class="title-lg">类目管理</h1>
+      <PageHeader title="类目管理" />
       <Button @click="edit(null)">新增类目</Button>
     </div>
     <DataTable

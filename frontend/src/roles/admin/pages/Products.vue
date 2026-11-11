@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input, SearchBar, Tabs, Tag } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
@@ -15,7 +16,7 @@ import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const list = ref<Product[]>([]),
   keyword = ref(""),
-  status = ref(""),
+  status = ref(new URLSearchParams(location.search).get("status") || ""),
   page = ref(1),
   total = ref(0),
   reason = ref(""),
@@ -65,7 +66,7 @@ async function send(id: string, action: string) {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">商品巡检</h1>
+    <PageHeader title="商品巡检" />
     <Tabs
       v-model="status"
       :items="[

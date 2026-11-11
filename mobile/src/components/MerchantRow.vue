@@ -7,6 +7,10 @@ defineProps<{
   logo?: string;
   category?: string;
   city?: string;
+  owner?: string;
+  joined?: string;
+  orders?: number;
+  rating?: number;
   reason?: string;
   actions?: Action[];
 }>();
@@ -22,7 +26,17 @@ defineProps<{
             storeStatuses[status].label
           }}</Tag>
         </div>
-        <div class="xz-merchant__meta body-sm">{{ category }} · {{ city }}</div>
+        <div class="xz-merchant__meta body-sm">
+          {{ category }} · {{ city
+          }}<template v-if="owner"> · 负责人 {{ owner }}</template>
+        </div>
+        <div class="xz-merchant__meta body-sm">
+          <template v-if="joined"
+            >{{ status === "PENDING" ? "提交于" : "入驻" }}
+            {{ joined }}</template
+          ><template v-if="orders != null"> · 月订单 {{ orders }}</template
+          ><template v-if="rating != null"> · 评分 {{ rating }}</template>
+        </div>
       </div>
     </div>
     <div v-if="reason" class="xz-merchant__reason body-sm">{{ reason }}</div>

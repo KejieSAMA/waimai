@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from "../../../components/PageHeader.vue";
 import { onMounted, reactive, ref } from "vue";
 import {
   Button,
@@ -48,7 +49,7 @@ async function remove() {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">收货地址</h1>
+    <PageHeader title="收货地址" />
     <ListCellGroup
       ><ListCell
         v-for="a in list"

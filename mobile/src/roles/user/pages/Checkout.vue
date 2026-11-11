@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageSlot from "../../../components/PageSlot.vue";
 import { Button, Input, Price, Select, Tabs } from "@waimai/ui";
 import { onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -57,7 +58,6 @@ async function submit() {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">确认订单</h1>
     <template v-if="cart.lines.length"
       ><Tabs
         v-model="cart.type"
@@ -118,15 +118,20 @@ async function submit() {
         <p v-if="cart.quoteError" class="app-error body-sm">
           {{ cart.quoteError }}
         </p>
+      </div></template
+    >
+    <p v-else class="app-empty body">购物车为空</p>
+    <PageSlot name="actions"
+      ><div v-if="cart.lines.length" class="sc-full-actions">
         <Button
+          size="lg"
           :disabled="
             busy || !cart.quote || (cart.type === 'DELIVERY' && !cart.addressId)
           "
           @click="submit"
           >提交订单</Button
         >
-      </div></template
+      </div></PageSlot
     >
-    <p v-else class="app-empty body">购物车为空</p>
   </div>
 </template>

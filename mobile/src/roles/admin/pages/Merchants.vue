@@ -1,32 +1,18 @@
 <script setup lang="ts">
-import ProtectedImage from "../../../common/ProtectedImage.vue";
-import {
-  Button,
-  Dialog,
-  Input,
-  ListCell,
-  ListCellGroup,
-  SearchBar,
-  Select,
-  Tabs,
-  Tag,
-} from "@waimai/ui";
+import PageSlot from "../../../components/PageSlot.vue";
+import NavBarIcon from "../../../components/NavBarIcon.vue";
+import { Button, Dialog, Input, SearchBar, Select, Tabs } from "@waimai/ui";
 import MerchantRow from "../../../components/MerchantRow.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  type Store,
-  type Category,
-  type Page,
-  storeStatuses,
-  phoneTail,
-  time,
-} from "@waimai/shared";
+import { type Store, type Category, type Page } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const route = useRoute(),
   router = useRouter();
 const auditOnly = computed(() => route.path.startsWith("/admin/audit"));
+const filters = ref(false);
+const counts = ref<Record<string, number>>({});
 const list = ref<Store[]>([]),
   categories = ref<Category[]>([]),
   status = ref(auditOnly.value ? "PENDING" : ""),
@@ -35,50 +21,38 @@ const list = ref<Store[]>([]),
   city = ref(""),
   page = ref(1),
   total = ref(0),
-  detail = ref<Store | null>(null),
   reason = ref(""),
   pending = ref<{ id: string; action: string } | null>(null);
-const logs = ref<
-  { id: string; action: string; reason?: string; createdAt: string }[]
->([]);
-async function load() {
+async function load(append = false) {
   await run(async () => {
     const result = await api<Page<Store>>(
       `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(keyword.value)}&categoryId=${category.value}&city=${encodeURIComponent(city.value)}&page=${page.value}`,
       {},
       "ADMIN",
     );
-    list.value = result.list;
+    list.value = append
+      ? [
+          ...list.value.filter(
+            (old) => !result.list.some((item) => item.id === old.id),
+          ),
+          ...result.list,
+        ]
+      : result.list;
     total.value = result.total;
+    counts.value = result.counts ?? {};
   });
 }
 async function open(id: string) {
-  await run(async () => {
-    detail.value = await api<Store>("/admin/merchants/" + id, {}, "ADMIN");
-    logs.value = await api(
-      "/admin/audit-logs?targetType=Store&targetId=" + id,
-      {},
-      "ADMIN",
-    );
-  });
-}
-function close() {
-  detail.value = null;
-  if (route.params.id) void router.push("/admin/audit");
+  await router.push(
+    "/admin/audit/" + id + (auditOnly.value ? "" : "?from=merchants"),
+  );
 }
 onMounted(async () => {
   await run(async () => {
     categories.value = await api<Category[]>("/public/categories");
   });
   await load();
-  if (typeof route.params.id === "string") await open(route.params.id);
 });
-watch(
-  () => route.params.id,
-  (id) => {
-    if (typeof id === "string") void open(id);
-  },
-);
 watch(status, () => {
   page.value = 1;
   void load();
@@ -99,26 +73,17 @@ async function send(id: string, action: string) {
       "ADMIN",
     );
     pending.value = null;
-    if (detail.value?.id === id) detail.value = null;
+    page.value = 1;
     await load();
   });
 }
 </script>
 <template>
-  <div class="app-stack">
-    <h1 class="title-lg">{{ auditOnly ? "入驻审核" : "商家管理" }}</h1>
-    <Tabs
-      v-if="!auditOnly"
-      v-model="status"
-      :items="[
-        { key: '', label: '全部商家' },
-        ...Object.entries(storeStatuses).map(([key, s]) => ({
-          key,
-          label: s.label,
-        })),
-      ]"
-    />
-    <div class="app-row">
+  <div class="app-merchant-list">
+    <PageSlot name="right"
+      ><NavBarIcon name="filter" label="筛选商家" @click="filters = true"
+    /></PageSlot>
+    <div class="sc-strip app-merchant-search">
       <SearchBar
         v-model="keyword"
         placeholder="搜索商家"
@@ -127,27 +92,56 @@ async function send(id: string, action: string) {
           page = 1;
           load();
         "
-      /><Select
-        v-model="category"
-        label="类目"
-        :options="[
-          { value: '', label: '全部类目' },
-          ...categories.map((c) => ({ value: c.id, label: c.name })),
-        ]"
-        @update:model-value="
-          page = 1;
-          load();
-        "
-      /><Input v-model="city" label="城市" /><Button
-        variant="outline"
-        @click="
-          page = 1;
-          load();
-        "
-        >查询商家</Button
-      >
+      />
     </div>
-    <div class="xz-list">
+    <Tabs
+      v-if="!auditOnly"
+      v-model="status"
+      :items="[
+        { key: '', label: '全部', count: counts.all },
+        { key: 'PENDING', label: '待审核', count: counts.PENDING },
+        { key: 'OPEN', label: '营业中', count: counts.OPEN },
+        { key: 'FROZEN', label: '已冻结', count: counts.FROZEN },
+      ]"
+    />
+    <Dialog
+      :open="filters"
+      title="筛选商家"
+      variant="sheet"
+      @close="filters = false"
+      ><div class="app-stack">
+        <Select
+          v-model="category"
+          label="类目"
+          :options="[
+            { value: '', label: '全部类目' },
+            ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]"
+          @update:model-value="
+            page = 1;
+            load();
+          "
+        /><Input v-model="city" label="城市" /><Button
+          variant="outline"
+          @click="
+            page = 1;
+            load();
+          "
+          >查询商家</Button
+        >
+      </div>
+      <template #actions
+        ><Button
+          @click="
+            page = 1;
+            load();
+            filters = false;
+          "
+          >查询</Button
+        ></template
+      ></Dialog
+    >
+    <div class="xz-list sc-page-list">
       <MerchantRow
         v-for="s in list"
         :key="s.id"
@@ -156,109 +150,63 @@ async function send(id: string, action: string) {
         :status="s.status"
         :category="s.category?.name"
         :city="s.city"
+        :owner="s.owner?.name"
+        :joined="s.createdAt?.slice(0, 10)"
+        :orders="s.monthlySales"
+        :rating="s.rating"
         :reason="s.rejectReason || s.frozenReason || undefined"
-        :actions="[
-          {
-            label: s.status === 'PENDING' ? '查看审核' : '查看商家',
-            onClick: () => open(s.id),
-          },
-        ]"
+        :actions="
+          s.status === 'PENDING'
+            ? [
+                {
+                  label: '驳回',
+                  variant: 'danger-outline',
+                  onClick: () => act(s.id, 'reject'),
+                },
+                {
+                  label: '查看并审核',
+                  variant: 'primary',
+                  onClick: () => open(s.id),
+                },
+              ]
+            : [
+                { label: '查看', onClick: () => open(s.id) },
+                ...(['OPEN', 'CLOSED'].includes(s.status)
+                  ? [
+                      {
+                        label: '冻结',
+                        variant: 'danger-outline' as const,
+                        onClick: () => act(s.id, 'freeze'),
+                      },
+                    ]
+                  : s.status === 'FROZEN'
+                    ? [
+                        {
+                          label: '解冻',
+                          variant: 'secondary' as const,
+                          onClick: () => act(s.id, 'unfreeze'),
+                        },
+                      ]
+                    : []),
+              ]
+        "
       />
     </div>
-    <div class="app-row">
+    <div v-if="list.length < total" class="sc-full-actions">
       <Button
-        :disabled="page <= 1"
-        @click="
-          page--;
-          load();
-        "
-        >上一页</Button
-      ><Button
-        :disabled="page * 20 >= total"
+        variant="text"
+        :disabled="busy"
         @click="
           page++;
-          load();
+          load(true);
         "
-        >下一页</Button
+        >加载更多</Button
       >
     </div>
     <Dialog
-      :open="!!detail"
-      :title="detail?.name"
-      variant="sheet"
-      @close="close"
-      ><div v-if="detail" class="app-stack">
-        <Tag :tone="storeStatuses[detail.status].tone">{{
-          storeStatuses[detail.status].label
-        }}</Tag
-        ><ListCellGroup title="店铺信息"
-          ><ListCell title="经营类目" :value="detail.category?.name" /><ListCell
-            title="所在城市"
-            :value="detail.city" /><ListCell
-            title="店铺地址"
-            :value="detail.address" /><ListCell
-            title="联系电话"
-            :value="phoneTail(detail.contactPhone)" /><ListCell
-            title="营业时间"
-            :value="detail.openHours"
-        /></ListCellGroup>
-        <div class="app-grid">
-          <div>
-            <h3 class="title-sm">营业执照</h3>
-            <ProtectedImage
-              v-if="detail.licenseImage"
-              role="ADMIN"
-              :src="detail.licenseImage"
-              alt="营业执照"
-              class="app-image"
-            />
-            <p v-else class="body-sm app-muted">尚未上传</p>
-            <p class="body-sm">{{ detail.licenseExpireAt?.slice(0, 10) }}</p>
-          </div>
-          <div>
-            <h3 class="title-sm">食品经营许可证</h3>
-            <ProtectedImage
-              v-if="detail.foodPermitImage"
-              role="ADMIN"
-              :src="detail.foodPermitImage"
-              alt="食品经营许可证"
-              class="app-image"
-            />
-            <p v-else class="body-sm app-muted">尚未上传</p>
-            <p class="body-sm">{{ detail.permitExpireAt?.slice(0, 10) }}</p>
-          </div>
-        </div>
-        <h3 class="title-sm">审核记录</h3>
-        <p v-for="log in logs" :key="log.id" class="body-sm app-muted">
-          {{ time(log.createdAt) }} · {{ log.action }} {{ log.reason }}
-        </p>
-        <p v-if="!logs.length" class="body-sm app-muted">暂无审核记录</p>
-      </div>
-      <template #actions
-        ><template v-if="detail?.status === 'PENDING'"
-          ><Button
-            variant="danger-outline"
-            :disabled="busy"
-            @click="act(detail.id, 'reject')"
-            >驳回</Button
-          ><Button :disabled="busy" @click="act(detail.id, 'approve')"
-            >通过</Button
-          ></template
-        ><Button
-          v-if="detail && ['OPEN', 'CLOSED'].includes(detail.status)"
-          variant="danger-outline"
-          @click="act(detail.id, 'freeze')"
-          >冻结</Button
-        ><Button
-          v-if="detail?.status === 'FROZEN'"
-          @click="act(detail.id, 'unfreeze')"
-          >解冻</Button
-        ><Button variant="outline" @click="close">关闭</Button></template
-      ></Dialog
-    ><Dialog
       :open="!!pending"
       title="填写原因"
-      variant="modal"
+      variant="sheet"
       @close="pending = null"
       ><Input v-model="reason" label="处理原因" multiline /><template #actions
         ><Button
@@ -270,3 +218,9 @@ async function send(id: string, action: string) {
     >
   </div>
 </template>
+
+<style scoped>
+.app-merchant-search {
+  padding: var(--space-2) var(--space-3);
+}
+</style>

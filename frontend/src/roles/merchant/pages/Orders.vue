@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { Button, Dialog, Input, OrderCard, Switch, Tabs } from "@waimai/ui";
+import { Button, Dialog, Input, OrderCard, Switch } from "@waimai/ui";
 import PageHeader from "../../../components/PageHeader.vue";
 import Pagination from "../../../components/Pagination.vue";
-import { computed, onMounted, ref, watch } from "vue";
-import { type Order, type Page, orderStatuses, time } from "@waimai/shared";
+import { computed, onMounted, ref } from "vue";
+import { type Order, type Page, time } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 import { useOrderStream } from "../../../common/events";
 const list = ref<Order[]>([]),
-  status = ref(""),
   page = ref(1),
   total = ref(0),
   reason = ref(""),
@@ -19,28 +18,28 @@ const columns = [
   { key: "DELIVERING", label: "配送中 / 待自提" },
   { key: "REFUNDING", label: "退款中" },
 ];
-const filtered = computed(() =>
-  status.value
-    ? list.value.filter((o) => o.status === status.value)
-    : list.value,
-);
+const filtered = computed(() => list.value);
+const counts = ref<Record<string, number>>({});
 async function load() {
   await run(async () => {
-    const result = await api<Page<Order>>(
-      `/merchant/orders?status=${status.value}&page=${page.value}`,
-      {},
-      "MERCHANT",
+    const results = await Promise.all(
+      columns.map((column) =>
+        api<Page<Order>>(
+          `/merchant/orders?stage=${column.key}&page=${page.value}`,
+          {},
+          "MERCHANT",
+        ),
+      ),
     );
-    list.value = result.list;
-    total.value = result.total;
+    list.value = results.flatMap((result) => result.list);
+    total.value = Math.max(0, ...results.map((result) => result.total));
+    counts.value = Object.fromEntries(
+      columns.map((column, i) => [column.key, results[i].total]),
+    );
   });
 }
 const stream = useOrderStream(load);
 onMounted(load);
-watch(status, () => {
-  page.value = 1;
-  void load();
-});
 async function act(id: string, action: string) {
   if (["reject", "refund-reject"].includes(action)) {
     pending.value = { id, action };
@@ -71,30 +70,12 @@ async function send(id: string, action: string) {
         @update:model-value="stream.toggle"
       /><Button variant="outline" @click="load">刷新订单</Button>
     </div>
-    <Tabs
-      v-model="status"
-      :items="[
-        { key: '', label: '全部' },
-        ...Object.entries(orderStatuses)
-          .filter(([k]) => k !== 'PENDING_PAY')
-          .map(([key, s]) => ({ key, label: s.label })),
-      ]"
-    />
     <div class="ds-board">
-      <section
-        v-for="column in status
-          ? [
-              {
-                key: status,
-                label:
-                  orderStatuses[status as keyof typeof orderStatuses].label,
-              },
-            ]
-          : columns"
-        :key="column.key"
-        class="ds-col"
-      >
-        <h2 class="title-sm">{{ column.label }}</h2>
+      <section v-for="column in columns" :key="column.key" class="ds-col">
+        <h2 class="ds-col__head title-sm">
+          {{ column.label }}
+          <span class="body-sm app-muted">{{ counts[column.key] || 0 }}</span>
+        </h2>
         <OrderCard
           v-for="o in filtered.filter((o) =>
             column.key === 'DELIVERING'
@@ -103,25 +84,29 @@ async function send(id: string, action: string) {
           )"
           :key="o.id"
           view="merchant"
-          :title="o.type === 'PICKUP' ? '到店自提' : '外卖配送'"
+          :title="
+            (o.type === 'PICKUP' ? '到店自提' : '外卖') +
+            (JSON.parse(o.addressSnapshot).phone
+              ? ' · ' + JSON.parse(o.addressSnapshot).phone
+              : '')
+          "
           :serial="o.serialOfDay"
           :status="o.status"
           :items="
             o.items.map((i) => ({
               name: i.nameSnapshot,
               qty: i.qty,
-              price: i.priceCentsSnapshot / 100,
+              price: (i.lineTotalCents ?? i.priceCentsSnapshot) / 100,
             }))
           "
           :total="o.payCents / 100"
           :time="time(o.createdAt)"
-          :meta="JSON.parse(o.addressSnapshot).phone"
           :note="o.note"
           ><template #actions
             ><template v-if="o.status === 'PENDING'"
               ><Button
                 size="sm"
-                variant="outline"
+                variant="danger-outline"
                 :disabled="busy"
                 @click="act(o.id, 'reject')"
                 >拒单</Button
@@ -139,7 +124,7 @@ async function send(id: string, action: string) {
               <template v-else
                 ><Button
                   size="sm"
-                  variant="outline"
+                  variant="danger-outline"
                   :disabled="busy"
                   @click="act(o.id, 'refund-reject')"
                   >拒绝退款</Button

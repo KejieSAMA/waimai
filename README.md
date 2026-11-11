@@ -1,4 +1,4 @@
-# 小灶外卖平台
+# 盟信外卖平台
 
 Vue 3、Express、Prisma 和 SQLite 构成的 pnpm workspace，包含用户、商家和管理三种角色的 PC 与手机应用。
 
@@ -72,3 +72,5 @@ pnpm test
 API 使用 `/api/v1`，成功响应为 `{ code: 0, message: 'ok', data }`。金额以整数分保存，订单保留价格和地址快照。数据库文件和上传文件已加入 Git 忽略规则。
 
 距离排序需要接入定位坐标，当前首页提供综合、销量和起送价排序。实现决定见 [开发决定](docs/DECISIONS.md)。
+
+页面设计对照与本轮数据口径见 [设计稿对齐记录](docs/DESIGN_ALIGNMENT.md)。开发画廊增加 20 个页面的深浅色原稿与业务页面入口，UI 由人工验收。

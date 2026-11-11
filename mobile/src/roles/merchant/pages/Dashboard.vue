@@ -1,22 +1,14 @@
 <script setup lang="ts">
-import {
-  ListCell,
-  ListCellGroup,
-  OrderCard,
-  StatCard,
-  Switch,
-  Tag,
-} from "@waimai/ui";
-import { onMounted, ref } from "vue";
+import NavBarIcon from "../../../components/NavBarIcon.vue";
+import { ListCell, ListCellGroup, StatCard, Switch, Tag } from "@waimai/ui";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   type Stats,
   type Store,
   type Order,
   type Page,
-  storeStatuses,
   dashboardMoney,
-  time,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run } from "../../../common/feedback";
@@ -57,71 +49,113 @@ async function setOpen(value: boolean) {
     );
   });
 }
+const todos = computed(() =>
+  stats.value
+    ? [
+        {
+          label: "新订单",
+          count: stats.value.pending,
+          icon: "order" as const,
+          path: "/merchant/orders",
+        },
+        {
+          label: "退款申请",
+          count: stats.value.refundPending,
+          icon: "wallet" as const,
+          path: "/merchant/orders?status=REFUNDING",
+        },
+        {
+          label: "库存预警",
+          count: stats.value.lowStock,
+          icon: "box" as const,
+          path: "/merchant/products?stock=low",
+        },
+      ]
+    : [],
+);
+import PageSlot from "../../../components/PageSlot.vue";
+import { usePageChrome } from "../../../common/pageChrome";
+const chrome = usePageChrome();
+watch(store, (value) => {
+  if (value) chrome.title = value.name;
+});
 </script>
 <template>
-  <div v-if="store" class="app-stack">
-    <h1 class="title-lg">{{ store.name }}</h1>
-    <div class="app-card app-row">
-      <Tag :tone="storeStatuses[store.status].tone">{{
-        storeStatuses[store.status].label
-      }}</Tag
-      ><Switch
-        label="营业状态"
-        :model-value="store.status === 'OPEN'"
-        :disabled="!['OPEN', 'CLOSED'].includes(store.status)"
-        @update:model-value="setOpen"
-      /><Switch
-        label="开启提醒"
-        :model-value="stream.enabled.value"
-        @update:model-value="stream.toggle"
-      /><span class="body-sm app-muted">{{
-        stream.connected.value ? "提醒已连接" : "开启后接收新订单提示音"
-      }}</span>
-    </div>
-    <div v-if="stats" class="app-grid">
+  <PageSlot name="right"
+    ><NavBarIcon
+      name="bell"
+      label="待办消息"
+      :badge="stats?.pending"
+      @click="router.push('/merchant/orders')"
+  /></PageSlot>
+  <div v-if="store && stats" class="xz-list sc-page-list">
+    <ListCellGroup
+      ><ListCell
+        icon="store"
+        :title="
+          store.status === 'OPEN'
+            ? '营业中'
+            : store.status === 'CLOSED'
+              ? '休息中'
+              : '营业状态'
+        "
+        :desc="'今日 ' + store.openHours + ' · 关闭后用户无法下单'"
+        ><template #extra
+          ><Switch
+            :model-value="store.status === 'OPEN'"
+            :disabled="!['OPEN', 'CLOSED'].includes(store.status)"
+            aria-label="营业状态"
+            @update:model-value="setOpen" /></template></ListCell
+    ></ListCellGroup>
+    <StatCard
+      label="今日营业额（元）"
+      :value="dashboardMoney(stats.revenueCents)"
+      tone="brand"
+    />
+    <div class="xz-grid2">
       <StatCard
-        label="今日营业额（元）"
-        :value="dashboardMoney(stats.revenueCents)"
-        tone="brand"
-      /><StatCard label="今日订单" :value="stats.orders" unit="单" /><StatCard
-        label="新订单"
-        :value="stats.pending"
+        size="sm"
+        label="有效订单"
+        :value="stats.orders"
         unit="单"
-      /><StatCard label="商品数量" :value="stats.products" unit="件" />
+      /><StatCard
+        size="sm"
+        label="进店人数"
+        :value="stats.visitors ?? '—'"
+        unit="人"
+      /><StatCard
+        size="sm"
+        label="下单转化率"
+        :value="stats.conversionRate ?? '—'"
+        unit="%"
+      /><StatCard size="sm" label="退款" :value="stats.refunds" unit="单" />
     </div>
     <ListCellGroup title="待处理"
       ><ListCell
-        title="新订单"
-        icon="order"
-        :value="orders.length"
+        v-for="item in todos"
+        :key="item.label"
+        :title="item.label"
+        :icon="item.icon"
         arrow
-        @click="router.push('/merchant/orders')" /><ListCell
-        title="商品管理"
-        icon="box"
-        arrow
-        @click="router.push('/merchant/products')"
-    /></ListCellGroup>
-    <div class="xz-list">
-      <OrderCard
-        v-for="o in orders.slice(0, 3)"
-        :key="o.id"
-        view="merchant"
-        :title="o.type === 'PICKUP' ? '到店自提' : '外卖配送'"
-        :serial="o.serialOfDay"
-        :status="o.status"
-        :items="
-          o.items.map((i) => ({
-            name: i.nameSnapshot,
-            qty: i.qty,
-            price: i.priceCentsSnapshot / 100,
-          }))
-        "
-        :total="o.payCents / 100"
-        :time="time(o.createdAt)"
-        :actions="[
-          { label: '查看订单', onClick: () => router.push('/merchant/orders') },
-        ]"
-      />
-    </div>
+        @click="router.push(item.path)"
+        ><template #extra
+          ><Tag :tone="item.icon === 'wallet' ? 'danger' : 'brand'">{{
+            item.count
+          }}</Tag></template
+        ></ListCell
+      ><ListCell
+        title="差评待回复"
+        :value="stats?.badReviews"
+        icon="star" /></ListCellGroup
+    ><ListCellGroup
+      ><ListCell
+        title="新订单提醒"
+        :desc="stream.connected.value ? '提醒已连接' : '开启后接收新订单提示音'"
+        ><template #extra
+          ><Switch
+            label="开启提醒"
+            :model-value="stream.enabled.value"
+            @update:model-value="stream.toggle" /></template></ListCell
+    ></ListCellGroup>
   </div>
 </template>

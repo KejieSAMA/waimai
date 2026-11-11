@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Button,
+  DesignReferenceGallery,
   CategoryNav,
   Checkbox,
   Dialog,
@@ -41,9 +42,128 @@ const text = ref("牛肉面"),
   select = ref("推荐"),
   dialog = ref(false);
 const { toggle } = useTheme();
+const references = import.meta.glob<string>(
+  "../../../design-system/screenshots/*.png",
+  { eager: true, query: "?url", import: "default" },
+);
+const referencePages = [
+  {
+    name: "DeskUserHome",
+    label: "用户首页",
+    path: "/",
+    light:
+      references["../../../design-system/screenshots/DeskUserHome-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/DeskUserHome-dark.png"
+    ],
+  },
+  {
+    name: "DeskUserStore",
+    label: "店铺点餐",
+    path: "/store/store-0",
+    light:
+      references["../../../design-system/screenshots/DeskUserStore-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/DeskUserStore-dark.png"
+    ],
+  },
+  {
+    name: "DeskUserOrders",
+    label: "用户订单",
+    path: "/orders",
+    light:
+      references["../../../design-system/screenshots/DeskUserOrders-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/DeskUserOrders-dark.png"
+    ],
+  },
+  {
+    name: "DeskMerchantDashboard",
+    label: "商家工作台",
+    path: "/merchant/dashboard",
+    light:
+      references[
+        "../../../design-system/screenshots/DeskMerchantDashboard-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/DeskMerchantDashboard-dark.png"
+    ],
+  },
+  {
+    name: "DeskMerchantOrders",
+    label: "商家订单",
+    path: "/merchant/orders",
+    light:
+      references[
+        "../../../design-system/screenshots/DeskMerchantOrders-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/DeskMerchantOrders-dark.png"
+    ],
+  },
+  {
+    name: "DeskMerchantProducts",
+    label: "商品管理",
+    path: "/merchant/products",
+    light:
+      references[
+        "../../../design-system/screenshots/DeskMerchantProducts-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/DeskMerchantProducts-dark.png"
+    ],
+  },
+  {
+    name: "DeskMerchantProductEdit",
+    label: "商品编辑",
+    path: "/merchant/products/new",
+    light:
+      references[
+        "../../../design-system/screenshots/DeskMerchantProductEdit-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/DeskMerchantProductEdit-dark.png"
+    ],
+  },
+  {
+    name: "DeskAdminDashboard",
+    label: "管理总览",
+    path: "/admin/overview",
+    light:
+      references[
+        "../../../design-system/screenshots/DeskAdminDashboard-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/DeskAdminDashboard-dark.png"
+    ],
+  },
+  {
+    name: "DeskAdminMerchants",
+    label: "商家管理",
+    path: "/admin/merchants",
+    light:
+      references[
+        "../../../design-system/screenshots/DeskAdminMerchants-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/DeskAdminMerchants-dark.png"
+    ],
+  },
+  {
+    name: "DeskAdminAudit",
+    label: "入驻审核",
+    path: "/admin/audit",
+    light:
+      references["../../../design-system/screenshots/DeskAdminAudit-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/DeskAdminAudit-dark.png"
+    ],
+  },
+];
 </script>
 <template>
   <div class="app-stack">
+    <DesignReferenceGallery :pages="referencePages" />
     <div class="app-row">
       <h1 class="title-lg">组件画廊</h1>
       <Button variant="outline" @click="toggle">切换主题</Button>

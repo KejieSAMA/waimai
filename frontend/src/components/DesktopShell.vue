@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SearchBar, Thumb, ScrollArea } from "@waimai/ui";
+import { SearchBar, Thumb, ScrollArea, Icon } from "@waimai/ui";
 import SideNav from "./SideNav.vue";
 import type { NavGroup } from "@waimai/ui";
 defineProps<{
@@ -8,8 +8,12 @@ defineProps<{
   modelValue: string;
   user?: { name: string; role?: string };
   search?: string;
+  notices?: number;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: string] }>();
+const emit = defineEmits<{
+  "update:modelValue": [value: string];
+  notices: [];
+}>();
 </script>
 <template>
   <div :class="['xz-shell', 'xz-desk', 'xz-shell--' + role]">
@@ -28,8 +32,23 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
           /></slot>
         </div>
         <div class="xz-topbar__right">
-          <slot name="topRight" /><span v-if="user" class="xz-topbar__user"
-            ><Thumb kind="logo" :name="user.name" /><span class="xz-topbar__who"
+          <slot name="topRight" /><button
+            type="button"
+            class="xz-nav__icon"
+            aria-label="查看待办消息"
+            @click="emit('notices')"
+          >
+            <Icon name="bell" :size="22" /><span
+              v-if="notices"
+              class="xz-nav__badge caption"
+              >{{ notices }}</span
+            ></button
+          ><span v-if="user" class="xz-topbar__user"
+            ><Thumb
+              class="xz-topbar__avatar"
+              kind="logo"
+              :name="user.name"
+            /><span class="xz-topbar__who"
               ><span class="body-md">{{ user.name }}</span
               ><span class="xz-topbar__role caption">{{
                 user.role

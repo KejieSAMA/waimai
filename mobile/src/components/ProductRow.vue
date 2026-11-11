@@ -5,6 +5,9 @@ import type { ProductStatus } from "@waimai/shared";
 const props = defineProps<{
   name: string;
   price: number;
+  original?: number;
+  sales?: string | number;
+  category?: string;
   status: ProductStatus;
   image?: string;
   stock?: number;
@@ -17,7 +20,7 @@ const emit = defineEmits<{ toggle: [value: boolean]; edit: [] }>();
 <template>
   <div class="xz-product">
     <div class="xz-product__main">
-      <Thumb :src="image" :name="name" />
+      <Thumb size="lg" :src="image" :name="name" />
       <div class="xz-product__info">
         <div class="xz-product__top">
           <span class="xz-product__name title-sm">{{ name }}</span
@@ -26,14 +29,18 @@ const emit = defineEmits<{ toggle: [value: boolean]; edit: [] }>();
           }}</Tag>
         </div>
         <div class="xz-product__meta body-sm">
+          <span v-if="sales != null">月售 {{ sales }} · </span>
           <span :class="{ 'is-low': stock != null && stock <= (lowStock ?? 5) }"
             >库存 {{ stock }}</span
           >
+          <span v-if="category"> · {{ category }}</span>
         </div>
-        <Price :value="price" />
+        <Price :value="price" :original="original" />
       </div>
     </div>
-    <div v-if="reason" class="xz-product__reason body-sm">{{ reason }}</div>
+    <div v-if="reason" class="xz-product__reason body-sm">
+      {{ status === "REJECTED" ? "驳回原因：" : "" }}{{ reason }}
+    </div>
     <div class="xz-product__actions">
       <Switch
         label="上架"
@@ -42,9 +49,9 @@ const emit = defineEmits<{ toggle: [value: boolean]; edit: [] }>();
         @update:model-value="emit('toggle', $event)"
       />
       <div class="xz-product__btns">
-        <Button size="sm" variant="text" icon="edit" @click="emit('edit')"
-          >编辑</Button
-        >
+        <Button size="sm" variant="text" icon="edit" @click="emit('edit')">{{
+          status === "REJECTED" ? "修改" : "编辑"
+        }}</Button>
       </div>
     </div>
   </div>

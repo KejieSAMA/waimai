@@ -61,6 +61,9 @@ export interface Product {
   monthlySales: number;
 }
 export interface Store {
+  createdAt?: string;
+  submitCount?: number;
+  owner?: { name: string };
   id: string;
   name: string;
   logo: string;
@@ -94,6 +97,7 @@ export interface Address {
   isDefault: boolean;
 }
 export interface OrderItem {
+  lineTotalCents?: number;
   id: string;
   productId: string;
   nameSnapshot: string;
@@ -123,6 +127,7 @@ export interface Order {
   refundRejected: boolean;
 }
 export interface Page<T> {
+  counts?: Record<string, number>;
   list: T[];
   total: number;
   page: number;
@@ -137,6 +142,17 @@ export interface Quote {
   items: { name: string; qty: number; priceCents: number }[];
 }
 export interface Stats {
+  validOrders: number;
+  refunds: number;
+  refundPending: number;
+  refundRate: number;
+  newStores: number;
+  pendingProducts: number;
+  lowStock: number;
+  badReviews: number;
+  expiringLicenses: number;
+  visitors: number | null;
+  conversionRate: number | null;
   revenueCents: number;
   orders: number;
   stores: number;

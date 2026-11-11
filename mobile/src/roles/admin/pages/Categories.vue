@@ -52,7 +52,6 @@ async function remove() {
 <template>
   <div class="app-stack">
     <div class="app-row">
-      <h1 class="title-lg">类目管理</h1>
       <Button @click="edit(null)">新增类目</Button>
     </div>
     <ListCellGroup

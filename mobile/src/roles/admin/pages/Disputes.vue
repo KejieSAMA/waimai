@@ -43,7 +43,6 @@ async function resolve(approve: boolean) {
 </script>
 <template>
   <div class="app-stack">
-    <h1 class="title-lg">{{ disputes ? "退款纠纷" : "订单监管" }}</h1>
     <Tabs
       v-if="!disputes"
       v-model="status"

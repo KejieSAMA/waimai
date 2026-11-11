@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Button,
+  DesignReferenceGallery,
   CategoryNav,
   Checkbox,
   Dialog,
@@ -37,9 +38,116 @@ const text = ref("牛肉面"),
   select = ref("推荐"),
   dialog = ref(false);
 const { toggle } = useTheme();
+const references = import.meta.glob<string>(
+  "../../../design-system/screenshots/*.png",
+  { eager: true, query: "?url", import: "default" },
+);
+const referencePages = [
+  {
+    name: "UserHome",
+    label: "用户首页",
+    path: "/mobile/",
+    light: references["../../../design-system/screenshots/UserHome-light.png"],
+    dark: references["../../../design-system/screenshots/UserHome-dark.png"],
+  },
+  {
+    name: "UserStore",
+    label: "店铺点餐",
+    path: "/mobile/store/store-0",
+    light: references["../../../design-system/screenshots/UserStore-light.png"],
+    dark: references["../../../design-system/screenshots/UserStore-dark.png"],
+  },
+  {
+    name: "UserOrders",
+    label: "用户订单",
+    path: "/mobile/orders",
+    light:
+      references["../../../design-system/screenshots/UserOrders-light.png"],
+    dark: references["../../../design-system/screenshots/UserOrders-dark.png"],
+  },
+  {
+    name: "MerchantDashboard",
+    label: "商家工作台",
+    path: "/mobile/merchant/dashboard",
+    light:
+      references[
+        "../../../design-system/screenshots/MerchantDashboard-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/MerchantDashboard-dark.png"
+    ],
+  },
+  {
+    name: "MerchantOrders",
+    label: "商家订单",
+    path: "/mobile/merchant/orders",
+    light:
+      references["../../../design-system/screenshots/MerchantOrders-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/MerchantOrders-dark.png"
+    ],
+  },
+  {
+    name: "MerchantProducts",
+    label: "商品管理",
+    path: "/mobile/merchant/products",
+    light:
+      references[
+        "../../../design-system/screenshots/MerchantProducts-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/MerchantProducts-dark.png"
+    ],
+  },
+  {
+    name: "MerchantProductEdit",
+    label: "商品编辑",
+    path: "/mobile/merchant/products/new",
+    light:
+      references[
+        "../../../design-system/screenshots/MerchantProductEdit-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/MerchantProductEdit-dark.png"
+    ],
+  },
+  {
+    name: "AdminDashboard",
+    label: "管理总览",
+    path: "/mobile/admin/overview",
+    light:
+      references["../../../design-system/screenshots/AdminDashboard-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/AdminDashboard-dark.png"
+    ],
+  },
+  {
+    name: "AdminMerchants",
+    label: "商家管理",
+    path: "/mobile/admin/merchants",
+    light:
+      references["../../../design-system/screenshots/AdminMerchants-light.png"],
+    dark: references[
+      "../../../design-system/screenshots/AdminMerchants-dark.png"
+    ],
+  },
+  {
+    name: "AdminMerchantAudit",
+    label: "入驻审核",
+    path: "/mobile/admin/audit",
+    light:
+      references[
+        "../../../design-system/screenshots/AdminMerchantAudit-light.png"
+      ],
+    dark: references[
+      "../../../design-system/screenshots/AdminMerchantAudit-dark.png"
+    ],
+  },
+];
 </script>
 <template>
   <div class="app-stack">
+    <DesignReferenceGallery :pages="referencePages" />
     <div class="app-row">
       <h1 class="title-lg">组件画廊</h1>
       <Button variant="outline" @click="toggle">切换主题</Button>

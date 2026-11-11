@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageSlot from "../../../components/PageSlot.vue";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import { Button, Input, Select, Tag, Thumb } from "@waimai/ui";
 import { onMounted, reactive, ref } from "vue";
@@ -89,8 +90,7 @@ async function save() {
 }
 </script>
 <template>
-  <form class="app-stack" @submit.prevent="save">
-    <h1 class="title-lg">{{ application ? "入驻申请" : "店铺设置" }}</h1>
+  <form id="mobile-edit-form" class="app-stack" @submit.prevent="save">
     <div v-if="store" class="app-row">
       <Tag :tone="storeStatuses[store.status].tone">{{
         storeStatuses[store.status].label
@@ -171,16 +171,22 @@ async function save() {
           v-model="form.permitExpireAt"
           type="date"
           label="许可证到期日" /></template
-      ><Button
-        type="submit"
-        :disabled="
-          busy ||
-          store?.status === 'FROZEN' ||
-          (application &&
-            !!store &&
-            !['PENDING', 'REJECTED'].includes(store.status))
-        "
-        >{{ application ? "提交审核" : "保存设置" }}</Button
+      ><PageSlot name="actions"
+        ><div class="sc-full-actions">
+          <Button
+            size="lg"
+            form="mobile-edit-form"
+            type="submit"
+            :disabled="
+              busy ||
+              store?.status === 'FROZEN' ||
+              (application &&
+                !!store &&
+                !['PENDING', 'REJECTED'].includes(store.status))
+            "
+            >{{ application ? "提交审核" : "保存设置" }}</Button
+          >
+        </div></PageSlot
       >
     </div>
   </form>

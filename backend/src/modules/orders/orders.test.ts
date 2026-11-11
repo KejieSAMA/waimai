@@ -409,6 +409,209 @@ describe("订单金额、库存和权限", () => {
       ).status,
     ).toBe(200);
   });
+  it("商品编辑支持草稿与划线价，并拒绝无效价格和超量图片", async () => {
+    const product = await db.product.findUniqueOrThrow({
+      where: { id: productId },
+    });
+    const payload = {
+      name: "编辑测试",
+      dishCategoryId: product.dishCategoryId,
+      priceCents: 2800,
+      originalPriceCents: 3200,
+      stock: 3,
+      lowStock: 5,
+      listed: false,
+      images: "[]",
+    };
+    const created = await request(app)
+      .post("/api/v1/merchant/products")
+      .auth(merchantToken, { type: "bearer" })
+      .send(payload);
+    expect(created.status).toBe(200);
+    expect(created.body.data.status).toBe("OFF");
+    expect(created.body.data.originalPriceCents).toBe(3200);
+    const invalid = await request(app)
+      .post("/api/v1/merchant/products")
+      .auth(merchantToken, { type: "bearer" })
+      .send({ ...payload, originalPriceCents: 2700 });
+    expect(invalid.status).toBe(400);
+    const images = await request(app)
+      .post("/api/v1/merchant/products")
+      .auth(merchantToken, { type: "bearer" })
+      .send({
+        ...payload,
+        images: JSON.stringify(
+          Array.from({ length: 6 }, (_, i) => `/uploads/test-${i}.png`),
+        ),
+      });
+    expect(images.status).toBe(400);
+  });
+  it("商品行金额在后端按价格快照计算", async () => {
+    const order = await orderService.createOrder(userId, {
+      storeId,
+      type: "PICKUP",
+      items: [{ productId, qty: 2 }],
+    });
+    expect(order.items[0].lineTotalCents).toBe(
+      order.items[0].priceCentsSnapshot * 2,
+    );
+    await orderService.actOnOrder(
+      order.id,
+      { id: userId, role: "USER" },
+      "cancel",
+    );
+  });
+  it("审核商品分组包含驳回项且不泄露其他店铺商品", async () => {
+    const product = await db.product.findUniqueOrThrow({
+      where: { id: productId },
+    });
+    const review = await db.product.create({
+      data: {
+        storeId,
+        dishCategoryId: product.dishCategoryId,
+        name: "审核测试",
+        priceCents: 1000,
+        status: "REVIEW",
+      },
+    });
+    const rejected = await db.product.create({
+      data: {
+        storeId,
+        dishCategoryId: product.dishCategoryId,
+        name: "驳回测试",
+        priceCents: 1000,
+        status: "REJECTED",
+      },
+    });
+    const result = await request(app)
+      .get("/api/v1/merchant/products?group=review&pageSize=100")
+      .auth(merchantToken, { type: "bearer" });
+    expect(result.status).toBe(200);
+    expect(result.body.data.list.map((p: { id: string }) => p.id)).toEqual(
+      expect.arrayContaining([review.id, rejected.id]),
+    );
+    expect(
+      result.body.data.list.every(
+        (p: { storeId: string }) => p.storeId === storeId,
+      ),
+    ).toBe(true);
+  });
+  it("总览使用真实库存及退款数据，未采集的访问指标为 null", async () => {
+    const stats = await import("../stats/service");
+    const before = await stats.overview(storeId);
+    const product = await db.product.findUniqueOrThrow({
+      where: { id: productId },
+    });
+    await db.product.create({
+      data: {
+        storeId,
+        dishCategoryId: product.dishCategoryId,
+        name: "库存预警测试",
+        priceCents: 1000,
+        stock: 2,
+        lowStock: 5,
+        status: "ON",
+      },
+    });
+    const after = await stats.overview(storeId);
+    expect(after.lowStock).toBe(before.lowStock + 1);
+    expect(after.visitors).toBeNull();
+    expect(after.conversionRate).toBeNull();
+    expect(Number.isFinite(after.refundRate)).toBe(true);
+    expect(after.validOrders).toBeLessThanOrEqual(after.orders);
+  });
+  it("商家状态角标按过滤后的完整数据计数且不向公开列表暴露审核数量", async () => {
+    const stores = await import("../stores/service");
+    const result = await stores.storeList({ status: "OPEN" }, true);
+    if (!("counts" in result)) throw new Error("missing status counts");
+    expect(result.counts.OPEN ?? 0).toBe(result.total);
+    expect(result.counts.all).toBe(await db.store.count());
+    const visible = await stores.storeList({}, false);
+    expect("counts" in visible).toBe(false);
+  });
+  it("配送分组包含待自提订单，商家四列分别分页", async () => {
+    const customer = await db.user.create({
+      data: { phone: "13933334444", name: "分栏测试", role: "USER" },
+    });
+    for (const [i, status] of ["DELIVERING", "PICKUP", "DONE"].entries()) {
+      await db.order.create({
+        data: {
+          orderNo: "board-test-" + i,
+          serialOfDay: i + 1,
+          userId: customer.id,
+          storeId,
+          type: "PICKUP",
+          status,
+          itemsCents: 1000,
+          deliveryFeeCents: 0,
+          discountCents: 0,
+          payCents: 1000,
+        },
+      });
+    }
+    const result = await request(app)
+      .get("/api/v1/merchant/orders?stage=DELIVERING&pageSize=100")
+      .auth(merchantToken, { type: "bearer" });
+    expect(result.status).toBe(200);
+    expect(
+      result.body.data.list.some(
+        (o: { status: string }) => o.status === "PICKUP",
+      ),
+    ).toBe(true);
+    expect(
+      result.body.data.list.every(
+        (o: { status: string; storeId: string }) =>
+          ["PICKUP", "DELIVERING"].includes(o.status) && o.storeId === storeId,
+      ),
+    ).toBe(true);
+  });
+  it("公开评价不泄露用户信息，冻结店铺评价不可访问", async () => {
+    const store = await db.store.findUniqueOrThrow({ where: { id: storeId } });
+    await db.store.update({ where: { id: storeId }, data: { status: "OPEN" } });
+    const order = await db.order.create({
+      data: {
+        orderNo: "public-review-test",
+        serialOfDay: 1,
+        userId,
+        storeId,
+        type: "PICKUP",
+        status: "DONE",
+        itemsCents: 1000,
+        deliveryFeeCents: 0,
+        discountCents: 0,
+        payCents: 1000,
+        review: { create: { userId, storeId, rating: 4, content: "真实评价" } },
+      },
+    });
+    const result = await request(app).get(
+      `/api/v1/public/stores/${storeId}/reviews`,
+    );
+    expect(result.status).toBe(200);
+    expect(
+      result.body.data.list.some(
+        (r: { content: string }) => r.content === "真实评价",
+      ),
+    ).toBe(true);
+    expect(Object.keys(result.body.data.list[0]).sort()).toEqual([
+      "content",
+      "id",
+      "rating",
+      "reply",
+    ]);
+    await db.store.update({
+      where: { id: storeId },
+      data: { status: "FROZEN" },
+    });
+    expect(
+      (await request(app).get(`/api/v1/public/stores/${storeId}/reviews`))
+        .status,
+    ).toBe(404);
+    await db.store.update({
+      where: { id: storeId },
+      data: { status: store.status },
+    });
+    expect(order.id).toBeTruthy();
+  });
   it("并发下单不超卖且失败事务不遗留订单", async () => {
     await db.product.update({ where: { id: productId }, data: { stock: 1 } });
     const count = await db.order.count();

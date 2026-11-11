@@ -1,4 +1,5 @@
 import type { Prisma, Product } from "@prisma/client";
+import { z } from "zod";
 import { db } from "../../db";
 import { config } from "../../config";
 import { assert, pagination, pageResult } from "../../http";
@@ -20,8 +21,21 @@ export async function listProducts(
   storeId?: string,
 ) {
   const p = pagination(query);
+  const group = z.enum(["on", "off", "review"]).optional().parse(query.group);
   const where: Prisma.ProductWhereInput = {
     storeId,
+    AND: group
+      ? {
+          status: {
+            in:
+              group === "on"
+                ? ["ON"]
+                : group === "off"
+                  ? ["OFF"]
+                  : ["REVIEW", "REJECTED"],
+          },
+        }
+      : {},
     ...(p.status === "SOLDOUT"
       ? { status: "ON", stock: 0 }
       : p.status
@@ -153,6 +167,19 @@ export async function moderateProduct(
 }
 export const productCount = (storeId?: string) =>
   db.product.count({ where: { storeId } });
+export async function productSummary(storeId?: string) {
+  const [pendingProducts, lowStock] = await Promise.all([
+    db.product.count({ where: { storeId, status: "REVIEW" } }),
+    db.product.count({
+      where: {
+        storeId,
+        status: "ON",
+        stock: { lte: db.product.fields.lowStock },
+      },
+    }),
+  ]);
+  return { pendingProducts, lowStock };
+}
 
 export async function reserveProduct(
   tx: Prisma.TransactionClient,

@@ -3,7 +3,15 @@ import { z } from "zod";
 import { handler, reasonSchema } from "../../http";
 import { writableStore } from "../auth/middleware";
 import * as stores from "./service";
+import { publicReviews } from "../orders/service";
 export function registerRouterStores(router: Router) {
+  router.get(
+    "/public/stores/:id/reviews",
+    handler(async (req) => {
+      await stores.storeDetail(req.params.id);
+      return publicReviews(req.params.id, req.query);
+    }),
+  );
   router.get(
     "/public/stores",
     handler(async (req) => stores.storeList(req.query)),

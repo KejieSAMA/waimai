@@ -67,7 +67,9 @@
 .sc-fab {
   position: absolute;
   right: var(--space-3);
-  bottom: calc(var(--size-tabbar) + var(--size-safe-bottom) + var(--space-3));
+  bottom: calc(
+    var(--size-tabbar) + env(safe-area-inset-bottom, 0px) + var(--space-3)
+  );
   z-index: 6;
 }
 .sc-fab .xz-btn {
@@ -267,7 +269,7 @@ p {
 .app-content {
   padding: var(--space-3);
 }
-.app-content--orders {
+.app-content--edge {
   padding: 0;
 }
 .app-grid {
@@ -279,12 +281,91 @@ p {
 .app-login {
   margin: var(--space-5) var(--space-3);
 }
-.sc-split {
-  min-height: 70dvh;
+.app-mobile-store > .xz-page__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-content--store {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.app-mobile-store .sc-fill {
+  flex: 1;
+  min-height: 0;
+}
+.app-mobile-store .sc-split {
+  min-height: 0;
+}
+.sc-page-list {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+.sc-page-list > .xz-list {
+  padding: 0;
+}
+.sc-page-list > h1 {
+  margin: 0;
+}
+.sc-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+.sc-full-actions {
+  display: flex;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+}
+.sc-full-actions > * {
+  flex: 1;
+}
+.sc-image-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.sc-section-heading {
+  padding: 0 var(--space-3);
+  margin: var(--space-3) 0 var(--space-2);
 }
 
 html,
 body,
 #app {
   height: 100%;
+}
+
+.app-upload:has(input[type="file"]) {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-thumb);
+  min-height: var(--size-thumb);
+  padding: var(--space-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--ink-muted);
+  text-align: center;
+  cursor: pointer;
+}
+.app-upload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.app-upload:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sc-doc .app-image {
+  max-height: var(--size-button-lg);
+  width: 100%;
+  object-fit: contain;
 }

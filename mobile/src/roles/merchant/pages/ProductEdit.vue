@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { Button, DishCard, Input, Select, Switch } from "@waimai/ui";
+import {
+  Button,
+  Dialog,
+  ImageUpload,
+  Icon,
+  Input,
+  ListCell,
+  ListCellGroup,
+  Switch,
+} from "@waimai/ui";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  type Product,
-  type Category,
-  type Store,
-  firstImage,
-} from "@waimai/shared";
+import { type Product, type Category, type Store } from "@waimai/shared";
+import PageSlot from "../../../components/PageSlot.vue";
 import { api, upload } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const route = useRoute(),
@@ -21,6 +26,7 @@ const form = reactive({
   description: "",
   images: "[]",
   price: "28",
+  original: "",
   stock: "100",
   lowStock: "5",
   limit: "",
@@ -45,6 +51,10 @@ onMounted(() =>
       Object.assign(form, {
         ...p,
         price: String(p.priceCents / 100),
+        original:
+          p.originalPriceCents == null
+            ? ""
+            : String(p.originalPriceCents / 100),
         stock: String(p.stock),
         lowStock: String(p.lowStock),
         limit: p.limitPerOrder ? String(p.limitPerOrder) : "",
@@ -53,12 +63,22 @@ onMounted(() =>
     }
   }),
 );
-async function image(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (file)
-    await run(async () => {
-      form.images = JSON.stringify([await upload(file, "MERCHANT")]);
-    });
+const categoryDialog = ref(false),
+  categoryPicker = ref(false);
+const images = computed<string[]>(() => JSON.parse(form.images));
+const locked = computed(() => busy.value || store.value?.status === "FROZEN");
+async function image(files: File[]) {
+  await run(async () => {
+    if (files.length + images.value.length > 5)
+      throw new Error("最多上传 5 张图片");
+    const urls = await Promise.all(
+      files.map((file) => upload(file, "MERCHANT")),
+    );
+    form.images = JSON.stringify([...images.value, ...urls]);
+  });
+}
+function removeImage(index: number) {
+  form.images = JSON.stringify(images.value.filter((_, i) => i !== index));
 }
 async function addCategory() {
   await run(async () => {
@@ -70,9 +90,10 @@ async function addCategory() {
     categories.value.push(c);
     form.dishCategoryId = c.id;
     newCategory.value = "";
+    categoryDialog.value = false;
   });
 }
-async function save() {
+async function save(listed = form.listed) {
   await run(async () => {
     await api(
       "/merchant/products" + (editing.value ? "/" + route.params.id : ""),
@@ -84,10 +105,13 @@ async function save() {
           description: form.description,
           images: form.images,
           priceCents: Math.round(Number(form.price) * 100),
+          originalPriceCents: form.original
+            ? Math.round(Number(form.original) * 100)
+            : null,
           stock: Number(form.stock),
           lowStock: Number(form.lowStock),
           limitPerOrder: form.limit ? Number(form.limit) : null,
-          listed: form.listed,
+          listed,
         },
       },
       "MERCHANT",
@@ -97,91 +121,157 @@ async function save() {
 }
 </script>
 <template>
-  <form class="app-stack" @submit.prevent="save">
-    <h1 class="title-lg">{{ editing ? "编辑商品" : "新增商品" }}</h1>
-    <div class="app-stack">
-      <div class="app-card app-form">
-        <h2 class="title-sm">基本信息</h2>
-        <label class="app-upload body-sm"
-          >商品图片<input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            :disabled="busy || store?.status === 'FROZEN'"
-            @change="image" /></label
-        ><img
-          v-if="firstImage(form.images)"
-          :src="firstImage(form.images)"
-          alt="商品图片"
-          class="app-image"
-        /><Input
-          v-model="form.name"
-          label="商品名称"
-          required
-          maxlength="80"
-        /><Select
-          v-model="form.dishCategoryId"
-          label="商品分类"
-          placeholder="选择分类"
-          :options="categories.map((c) => ({ value: c.id, label: c.name }))"
-        />
-        <div class="app-row">
-          <Input v-model="newCategory" label="新增分类" /><Button
-            variant="outline"
-            :disabled="
-              !newCategory.trim() || busy || store?.status === 'FROZEN'
-            "
-            @click="addCategory"
-            >新增分类</Button
-          >
-        </div>
-        <div class="app-grid">
-          <Input
-            v-model="form.price"
-            label="售价（元）"
-            type="number"
-            min="0.01"
-            step="0.01"
-            required
-          /><Input
-            v-model="form.stock"
-            label="库存"
-            type="number"
-            min="0"
-            required
-          /><Input
-            v-model="form.lowStock"
-            label="预警库存"
-            type="number"
-            min="0"
-          /><Input
-            v-model="form.limit"
-            label="每单限购"
-            type="number"
-            min="1"
-            hint="留空表示不限购"
-          />
-        </div>
-        <Input
-          v-model="form.description"
-          label="商品描述"
-          multiline
-          maxlength="1000"
-        />
-      </div>
-      <div class="app-stack">
-        <div class="app-card app-stack">
-          <h2 class="title-sm">用户端预览</h2>
-          <DishCard
-            :name="form.name || '商品名称'"
-            :price="Number(form.price) || 0"
-            :image="firstImage(form.images)"
-            :desc="form.description"
-          /><Switch v-model="form.listed" label="保存后上架" />
-        </div>
-        <Button type="submit" :disabled="busy || store?.status === 'FROZEN'"
-          >保存商品</Button
-        >
-      </div>
+  <form
+    id="product-editor"
+    class="sc-form-fields"
+    @submit.prevent="save(form.listed)"
+  >
+    <div class="sc-card">
+      <p class="body">商品图片</p>
+      <ImageUpload
+        :images="images"
+        :disabled="locked"
+        @select="image"
+        @remove="removeImage"
+      />
+      <p class="body-sm app-muted">
+        第一张为主图，请上传 1:1 实拍图，最多 5 张，单张不超过 5MB
+      </p>
     </div>
+    <div class="sc-form">
+      <Input
+        layout="horizontal"
+        v-model="form.name"
+        label="商品名称"
+        required
+        maxlength="30"
+        hint="最多 30 个字"
+      />
+      <Input
+        layout="horizontal"
+        :model-value="
+          categories.find((c) => c.id === form.dishCategoryId)?.name || ''
+        "
+        label="所属分类"
+        required
+        readonly
+        @click="categoryPicker = true"
+        ><template #suffix><Icon name="chevron-right" :size="16" /></template
+      ></Input>
+      <Input
+        layout="horizontal"
+        v-model="form.price"
+        label="售价"
+        prefix="¥"
+        type="number"
+        min="0.01"
+        step="0.01"
+        required
+      />
+      <Input
+        layout="horizontal"
+        v-model="form.original"
+        label="划线价"
+        prefix="¥"
+        type="number"
+        min="0.01"
+        step="0.01"
+        placeholder="选填，需高于售价"
+      />
+      <Input
+        layout="horizontal"
+        v-model="form.stock"
+        label="库存"
+        suffix="份"
+        type="number"
+        min="0"
+        required
+        :hint="'低于 ' + form.lowStock + ' 份时提醒'"
+      />
+    </div>
+    <div class="sc-form">
+      <Input
+        layout="horizontal"
+        v-model="form.description"
+        label="商品描述"
+        multiline
+        maxlength="60"
+        placeholder="口味、用料、分量，最多 60 字"
+      />
+    </div>
+    <div class="xz-list">
+      <ListCellGroup
+        ><ListCell title="保存后立即上架" desc="按平台审核规则处理上架"
+          ><template #extra
+            ><Switch
+              v-model="form.listed"
+              aria-label="保存后立即上架"
+              :disabled="locked" /></template></ListCell
+      ></ListCellGroup>
+      <details class="body-sm app-muted">
+        <summary>更多设置</summary>
+        <Input
+          layout="horizontal"
+          v-model="form.lowStock"
+          label="预警库存"
+          type="number"
+          min="0"
+        /><Input
+          layout="horizontal"
+          v-model="form.limit"
+          label="每单限购"
+          type="number"
+          min="1"
+          placeholder="不限"
+        /><Button variant="text" @click="categoryDialog = true"
+          >新增分类</Button
+        >
+      </details>
+    </div>
+    <PageSlot name="actions"
+      ><div class="sc-actions">
+        <Button
+          size="lg"
+          variant="secondary"
+          :disabled="locked"
+          @click="save(false)"
+          >存为草稿</Button
+        ><Button
+          size="lg"
+          type="submit"
+          form="product-editor"
+          :disabled="locked"
+          >{{ form.listed ? "保存并上架" : "保存商品" }}</Button
+        >
+      </div></PageSlot
+    >
+    <Dialog
+      :open="categoryPicker"
+      title="选择分类"
+      variant="sheet"
+      @close="categoryPicker = false"
+      ><div class="app-stack">
+        <Button
+          v-for="item in categories"
+          :key="item.id"
+          :variant="form.dishCategoryId === item.id ? 'secondary' : 'text'"
+          @click="
+            form.dishCategoryId = item.id;
+            categoryPicker = false;
+          "
+          >{{ item.name }}</Button
+        >
+      </div></Dialog
+    >
+    <Dialog
+      :open="categoryDialog"
+      title="新增分类"
+      @close="categoryDialog = false"
+      ><Input v-model="newCategory" label="分类名称" /><template #actions
+        ><Button :disabled="locked || !newCategory.trim()" @click="addCategory"
+          >新增分类</Button
+        ></template
+      ></Dialog
+    >
   </form>
 </template>

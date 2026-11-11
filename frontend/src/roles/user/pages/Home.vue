@@ -1,24 +1,22 @@
 <script setup lang="ts">
-import { SearchBar, Select, StoreCard, Tabs } from "@waimai/ui";
+import { Select, StoreCard, Tabs } from "@waimai/ui";
 import Pagination from "../../../components/Pagination.vue";
 import { onMounted, ref, watch } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import { type Category, type Store, type Page, money } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { run } from "../../../common/feedback";
-const router = useRouter(),
-  route = useRoute();
+const router = useRouter();
 const categories = ref<Category[]>([]),
   stores = ref<Store[]>([]);
 const category = ref(""),
   sort = ref("default"),
-  keyword = ref(String(route.query.keyword ?? "")),
   page = ref(1),
   total = ref(0);
 async function load() {
   await run(async () => {
     const result = await api<Page<Store>>(
-      `/public/stores?categoryId=${encodeURIComponent(category.value)}&sort=${sort.value}&keyword=${encodeURIComponent(keyword.value)}&page=${page.value}`,
+      `/public/stores?categoryId=${encodeURIComponent(category.value)}&sort=${sort.value}&page=${page.value}`,
     );
     stores.value = result.list;
     total.value = result.total;
@@ -34,28 +32,13 @@ watch([category, sort], () => {
   page.value = 1;
   void load();
 });
-watch(
-  () => route.query.keyword,
-  (value) => {
-    keyword.value = String(value ?? "");
-    page.value = 1;
-    void load();
-  },
-);
 </script>
 <template>
   <div class="app-stack app-store-list">
-    <SearchBar
-      v-model="keyword"
-      placeholder="搜索店铺"
-      action="搜索"
-      @action="
-        page = 1;
-        load();
-      "
-    /><Tabs
+    <Tabs
       v-model="category"
       variant="chip"
+      class="ds-chips"
       :items="[
         { key: '', label: '全部' },
         ...categories.map((c) => ({ key: c.id, label: c.name })),

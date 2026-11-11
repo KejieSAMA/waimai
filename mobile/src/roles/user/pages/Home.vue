@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { Button, SearchBar, Select, StoreCard, Tabs } from "@waimai/ui";
+import { Button, SearchBar, StoreCard, Tabs } from "@waimai/ui";
+import NavBarIcon from "../../../components/NavBarIcon.vue";
+import PageSlot from "../../../components/PageSlot.vue";
 import { onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { type Category, type Store, type Page, money } from "@waimai/shared";
@@ -19,7 +21,15 @@ async function load() {
     const result = await api<Page<Store>>(
       `/public/stores?categoryId=${encodeURIComponent(category.value)}&sort=${sort.value}&keyword=${encodeURIComponent(keyword.value)}&page=${page.value}`,
     );
-    stores.value = result.list;
+    stores.value =
+      page.value === 1
+        ? result.list
+        : [
+            ...stores.value,
+            ...result.list.filter(
+              (item) => !stores.value.some((old) => old.id === item.id),
+            ),
+          ];
     total.value = result.total;
   });
 }
@@ -43,16 +53,21 @@ watch(
 );
 </script>
 <template>
-  <div class="app-stack">
-    <SearchBar
-      v-model="keyword"
-      placeholder="搜索店铺"
-      action="搜索"
-      @action="
-        page = 1;
-        load();
-      "
-    /><Tabs
+  <PageSlot name="right"
+    ><NavBarIcon name="bell" label="订单消息" @click="router.push('/orders')"
+  /></PageSlot>
+  <div class="app-home">
+    <PageSlot name="extra"
+      ><SearchBar
+        tone="brand"
+        v-model="keyword"
+        placeholder="搜索店铺"
+        action="搜索"
+        @action="
+          page = 1;
+          load();
+        " /></PageSlot
+    ><Tabs
       v-model="category"
       variant="chip"
       :items="[
@@ -60,16 +75,20 @@ watch(
         ...categories.map((c) => ({ key: c.id, label: c.name })),
       ]"
     />
-    <div class="app-row body-sm">
-      <Select
-        v-model="sort"
-        label="排序"
-        :options="[
-          { value: 'default', label: '综合排序' },
-          { value: 'sales', label: '销量最高' },
-          { value: 'minOrder', label: '起送价最低' },
+    <div class="sc-sort body-sm">
+      <button
+        v-for="item in [
+          { key: 'default', label: '综合排序' },
+          { key: 'sales', label: '销量最高' },
+          { key: 'minOrder', label: '起送价最低' },
         ]"
-      /><span class="app-muted">附近商家</span>
+        :key="item.key"
+        type="button"
+        :class="{ 'is-active': sort === item.key }"
+        @click="sort = item.key"
+      >
+        {{ item.label }}
+      </button>
     </div>
     <div class="xz-list">
       <StoreCard
@@ -93,25 +112,30 @@ watch(
       />
     </div>
     <p v-if="!stores.length" class="app-empty body">暂无符合条件的店铺</p>
-    <div class="app-row">
+    <div v-if="stores.length < total" class="sc-full-actions">
       <Button
-        variant="outline"
-        :disabled="page <= 1"
-        @click="
-          page--;
-          load();
-        "
-        >上一页</Button
-      ><span class="body-sm">{{ page }}</span
-      ><Button
-        variant="outline"
-        :disabled="page * 20 >= total"
+        variant="text"
         @click="
           page++;
           load();
         "
-        >下一页</Button
+        >加载更多</Button
       >
     </div>
   </div>
 </template>
+
+<style scoped>
+.sc-sort button {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.sc-sort button.is-active {
+  color: var(--ink);
+  font-weight: 600;
+}
+</style>
