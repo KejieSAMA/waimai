@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  phone String @unique
+  name String
+  role String
+  passwordHash String?
+  createdAt DateTime @default(now())
+  addresses Address[]
+  store Store?
+  orders Order[]
+  reviews Review[]
+  sessions RefreshSession[]
+}
+model RefreshSession {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  digest String @unique
+  expiresAt DateTime
+}
+model Address {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  contact String
+  phone String
+  detail String
+  isDefault Boolean @default(false)
+}
+model Category {
+  id String @id @default(cuid())
+  name String
+  sort Int @default(0)
+  stores Store[]
+}
+model Store {
+  id String @id @default(cuid())
+  ownerId String @unique
+  owner User @relation(fields:[ownerId], references:[id])
+  name String
+  logo String @default("")
+  categoryId String
+  category Category @relation(fields:[categoryId], references:[id])
+  city String @default("北京")
+  address String @default("")
+  contactPhone String @default("")
+  notice String @default("")
+  openHours String @default("09:00-22:00")
+  minOrderCents Int @default(0)
+  deliveryFeeCents Int @default(0)
+  status String @default("PENDING")
+  previousStatus String @default("CLOSED")
+  rejectReason String?
+  frozenReason String?
+  licenseImage String @default("")
+  foodPermitImage String @default("")
+  licenseExpireAt DateTime?
+  permitExpireAt DateTime?
+  rating Float @default(5)
+  monthlySales Int @default(0)
+  submitCount Int @default(1)
+  createdAt DateTime @default(now())
+  dishCategories DishCategory[]
+  products Product[]
+  promotions Promotion[]
+  orders Order[]
+  reviews Review[]
+}
+model DishCategory {
+  id String @id @default(cuid())
+  storeId String
+  store Store @relation(fields:[storeId], references:[id])
+  name String
+  sort Int @default(0)
+  products Product[]
+}
+model Product {
+  id String @id @default(cuid())
+  storeId String
+  store Store @relation(fields:[storeId], references:[id])
+  dishCategoryId String
+  dishCategory DishCategory @relation(fields:[dishCategoryId], references:[id])
+  name String
+  description String @default("")
+  images String @default("[]")
+  priceCents Int
+  originalPriceCents Int?
+  stock Int @default(0)
+  lowStock Int @default(5)
+  limitPerOrder Int?
+  status String @default("ON")
+  rejectReason String?
+  forcedOff Boolean @default(false)
+  monthlySales Int @default(0)
+  createdAt DateTime @default(now())
+  items OrderItem[]
+}
+model Promotion {
+  id String @id @default(cuid())
+  storeId String
+  store Store @relation(fields:[storeId], references:[id])
+  thresholdCents Int
+  discountCents Int
+}
+model Order {
+  id String @id @default(cuid())
+  orderNo String @unique
+  serialOfDay Int
+  userId String
+  user User @relation(fields:[userId], references:[id])
+  storeId String
+  store Store @relation(fields:[storeId], references:[id])
+  type String
+  status String @default("PENDING_PAY")
+  itemsCents Int
+  deliveryFeeCents Int
+  discountCents Int
+  payCents Int
+  note String @default("")
+  addressSnapshot String @default("{}")
+  createdAt DateTime @default(now())
+  paidAt DateTime?
+  acceptedAt DateTime?
+  readyAt DateTime?
+  doneAt DateTime?
+  cancelReason String?
+  refundReason String?
+  refundFromStatus String?
+  refundRejected Boolean @default(false)
+  disputed Boolean @default(false)
+  items OrderItem[]
+  review Review?
+  @@index([storeId, createdAt])
+  @@index([userId, createdAt])
+}
+model OrderItem {
+  id String @id @default(cuid())
+  orderId String
+  order Order @relation(fields:[orderId], references:[id])
+  productId String
+  product Product @relation(fields:[productId], references:[id])
+  nameSnapshot String
+  priceCentsSnapshot Int
+  qty Int
+  spec String?
+}
+model Review {
+  id String @id @default(cuid())
+  orderId String @unique
+  order Order @relation(fields:[orderId], references:[id])
+  userId String
+  user User @relation(fields:[userId], references:[id])
+  storeId String
+  store Store @relation(fields:[storeId], references:[id])
+  rating Int
+  content String
+  reply String?
+}
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  actorRole String
+  action String
+  targetType String
+  targetId String
+  reason String?
+  createdAt DateTime @default(now())
+  @@index([targetType,targetId])
+}
