@@ -10,6 +10,7 @@ const props = withDefaults(
     defaultValue?: string;
     variant?: "line" | "chip";
     wrap?: boolean;
+    disabled?: boolean;
   }>(),
   { variant: "line" },
 );
@@ -35,6 +36,7 @@ const value = useValue(
       :key="it.key"
       type="button"
       role="tab"
+      :disabled="disabled || it.disabled"
       :aria-selected="value === it.key"
       :class="[
         'xz-tab',

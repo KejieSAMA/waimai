@@ -64,6 +64,8 @@ const backTo = () => {
       route.query.from === "merchants" ? "/admin/merchants" : "/admin/audit",
     );
   if (isStore.value) return router.push("/");
+  if (route.path === "/checkout")
+    return router.push(cart.lastStoreId ? "/store/" + cart.lastStoreId : "/");
   return router.back();
 };
 const cart = useCart();

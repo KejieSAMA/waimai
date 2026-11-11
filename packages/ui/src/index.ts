@@ -1,6 +1,11 @@
 export { default as Icon } from "./Icon.vue";
 export { default as Button } from "./Button.vue";
 export { default as ImageUpload } from "./ImageUpload.vue";
+export { default as AddressForm } from "./AddressForm.vue";
+export { default as CheckoutAddress } from "./CheckoutAddress.vue";
+export { default as CheckoutItem } from "./CheckoutItem.vue";
+export { default as CheckoutFees } from "./CheckoutFees.vue";
+export { default as CheckoutTotal } from "./CheckoutTotal.vue";
 export { default as DesignReferenceGallery } from "./DesignReferenceGallery.vue";
 export { default as Tag } from "./Tag.vue";
 export { default as Price } from "./Price.vue";

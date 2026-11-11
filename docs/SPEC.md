@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `/` | 用户网页首页 | DeskUserHome |
 | `/store/:id` | 店铺点餐 | DeskUserStore |
-| `/checkout` | 确认订单（地址、配送 / 自提、备注、金额明细、模拟支付） | 沿用 CartPanel + InfoList + Input |
+| `/checkout` | 确认订单（配送 / 自提、地址面板、可编辑清单、备注、吸顶费用摘要） | PageHeader + 共享结算组件 |
 | `/orders` | 我的订单 | DeskUserOrders |
 | `/orders/:id` | 订单详情（状态、明细、操作） | PageHeader + InfoList + DataTable |
 | `/addresses` | 收货地址，新增 / 编辑弹窗 | PageHeader + ListCell + Dialog |
@@ -41,7 +41,7 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 | --- | --- | --- |
 | `/mobile/` | 首页 | UserHome |
 | `/mobile/store/:id` | 店铺点餐 | UserStore |
-| `/mobile/checkout` | 确认订单 |  |
+| `/mobile/checkout` | 确认订单（单列信息、可编辑清单、固定底部金额与提交） | 共享结算组件 |
 | `/mobile/orders`、`/mobile/orders/:id` | 订单列表 / 详情 | UserOrders |
 | `/mobile/me` | 我的 | ListCell |
 | `/mobile/login` | 用户登录 |  |
