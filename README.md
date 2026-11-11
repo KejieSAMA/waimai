@@ -24,6 +24,8 @@ pnpm dev
 
 PC 的 Vite 代理 API、上传文件和整个 `/mobile` 路径。手机 HMR websocket 也经过这个入口。端口被占用时启动会报错，可在 `.env` 修改对应端口。
 
+未手动指定版本时，页面在启动、窗口尺寸变化和页面恢复时自动检测设备：手机设备或宽度小于 768px 时进入对应手机版，其余进入 PC 版。切换保留当前页面、查询参数和锚点，例如 `/store/store-0` 与 `/mobile/store/store-0` 自动对应。手动选择的版本仍优先；开发调试如需恢复自动检测，可在控制台执行 `localStorage.removeItem('xz-device')` 后刷新。
+
 ## 演示账号
 
 | 角色 | 账号          | 凭据                                  |

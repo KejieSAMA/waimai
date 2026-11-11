@@ -1,14 +1,41 @@
+import {
+  devicePreferenceKey,
+  deviceUrl,
+  watchDeviceRouting,
+} from "@waimai/shared";
+
+function readPreference() {
+  try {
+    return localStorage.getItem(devicePreferenceKey);
+  } catch {
+    return null;
+  }
+}
+
+export function startDeviceRouting() {
+  return watchDeviceRouting({
+    read: () => ({
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+      viewportWidth: window.innerWidth,
+      userAgent: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints,
+      preference: readPreference(),
+    }),
+    replace: (url) => location.replace(url),
+    subscribe(check) {
+      const events = ["resize", "pageshow", "storage"] as const;
+      for (const event of events) window.addEventListener(event, check);
+      return () => {
+        for (const event of events) window.removeEventListener(event, check);
+      };
+    },
+  });
+}
+
 export function switchDevice(mobile: boolean) {
-  localStorage.setItem("xz-device", mobile ? "mobile" : "desktop");
-  const current = location.pathname.replace(/^\/mobile(?=\/|$)/, "") || "/";
-  let path = current;
-  if (current === "/merchant/dashboard") path = "/merchant";
-  if (current === "/admin/overview") path = "/admin";
-  if (current.endsWith("/me"))
-    path = current.startsWith("/merchant")
-      ? "/merchant"
-      : current.startsWith("/admin")
-        ? "/admin"
-        : "/";
-  location.href = (mobile ? "/mobile" : "") + path + location.search;
+  const mode = mobile ? "mobile" : "desktop";
+  localStorage.setItem(devicePreferenceKey, mode);
+  location.assign(deviceUrl(location, mode));
 }

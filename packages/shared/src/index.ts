@@ -1,3 +1,5 @@
+export * from "./device";
+
 export type Role = "USER" | "MERCHANT" | "ADMIN";
 export type Tone =
   "neutral" | "brand" | "success" | "warning" | "info" | "danger";

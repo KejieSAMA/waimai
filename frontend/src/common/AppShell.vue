@@ -56,18 +56,6 @@ const selected = computed(
     )?.key ?? nav.value[0].key,
 );
 const go = (path: string) => router.push(path);
-if (
-  /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) &&
-  !localStorage.getItem("xz-device")
-) {
-  const path =
-    location.pathname === "/merchant/dashboard"
-      ? "/merchant"
-      : location.pathname === "/admin/overview"
-        ? "/admin"
-        : location.pathname;
-  location.replace("/mobile" + path + location.search);
-}
 </script>
 <template>
   <div
