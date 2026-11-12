@@ -10,9 +10,19 @@ export function makeRouter() {
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
       {
+        path: "/settings",
+        component: () => import("./common/Settings.vue"),
+        meta: { protected: true, accountArea: true, title: "设置" },
+      },
+      {
+        path: "/account/profile",
+        component: () => import("./common/Profile.vue"),
+        meta: { protected: true, accountArea: true, title: "个人资料" },
+      },
+      {
         path: "/password",
         component: () => import("./common/Password.vue"),
-        meta: { protected: true, title: "修改密码" },
+        meta: { protected: true, accountArea: true, title: "修改密码" },
       },
       {
         path: "/access",

@@ -1,12 +1,10 @@
 import {
   detectDeviceMode,
   devicePreferenceKey,
-  deviceUrl,
   parseDevicePreference,
   watchDeviceRouting,
   type DeviceInfo,
   type DeviceMode,
-  type DevicePreference,
 } from "@waimai/shared";
 
 function readDeviceInfo(): DeviceInfo {
@@ -80,15 +78,4 @@ export function startDeviceRouting() {
       };
     },
   });
-}
-
-export function switchDevice(mobile: boolean) {
-  const mode = mobile ? "mobile" : "desktop";
-  const preference: DevicePreference = {
-    version: 2,
-    mode,
-    detectedMode: detectDeviceMode(readDeviceInfo()),
-  };
-  localStorage.setItem(devicePreferenceKey, JSON.stringify(preference));
-  location.assign(deviceUrl(location, mode));
 }

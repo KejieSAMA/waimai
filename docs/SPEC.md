@@ -44,7 +44,10 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 | `/mobile/store/:id` | 店铺点餐 | UserStore |
 | `/mobile/checkout` | 确认订单（单列信息、可编辑清单、固定底部金额与提交） | 共享结算组件 |
 | `/mobile/orders`、`/mobile/orders/:id` | 订单列表 / 详情 | UserOrders |
-| `/mobile/me` | 我的 | ListCell |
+| `/mobile/me` | 用户我的（身份卡、订单／地址快捷入口） | 共享手机个人中心 |
+| `/mobile/settings` | 当前身份设置（账号／外观／退出） | ListCell + sheet |
+| `/mobile/account/profile` | 本人资料编辑（昵称／联系手机） | Input + 固定保存栏 |
+| `/mobile/password` | 修改密码（含首次强制改密） | Input + Button |
 | `/mobile/login` | 用户登录 |  |
 | `/mobile/merchant/` | 工作台 | MerchantDashboard |
 | `/mobile/merchant/orders` | 订单 | MerchantOrders |
@@ -57,6 +60,8 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 | `/mobile/admin/me`、`/mobile/admin/login` | 我的 / 登录 |  |
 | `/mobile/admin/accounts` | 账号管理（列表、编辑与操作） | 共享表单 + sheet |
 | `/mobile/__ui` | 组件画廊（仅开发环境） |  |
+
+手机三端我的共用身份卡、快捷入口及授权角色选择 sheet；商家店铺入口复用 merchantStoreEntry，管理员管理工具保留现有真实路由。设置与资料页不显示业务底部 Tab，顶栏沿用当前身份，直接进入时返回当前身份我的。资料未修改不可保存，保存失败保留输入；脏草稿离开需确认，身份失效不阻拦安全跳转。手机移除电脑版入口；主题、改密、退出集中到设置，PC 布局不变。详见 MOBILE_ACCOUNT.md。
 
 购物车以店铺 ID 独立保存于当前浏览器 xz-cart v2，旧数组自动迁移；每店保存商品、配送方式、地址 ID 和备注，不保存报价或完整地址。两端确认订单通过 `?storeId=…` 指定单店，支持切换其他非空购物车，每次仅提交一家；成功只清理该店匹配的快照。店铺页仅展示自己的购物车，PC 顶栏角标为所有店铺商品总件数。
 

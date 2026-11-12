@@ -3,6 +3,9 @@ import { ref } from "vue";
 import { Button, Input } from "@waimai/ui";
 import { useRouter } from "vue-router";
 import { useAuth } from "./auth";
+import { accountLoginPath } from "./accountNavigation";
+import { usePageChrome } from "./pageChrome";
+usePageChrome();
 const auth = useAuth(),
   router = useRouter();
 const oldPassword = ref(""),
@@ -21,9 +24,7 @@ async function save() {
   const role = auth.activeRole;
   try {
     await auth.changePassword(oldPassword.value, password.value);
-    await router.replace(
-      role === "USER" ? "/login" : `/${role?.toLowerCase()}/login`,
-    );
+    await router.replace(accountLoginPath(role));
   } catch (e) {
     error.value = e instanceof Error ? e.message : "修改失败";
   } finally {
@@ -31,6 +32,20 @@ async function save() {
     oldPassword.value = "";
     password.value = "";
     confirm.value = "";
+  }
+}
+async function logout() {
+  if (pending.value) return;
+  const role = auth.activeRole;
+  pending.value = true;
+  error.value = "";
+  try {
+    await auth.logout();
+    await router.replace(accountLoginPath(role));
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "退出失败";
+  } finally {
+    pending.value = false;
   }
 }
 </script>
@@ -68,10 +83,7 @@ async function save() {
     />
     <p v-if="error" class="app-error body-sm" role="alert">{{ error }}</p>
     <Button type="submit" :disabled="pending">保存密码</Button>
-    <Button
-      variant="outline"
-      :disabled="pending"
-      @click="auth.logout().then(() => router.replace('/login'))"
+    <Button variant="outline" :disabled="pending" @click="logout"
       >退出登录</Button
     >
   </form>

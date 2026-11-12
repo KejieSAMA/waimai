@@ -18,6 +18,7 @@ import { pageChrome } from "./pageChrome";
 import { useRoleNotices, money, type Role } from "@waimai/shared";
 import { api } from "./api";
 import { useAuth } from "./auth";
+import { accountMePath, accountPageRole } from "./accountNavigation";
 import type { NavItem } from "@waimai/ui";
 
 const route = useRoute(),
@@ -65,6 +66,8 @@ const edge = computed(
     isAuditDetail.value,
 );
 const backTo = () => {
+  if (route.meta.accountArea)
+    return router.push(accountMePath(auth.activeRole));
   if (isProductEdit.value) return router.push("/merchant/products");
   if (isAuditDetail.value)
     return router.push(
@@ -104,8 +107,11 @@ const storeProductFor = (line: import("@waimai/shared").CartLine) =>
 const storeCart = computed(() => cart.forStore(String(route.params.id ?? "")));
 const role = computed(
   () =>
-    String(route.meta.role ?? "USER").toLowerCase() as
-      "user" | "merchant" | "admin",
+    accountPageRole(
+      route.meta.role,
+      route.meta.accountArea,
+      auth.activeRole,
+    ).toLowerCase() as "user" | "merchant" | "admin",
 );
 
 const menus: Record<string, NavItem[]> = {
