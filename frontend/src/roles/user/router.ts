@@ -18,7 +18,12 @@ export default [
   {
     path: "/checkout",
     component: () => import("./pages/Checkout.vue"),
-    meta: { role: "USER", protected: true, title: "确认订单" },
+    meta: {
+      role: "USER",
+      protected: true,
+      title: "确认订单",
+      containedScroll: true,
+    },
   },
   {
     path: "/",

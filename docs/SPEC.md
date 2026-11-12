@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `/` | 用户网页首页 | DeskUserHome |
 | `/store/:id` | 店铺点餐 | DeskUserStore |
-| `/checkout` | 确认订单（配送 / 自提、地址面板、可编辑清单、备注、吸顶费用摘要） | PageHeader + 共享结算组件 |
+| `/checkout` | 确认订单（顶部配送 / 自提、地址面板、独立滚动清单、左栏底部备注、右侧店铺切换与固定费用摘要） | PageHeader + 共享结算组件 |
 | `/orders` | 我的订单 | DeskUserOrders |
 | `/orders/:id` | 订单详情（状态、明细、操作） | PageHeader + InfoList + DataTable |
 | `/addresses` | 收货地址，新增 / 编辑弹窗 | PageHeader + ListCell + Dialog |
