@@ -15,7 +15,6 @@ import {
 } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
-import PageHeader from "../../../components/PageHeader.vue";
 import Pagination from "../../../components/Pagination.vue";
 import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -171,10 +170,7 @@ async function send(id: string, action: string) {
 <template>
   <BackofficePage :body-scroll="false">
     <template #header>
-      <PageHeader
-        :title="auditOnly ? '入驻审核' : '商家管理'"
-        :subtitle="auditOnly ? '核验入驻资料与证照' : '管理平台商家与经营状态'"
-      /><Tabs
+      <Tabs
         v-if="!auditOnly"
         v-model="status"
         :items="[

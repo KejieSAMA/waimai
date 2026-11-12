@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
 import FilterBar from "../../../components/FilterBar.vue";
-import PageHeader from "../../../components/PageHeader.vue";
 import {
   Button,
   Dialog,
@@ -72,7 +71,6 @@ async function resolve(approve: boolean) {
 <template>
   <BackofficePage :body-scroll="false">
     <template #header>
-      <PageHeader :title="disputes ? '退款纠纷' : '订单监管'" />
       <Tabs
         v-if="!disputes"
         v-model="status"

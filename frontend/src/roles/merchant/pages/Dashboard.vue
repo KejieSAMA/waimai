@@ -14,7 +14,6 @@ import {
   loadMerchantStore,
   merchantStoreError,
 } from "../../../common/merchantStatus";
-import PageHeader from "../../../components/PageHeader.vue";
 import TrendChart from "../../../components/TrendChart.vue";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -90,18 +89,14 @@ async function accept(id: string) {
 <template>
   <BackofficePage v-if="store && stats">
     <template #header>
-      <PageHeader
-        title="工作台"
-        :subtitle="store.name + ' · 今日 ' + store.openHours"
-        ><template #actions
-          ><Button variant="outline" @click="router.push('/merchant/store')"
-            >营业时间</Button
-          ><Button icon="plus" @click="router.push('/merchant/products/new')"
-            >新增商品</Button
-          ></template
-        ></PageHeader
-      ></template
-    >
+      <div class="bo-page__actions">
+        <Button variant="outline" @click="router.push('/merchant/store')"
+          >营业时间</Button
+        ><Button icon="plus" @click="router.push('/merchant/products/new')"
+          >新增商品</Button
+        >
+      </div>
+    </template>
     <div class="ds-grid ds-stats">
       <StatCard
         label="今日营业额（元）"

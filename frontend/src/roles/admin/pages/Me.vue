@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
 import { Button } from "@waimai/ui";
-import PageHeader from "../../../components/PageHeader.vue";
 import InfoList from "../../../components/InfoList.vue";
 import { phoneTail } from "@waimai/shared";
 import { useRouter } from "vue-router";
@@ -21,14 +20,10 @@ async function logout() {
 <template>
   <BackofficePage class="app-stack">
     <template #header>
-      <PageHeader title="账号设置">
-        <template #actions
-          ><Button variant="outline" @click="switchDevice(true)"
-            >手机版</Button
-          ></template
-        >
-      </PageHeader></template
-    >
+      <div class="bo-page__actions">
+        <Button variant="outline" @click="switchDevice(true)">手机版</Button>
+      </div>
+    </template>
     <section class="app-card app-stack" aria-label="账号信息">
       <h2 class="title-sm">账号信息</h2>
       <InfoList

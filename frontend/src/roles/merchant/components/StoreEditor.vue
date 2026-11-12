@@ -33,7 +33,6 @@ import {
 } from "../../../common/merchantStatus";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import BackofficePage from "../../../components/BackofficePage.vue";
-import PageHeader from "../../../components/PageHeader.vue";
 const documents = [
   { key: "licenseImage", date: "licenseExpireAt", title: "营业执照" },
   { key: "foodPermitImage", date: "permitExpireAt", title: "食品经营许可证" },
@@ -159,9 +158,8 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <BackofficePage>
-    <template #header>
-      <PageHeader :title="application ? '入驻申请' : '店铺设置'" />
-      <div v-if="current" class="store-editor__identity">
+    <template v-if="current" #header>
+      <div class="store-editor__identity">
         <Thumb kind="logo" :src="current.logo" :name="current.name" />
         <div>
           <h2 class="title-sm">{{ current.name }}</h2>

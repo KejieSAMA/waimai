@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
-import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
 import { onMounted, ref } from "vue";
@@ -55,8 +54,7 @@ async function remove() {
 <template>
   <BackofficePage :body-scroll="false">
     <template #header>
-      <div class="app-row">
-        <PageHeader title="类目管理" />
+      <div class="bo-page__actions">
         <Button @click="edit(null)">新增类目</Button>
       </div>
     </template>

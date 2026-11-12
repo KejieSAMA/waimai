@@ -69,6 +69,12 @@ defineExpose({ scrollToTop: () => scroll.value?.scrollTo({ top: 0 }) });
 .bo-page__header > p {
   margin: 0;
 }
+.bo-page__header :deep(.bo-page__actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
 .bo-page__body {
   flex: 1;
   min-height: 0;

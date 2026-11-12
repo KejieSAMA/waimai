@@ -47,7 +47,6 @@ const todos = computed(() =>
       ]
     : [],
 );
-import PageHeader from "../../../components/PageHeader.vue";
 import TrendChart from "../../../components/TrendChart.vue";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
@@ -87,9 +86,7 @@ onMounted(() =>
 </script>
 <template>
   <BackofficePage>
-    <template #header>
-      <PageHeader title="数据总览" subtitle="平台今日经营情况" /></template
-    ><template v-if="stats"
+    <template v-if="stats"
       ><div class="ds-grid ds-stats5">
         <StatCard
           tone="chrome"

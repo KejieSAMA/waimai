@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
 import FilterBar from "../../../components/FilterBar.vue";
-import PageHeader from "../../../components/PageHeader.vue";
 import { Button, Dialog, Input, SearchBar, Tabs, Tag } from "@waimai/ui";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
@@ -70,7 +69,6 @@ async function send(id: string, action: string) {
 <template>
   <BackofficePage :body-scroll="false">
     <template #header>
-      <PageHeader title="商品巡检" />
       <Tabs
         v-model="status"
         :items="[
