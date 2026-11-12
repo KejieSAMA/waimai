@@ -22,6 +22,7 @@ import { registerAdminOrders } from "./modules/orders/router";
 import { registerAdminProducts } from "./modules/products/router";
 import { registerAdminStats } from "./modules/stats/router";
 import { registerAdminAudit } from "./modules/audit/router";
+import { registerAdminAccounts } from "./modules/accounts/router";
 export const router = Router();
 router.use("/auth", auth);
 router.get(
@@ -53,6 +54,7 @@ registerAdminOrders(admin);
 registerAdminProducts(admin);
 registerAdminStats(admin);
 registerAdminAudit(admin);
+registerAdminAccounts(admin);
 router.use("/admin", admin);
 router.use((_req, _res, next) => {
   try {

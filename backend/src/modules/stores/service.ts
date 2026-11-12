@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Prisma, type Store } from "@prisma/client";
 import { db } from "../../db";
 import { assert, pagination, pageResult, shanghaiDay } from "../../http";
+import { canOperateStore } from "../auth/service";
 import { storeTransition } from "../../domain/storeMachine";
 import { recordAudit } from "../audit/service";
 import { privateOwner } from "../uploads/service";
@@ -207,6 +208,12 @@ export async function moderateStore(
   return db.$transaction(async (tx) => {
     const old = await tx.store.findUnique({ where: { id } });
     assert(old, 404, "店铺不存在");
+    if (action === "unfreeze" || action === "approve")
+      assert(
+        await canOperateStore(old.ownerId, tx),
+        409,
+        "请先启用账号并授予商家身份",
+      );
     const status = storeTransition(old.status, action, old.previousStatus);
     await recordAudit(tx, actor, action, "Store", id, reason);
     return tx.store.update({
@@ -256,3 +263,28 @@ export const recordStoreSale = (
     where: { id: storeId },
     data: { monthlySales: { increment: 1 } },
   });
+
+export async function freezeForAccount(
+  tx: Prisma.TransactionClient,
+  ownerId: string,
+  actor: { id: string; role: string },
+) {
+  const store = await tx.store.findUnique({ where: { ownerId } });
+  if (!store || store.status === "FROZEN") return;
+  await tx.store.update({
+    where: { id: store.id },
+    data: {
+      status: "FROZEN",
+      previousStatus: store.status,
+      frozenReason: "账号停用或商家身份已撤销",
+    },
+  });
+  await recordAudit(
+    tx,
+    actor,
+    "freeze",
+    "Store",
+    store.id,
+    "账号停用或商家身份已撤销",
+  );
+}

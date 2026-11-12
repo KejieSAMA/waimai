@@ -3,6 +3,8 @@ import { z } from "zod";
 import { handler, reasonSchema } from "../../http";
 import { writableStore } from "../auth/middleware";
 import * as orders from "./service";
+import { sessionEvents } from "../auth/events";
+import { validateSession } from "../auth/service";
 import { orderEvents } from "./events";
 export function registerUserOrders(user: Router) {
   user.post(
@@ -51,14 +53,30 @@ export function registerMerchantOrders(merchant: Router) {
       "X-Accel-Buffering": "no",
     });
     res.write("event: connected\ndata: {}\n\n");
-    const listener = (data: unknown) =>
-      res.write(`event: order\ndata: ${JSON.stringify(data)}\n\n`);
+    const actor = request as import("../../http").AuthRequest;
+    const listener = (data: unknown) => {
+      void validateSession(actor.sessionId!, actor.sessionVersion)
+        .then(() => {
+          if (!res.writableEnded)
+            res.write(`event: order\ndata: ${JSON.stringify(data)}\n\n`);
+        })
+        .catch(() => res.end());
+    };
     orderEvents.on(storeId, listener);
-    const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 25000);
+    const recheck = () => {
+      void validateSession(actor.sessionId!, actor.sessionVersion)
+        .then(() => {
+          if (!res.writableEnded) res.write(": heartbeat\n\n");
+        })
+        .catch(() => res.end());
+    };
+    const heartbeat = setInterval(recheck, 5000);
+    sessionEvents.on(actor.actor!.id, recheck);
     const expiry = setTimeout(() => res.end(), 110 * 60000);
-    request.on("close", () => {
+    res.on("close", () => {
       orderEvents.off(storeId, listener);
       clearInterval(heartbeat);
+      sessionEvents.off(actor.actor!.id, recheck);
       clearTimeout(expiry);
     });
   });

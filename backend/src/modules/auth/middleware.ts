@@ -4,29 +4,45 @@ import type { Role } from "@waimai/shared";
 import { config } from "../../config";
 import { assert, type AuthRequest } from "../../http";
 import { ownStore } from "../stores/service";
+import { validateSession } from "./service";
 export const authenticate: RequestHandler = (request, _res, next) => {
   const req = request as AuthRequest;
-  try {
+  void (async () => {
     const token = req.headers.authorization?.replace(/^Bearer /, "");
     assert(token, 401, "请先登录");
-    const p = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
+    let p: jwt.JwtPayload;
+    try {
+      p = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
+    } catch {
+      assert(false, 401, "请重新登录");
+    }
     assert(
       typeof p.sub === "string" &&
-        ["USER", "MERCHANT", "ADMIN"].includes(p.role),
+        typeof p.sid === "string" &&
+        typeof p.version === "number",
       401,
       "登录无效",
     );
-    req.actor = { id: p.sub, role: p.role };
+    const session = await validateSession(p.sid, p.version);
+    assert(
+      session.userId === p.sub && session.activeRole === p.role,
+      401,
+      "登录身份无效",
+    );
+    req.actor = { id: session.userId, role: session.activeRole as Role };
+    req.sessionId = session.id;
+    req.sessionVersion = session.version;
+    req.mustChangePassword = session.user.mustChangePassword;
     next();
-  } catch {
-    next(Object.assign(new Error("请重新登录"), { status: 401 }));
-  }
+  })().catch(next);
 };
 export const requireRole =
   (role: Role): RequestHandler =>
   (request, _res, next) => {
     try {
-      assert((request as AuthRequest).actor?.role === role, 403, "无权访问");
+      const req = request as AuthRequest;
+      assert(!req.mustChangePassword, 403, "请先修改密码");
+      assert(req.actor?.role === role, 403, "无权访问");
       next();
     } catch (e) {
       next(e);

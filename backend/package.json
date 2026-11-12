@@ -8,9 +8,11 @@
     "build": "tsup src/server.ts --format esm --platform node --target node20 --no-external @waimai/shared --out-dir dist",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
+    "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "tsx scripts/setup.ts"
+    "db:setup": "tsx scripts/setup.ts",
+    "account:init": "tsx scripts/admin.ts",
+    "account:recover": "tsx scripts/admin.ts --recover"
   },
   "dependencies": {
     "@waimai/shared": "workspace:*",

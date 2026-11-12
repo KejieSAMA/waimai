@@ -7,6 +7,8 @@ export * from "./roleNotices";
 export * from "./cart";
 export * from "./checkout";
 
+export * from "./authSession";
+
 export type Role = "USER" | "MERCHANT" | "ADMIN";
 export type Tone =
   "neutral" | "brand" | "success" | "warning" | "info" | "danger";
@@ -38,6 +40,10 @@ export type StoreStatus = keyof typeof storeStatuses;
 export type ProductStatus = keyof typeof productStatuses;
 export type OrderStatus = keyof typeof orderStatuses;
 export interface Account {
+  username?: string;
+  roles?: Role[];
+  status?: string;
+  mustChangePassword?: boolean;
   id: string;
   phone: string;
   name: string;

@@ -13,6 +13,7 @@ export function registerRouterUploads(router: Router) {
       limits: { fileSize: 5 * 1024 * 1024, files: 1 },
     }).single("file"),
     handler(async (req) => {
+      assert(!req.mustChangePassword, 403, "请先修改密码");
       if (req.actor!.role === "MERCHANT") {
         const store = await ownStore(req.actor!.id);
         assert(store?.status !== "FROZEN", 403, "已冻结店铺只允许查看");

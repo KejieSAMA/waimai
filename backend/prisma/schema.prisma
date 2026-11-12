@@ -7,9 +7,13 @@ datasource db {
 }
 model User {
   id String @id @default(cuid())
-  phone String @unique
+  username String @unique
+  phone String?
   name String
-  role String
+  status String @default("ACTIVE")
+  mustChangePassword Boolean @default(false)
+  lastLoginAt DateTime?
+  roles UserRole[]
   passwordHash String?
   createdAt DateTime @default(now())
   addresses Address[]
@@ -18,12 +22,20 @@ model User {
   reviews Review[]
   sessions RefreshSession[]
 }
+model UserRole {
+  userId String
+  role String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@id([userId, role])
+}
 model RefreshSession {
   id String @id @default(cuid())
   userId String
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   digest String @unique
   expiresAt DateTime
+  activeRole String
+  version Int @default(0)
 }
 model Address {
   id String @id @default(cuid())

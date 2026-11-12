@@ -1,17 +1,38 @@
 import { z } from "zod";
+export const roles = ["USER", "MERCHANT", "ADMIN"] as const;
+export const roleSchema = z.enum(roles);
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9_-]{3,32}$/, "账号须为 3–32 位英文、数字、下划线或连字符");
+export const passwordSchema = z
+  .string()
+  .min(12, "密码至少 12 个字符")
+  .refine((v) => [...v].length >= 12, "密码至少 12 个字符")
+  .refine((v) => Buffer.byteLength(v, "utf8") <= 72, "密码不能超过 72 字节");
 export const phoneSchema = z
   .string()
   .regex(/^1[3-9]\d{9}$/, "请输入正确手机号");
-export const loginSchema = z.object({
-  phone: z.string().min(1).max(40),
-  password: z.string().min(1).max(100),
-});
-export const userLoginSchema = z.object({
-  phone: phoneSchema,
-  code: z.string().length(6),
-});
-export const registerSchema = z.object({
-  phone: phoneSchema,
-  password: z.string().min(8).max(100),
-  name: z.string().trim().min(1).max(30),
-});
+export const contactSchema = z
+  .union([phoneSchema, z.literal("")])
+  .optional()
+  .nullable();
+export const loginSchema = z
+  .object({
+    username: usernameSchema,
+    password: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, "utf8") <= 72, "账号或密码错误"),
+    role: roleSchema.optional(),
+  })
+  .strict();
+export const registerSchema = z
+  .object({
+    username: usernameSchema,
+    password: passwordSchema,
+    name: z.string().trim().min(1).max(30),
+    phone: contactSchema,
+  })
+  .strict();

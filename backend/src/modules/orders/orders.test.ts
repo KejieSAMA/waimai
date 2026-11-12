@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import request from "supertest";
@@ -7,6 +7,7 @@ import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import type { createOrder } from "./service";
 
+import { applyTestMigrations } from "../../testing/migrations";
 let app: Express;
 let db: PrismaClient;
 let directory: string;
@@ -25,35 +26,31 @@ beforeAll(async () => {
   const filename = path.join(directory, "test.db");
   await writeFile(filename, "");
   process.env.DATABASE_URL = `file:${filename.replaceAll("\\", "/")}`;
-  process.env.JWT_SECRET = "test-access-secret";
-  process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
+  process.env.JWT_SECRET = "test-access-secret-at-least-32-characters";
+  process.env.JWT_REFRESH_SECRET = "test-refresh-secret-at-least-32-characters";
   process.env.UPLOAD_DIR = path.join(directory, "uploads");
   db = (await import("../../db")).db;
   app = (await import("../../app")).app;
   orderService = await import("./service");
-  const sql = await readFile(
-    path.resolve(
-      "backend/prisma/migrations/20261111000000_initial/migration.sql",
-    ),
-    "utf8",
-  );
-  for (const statement of sql
-    .split(";")
-    .map((value) => value.trim())
-    .filter(Boolean))
-    await db.$executeRawUnsafe(statement);
+  await applyTestMigrations(db);
   const category = await db.category.create({ data: { name: "面馆" } });
   const user = await db.user.create({
-    data: { phone: "13911111111", name: "测试用户", role: "USER" },
+    data: {
+      username: "13911111111",
+      phone: "13911111111",
+      name: "测试用户",
+      roles: { create: { role: "USER" } },
+    },
   });
   userId = user.id;
   const bcrypt = await import("bcryptjs");
   for (const [index, phone] of ["13811111111", "13822222222"].entries()) {
     const owner = await db.user.create({
       data: {
+        username: phone,
         phone,
         name: "店主",
-        role: "MERCHANT",
+        roles: { create: { role: "MERCHANT" } },
         passwordHash: await bcrypt.hash("password123", 4),
       },
     });
@@ -93,7 +90,7 @@ beforeAll(async () => {
   const auth = await import("../auth/service");
   token = (await auth.issueSession(user)).accessToken;
   const merchant = await db.user.findUniqueOrThrow({
-    where: { phone: "13811111111" },
+    where: { username: "13811111111" },
   });
   merchantToken = (await auth.issueSession(merchant)).accessToken;
   input = {
@@ -351,7 +348,7 @@ describe("订单金额、库存和权限", () => {
   it("完整自提流转与接单幂等", async () => {
     const order = await orderService.createOrder(userId, input);
     const merchant = await db.user.findUniqueOrThrow({
-      where: { phone: "13811111111" },
+      where: { username: "13811111111" },
     });
     const actor = { id: merchant.id, role: "MERCHANT" };
     await orderService.actOnOrder(
@@ -410,13 +407,14 @@ describe("订单金额、库存和权限", () => {
     expect(response.body.data).not.toHaveProperty("contactPhone");
     expect(response.body.data).not.toHaveProperty("licenseImage");
   });
-  it("刷新令牌轮换并使旧令牌失效", async () => {
+  it("会话恢复和注销并使旧令牌失效", async () => {
     const auth = await import("../auth/service");
     const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
     const session = await auth.issueSession(user);
     expect(
       (await auth.refreshSession(session.refreshToken, "USER")).user.id,
     ).toBe(userId);
+    await auth.revokeSession(session.refreshToken);
     await expect(
       auth.refreshSession(session.refreshToken, "USER"),
     ).rejects.toMatchObject({ status: 401 });
@@ -433,7 +431,14 @@ describe("订单金额、库存和权限", () => {
   });
   it("新商家可读取并提交入驻申请", async () => {
     const auth = await import("../auth/service");
-    const session = await auth.register("13833333333", "password123", "新店主");
+    const owner = await db.user.create({
+      data: {
+        username: "13833333333",
+        name: "新店主",
+        roles: { create: { role: "MERCHANT" } },
+      },
+    });
+    const session = await auth.issueSession(owner, "MERCHANT");
     const response = await request(app)
       .get("/api/v1/merchant/application")
       .auth(session.accessToken, { type: "bearer" });
@@ -476,7 +481,7 @@ describe("订单金额、库存和权限", () => {
     });
     const order = await orderService.createOrder(userId, input);
     const owner = await db.user.findUniqueOrThrow({
-      where: { phone: "13811111111" },
+      where: { username: "13811111111" },
     });
     const user = { id: userId, role: "USER" };
     const merchant = { id: owner.id, role: "MERCHANT" };
@@ -677,7 +682,12 @@ describe("订单金额、库存和权限", () => {
   });
   it("配送分组包含待自提订单，商家四列分别分页", async () => {
     const customer = await db.user.create({
-      data: { phone: "13933334444", name: "分栏测试", role: "USER" },
+      data: {
+        username: "13933334444",
+        phone: "13933334444",
+        name: "分栏测试",
+        roles: { create: { role: "USER" } },
+      },
     });
     for (const [i, status] of ["DELIVERING", "PICKUP", "DONE"].entries()) {
       await db.order.create({
@@ -787,7 +797,12 @@ describe("订单金额、库存和权限", () => {
   });
   it("用户订单按设计分组筛选，待评价排除已评价，分页总数与归属一致", async () => {
     const customer = await db.user.create({
-      data: { phone: "13922223333", name: "分组测试", role: "USER" },
+      data: {
+        username: "13922223333",
+        phone: "13922223333",
+        name: "分组测试",
+        roles: { create: { role: "USER" } },
+      },
     });
     const actor = { id: customer.id, role: "USER" };
     const fixtures: { id: string }[] = [];
@@ -970,7 +985,12 @@ describe("订单金额、库存和权限", () => {
   it("城市选项来自完整商家数据且不暴露给公开列表", async () => {
     const auth = await import("../auth/service");
     const admin = await db.user.create({
-      data: { phone: "13944444444", name: "城市测试", role: "ADMIN" },
+      data: {
+        username: "13944444444",
+        phone: "13944444444",
+        name: "城市测试",
+        roles: { create: { role: "ADMIN" } },
+      },
     });
     const session = await auth.issueSession(admin);
     const expected = (

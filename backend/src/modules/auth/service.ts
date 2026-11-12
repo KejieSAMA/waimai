@@ -1,125 +1,229 @@
 import { createHash, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import type { User } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import type { Role } from "@waimai/shared";
 import { db } from "../../db";
-import { config, production } from "../../config";
+import { config } from "../../config";
 import { assert } from "../../http";
-export interface SmsProvider {
-  send(phone: string): Promise<void>;
-  verify(phone: string, code: string): Promise<boolean>;
-}
-const codes = new Map<string, number>();
-export const sms: SmsProvider = {
-  async send(phone) {
-    assert(!production, 503, "短信服务尚未配置");
-    codes.set(phone, Date.now() + 300000);
-    process.stdout.write(`开发验证码 尾号 ${phone.slice(-4)} 123456\n`);
-  },
-  async verify(phone, code) {
-    const valid =
-      !production && code === "123456" && (codes.get(phone) ?? 0) > Date.now();
-    if (valid) codes.delete(phone);
-    return valid;
-  },
-};
+import { recordAudit } from "../audit/service";
+import { sessionChanged } from "./events";
+import { loginSchema, registerSchema, passwordSchema } from "./schema";
 const digest = (token: string) =>
   createHash("sha256").update(token).digest("hex");
-export const safeAccount = (user: User) => ({
-  id: user.id,
-  phone: user.phone,
-  name: user.name,
-  role: user.role,
-});
-export async function issueSession(user: User, oldDigest?: string) {
-  const accessToken = jwt.sign({ role: user.role }, config.jwtSecret, {
-    subject: user.id,
-    expiresIn: "2h",
+export async function safeAccount(id: string, role: Role) {
+  const user = await db.user.findUniqueOrThrow({
+    where: { id },
+    include: { roles: true },
   });
-  const refreshToken = jwt.sign(
-    { role: user.role, jti: randomUUID() },
-    config.refreshSecret,
-    { subject: user.id, expiresIn: "7d" },
+  return {
+    id: user.id,
+    username: user.username,
+    phone: user.phone ?? "",
+    name: user.name,
+    role,
+    roles: user.roles.map((r) => r.role as Role),
+    status: user.status,
+    mustChangePassword: user.mustChangePassword,
+  };
+}
+export async function issueSession(user: User, requestedRole?: Role) {
+  const grants = await db.userRole.findMany({ where: { userId: user.id } });
+  const role = requestedRole ?? (grants[0]?.role as Role);
+  assert(
+    user.status === "ACTIVE" && grants.some((g) => g.role === role),
+    403,
+    "账号未启用或没有该身份权限",
   );
-  await db.$transaction(async (tx) => {
-    if (oldDigest) {
-      const removed = await tx.refreshSession.deleteMany({
-        where: { digest: oldDigest },
-      });
-      assert(removed.count === 1, 401, "登录已过期");
-    }
-    await tx.refreshSession.create({
+  const refreshToken = randomUUID() + randomUUID();
+  const session = await db.refreshSession.create({
+    data: {
+      userId: user.id,
+      activeRole: role,
+      digest: digest(refreshToken),
+      expiresAt: new Date(Date.now() + 7 * 86400000),
+    },
+  });
+  return serializeSession(session, refreshToken);
+}
+async function serializeSession(
+  session: { id: string; userId: string; activeRole: string; version: number },
+  refreshToken: string,
+) {
+  const activeRole = session.activeRole as Role;
+  const accessToken = jwt.sign(
+    { role: activeRole, sid: session.id, version: session.version },
+    config.jwtSecret,
+    { subject: session.userId, expiresIn: "2h" },
+  );
+  return {
+    accessToken,
+    refreshToken,
+    activeRole,
+    user: await safeAccount(session.userId, activeRole),
+  };
+}
+export async function validateSession(id: string, version?: number) {
+  const session = await db.refreshSession.findUnique({
+    where: { id },
+    include: { user: { include: { roles: true } } },
+  });
+  assert(
+    session &&
+      session.expiresAt > new Date() &&
+      session.user.status === "ACTIVE" &&
+      (version === undefined || session.version === version) &&
+      session.user.roles.some((r) => r.role === session.activeRole),
+    401,
+    "登录已失效，请重新登录",
+  );
+  return session;
+}
+export async function refreshSession(token: string, _legacyRole?: Role) {
+  const stored = await db.refreshSession.findUnique({
+    where: { digest: digest(token) },
+  });
+  assert(stored, 401, "请重新登录");
+  const session = await validateSession(stored.id);
+  // Restore the one server-owned identity. The cookie is stable to avoid cross-tab rotation races.
+  return serializeSession(session, token);
+}
+export async function switchRole(id: string, role: Role) {
+  const current = await validateSession(id);
+  assert(!current.user.mustChangePassword, 403, "请先修改密码");
+  assert(
+    current.user.roles.some((r) => r.role === role),
+    403,
+    "没有该身份权限",
+  );
+  const refreshToken = randomUUID() + randomUUID();
+  const next = await db.$transaction(async (tx) => {
+    const updated = await tx.refreshSession.updateMany({
+      where: { id, version: current.version },
       data: {
-        userId: user.id,
+        activeRole: role,
+        version: { increment: 1 },
         digest: digest(refreshToken),
-        expiresAt: new Date(Date.now() + 7 * 86400000),
       },
     });
+    assert(updated.count === 1, 409, "身份已变化，请重试");
+    return tx.refreshSession.findUniqueOrThrow({ where: { id } });
   });
-  return { accessToken, refreshToken, user: safeAccount(user) };
+  sessionChanged(current.userId);
+  return serializeSession(next, refreshToken);
 }
-export async function refreshSession(token: string, role: Role) {
-  let payload: jwt.JwtPayload;
-  try {
-    payload = jwt.verify(token, config.refreshSecret) as jwt.JwtPayload;
-  } catch {
-    assert(false, 401, "请重新登录");
-  }
-  assert(
-    payload.role === role && typeof payload.sub === "string",
-    401,
-    "登录身份无效",
-  );
+export async function revokeSession(token: string) {
   const session = await db.refreshSession.findUnique({
     where: { digest: digest(token) },
-    include: { user: true },
   });
-  assert(session && session.expiresAt > new Date(), 401, "登录已过期");
-  return issueSession(session.user, digest(token));
+  if (session) {
+    await db.refreshSession.deleteMany({ where: { id: session.id } });
+    sessionChanged(session.userId);
+  }
 }
-export const revokeSession = (token: string) =>
-  db.refreshSession.deleteMany({ where: { digest: digest(token) } });
-export async function passwordLogin(
-  phone: string,
+const attempts = new Map<string, { count: number; until: number }>();
+export async function passwordLogin(input: unknown) {
+  const p = loginSchema.parse(input);
+  const attempt = attempts.get(p.username);
+  assert(
+    !attempt || attempt.until < Date.now() || attempt.count < 10,
+    429,
+    "登录失败次数过多，请稍后重试",
+  );
+  const user = await db.user.findUnique({
+    where: { username: p.username },
+    include: { roles: true },
+  });
+  const valid =
+    user?.passwordHash && (await bcrypt.compare(p.password, user.passwordHash));
+  if (!valid || user?.status !== "ACTIVE") {
+    if (attempts.size > 10000)
+      for (const [key, entry] of attempts)
+        if (entry.until < Date.now()) attempts.delete(key);
+    const previous = attempt && attempt.until > Date.now() ? attempt.count : 0;
+    attempts.set(p.username, {
+      count: previous + 1,
+      until: Date.now() + 15 * 60000,
+    });
+    assert(false, 401, "账号或密码错误，或账号未启用");
+  }
+  const role =
+    p.role ??
+    (["USER", "MERCHANT", "ADMIN"] as Role[]).find((r) =>
+      user.roles.some((g) => g.role === r),
+    );
+  assert(
+    role && user.roles.some((r) => r.role === role),
+    403,
+    "没有该身份权限",
+  );
+  attempts.delete(p.username);
+  await db.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+  return issueSession(user, role);
+}
+export async function register(input: unknown) {
+  const p = registerSchema.parse(input);
+  const user = await db.user.create({
+    data: {
+      username: p.username,
+      phone: p.phone || null,
+      name: p.name,
+      passwordHash: await bcrypt.hash(p.password, 12),
+      roles: { create: { role: "USER" } },
+    },
+  });
+  return issueSession(user, "USER");
+}
+export async function changePassword(
+  userId: string,
+  oldPassword: string,
   password: string,
-  role: Role,
+  role: Role = "USER",
 ) {
-  const user = await db.user.findUnique({ where: { phone } });
+  passwordSchema.parse(password);
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
   assert(
-    user?.role === role &&
-      user.passwordHash &&
-      (await bcrypt.compare(password, user.passwordHash)),
-    401,
-    "账号或密码错误",
+    user.passwordHash && (await bcrypt.compare(oldPassword, user.passwordHash)),
+    400,
+    "原密码错误",
   );
-  return issueSession(user);
-}
-export async function userLogin(phone: string, code: string) {
-  assert(await sms.verify(phone, code), 401, "验证码错误或过期");
-  const old = await db.user.findUnique({ where: { phone } });
-  assert(!old || old.role === "USER", 409, "该手机号已用于其他角色");
-  const user =
-    old ??
-    (await db.user.create({
-      data: { phone, name: "用户" + phone.slice(-4), role: "USER" },
-    }));
-  return issueSession(user);
-}
-export async function register(phone: string, password: string, name: string) {
   assert(
-    !(await db.user.findUnique({ where: { phone } })),
-    409,
-    "手机号已注册",
+    !(await bcrypt.compare(password, user.passwordHash)),
+    400,
+    "新密码不能与原密码相同",
   );
-  return issueSession(
-    await db.user.create({
-      data: {
-        phone,
-        name,
-        role: "MERCHANT",
-        passwordHash: await bcrypt.hash(password, 12),
-      },
-    }),
+  const passwordHash = await bcrypt.hash(password, 12);
+  await db.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false },
+    });
+    await tx.refreshSession.deleteMany({ where: { userId } });
+    await recordAudit(
+      tx,
+      { id: userId, role },
+      "account-password-change",
+      "Account",
+      userId,
+    );
+  });
+  sessionChanged(userId);
+}
+
+export async function canOperateStore(
+  userId: string,
+  tx: Prisma.TransactionClient = db,
+) {
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    include: { roles: true },
+  });
+  return (
+    !!user &&
+    user.status === "ACTIVE" &&
+    user.roles.some((r) => r.role === "MERCHANT")
   );
 }

@@ -34,7 +34,9 @@ app.use("/uploads", (req, res, next) => {
         try {
           const actor = (req as AuthRequest).actor;
           assert(
-            actor && (actor.role === "ADMIN" || actor.id === owner),
+            actor &&
+              !(req as AuthRequest).mustChangePassword &&
+              (actor.role === "ADMIN" || actor.id === owner),
             403,
             "无权查看证照",
           );
@@ -103,7 +105,14 @@ app.use(
             : error.code === "P2003"
               ? 409
               : (error.status ?? 500);
-    if (status === 500) process.stderr.write(error.stack + "\n");
+    if (status === 500)
+      process.stderr.write(
+        JSON.stringify({
+          event: "request-failed",
+          error: error.name,
+          code: error.code ?? "INTERNAL",
+        }) + "\n",
+      );
     res.status(status).json({
       code: status,
       message:

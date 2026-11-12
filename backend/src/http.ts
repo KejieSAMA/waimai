@@ -19,6 +19,9 @@ export function assert(
 export type AuthRequest = Request & {
   actor?: { id: string; role: Role };
   storeId?: string;
+  sessionId?: string;
+  sessionVersion?: number;
+  mustChangePassword?: boolean;
 };
 export function handler(
   fn: (req: AuthRequest, res: Response) => Promise<unknown>,
