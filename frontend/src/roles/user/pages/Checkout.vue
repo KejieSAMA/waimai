@@ -117,15 +117,6 @@ onMounted(() => {
           </div>
         </section>
         <section class="app-card checkout-goods" aria-label="商品清单">
-          <div class="checkout-goods__actions">
-            <Button
-              size="sm"
-              variant="text"
-              :disabled="checkout.locked"
-              @click="router.push(checkout.shopPath)"
-              >继续选购</Button
-            >
-          </div>
           <p
             v-if="checkout.storeLoading"
             class="body-sm app-muted"
@@ -271,7 +262,18 @@ onMounted(() => {
               :disabled="!checkout.canSubmit"
               :submitting="checkout.submitting"
               @submit="checkout.submit"
-            />
+            >
+              <template #after-submit>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  block
+                  :disabled="checkout.locked"
+                  @click="router.push(checkout.shopPath)"
+                  >继续选购</Button
+                >
+              </template>
+            </CheckoutTotal>
           </div>
         </section>
       </aside>
@@ -344,11 +346,6 @@ onMounted(() => {
 }
 .checkout-goods > :not(.checkout-goods__list) {
   flex: none;
-}
-.checkout-goods__actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-2);
 }
 .checkout-goods__list {
   flex: 1 1 0%;

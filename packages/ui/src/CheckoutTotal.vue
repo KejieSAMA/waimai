@@ -39,6 +39,7 @@ const emit = defineEmits<{ submit: [] }>();
         :aria-label="submitting ? '订单提交中' : '金额更新中'"
       /><span>提交订单</span></Button
     >
+    <slot name="after-submit" />
     <p v-if="!inline" class="caption">提交后前往订单详情确认支付</p>
   </div>
 </template>
