@@ -42,7 +42,6 @@ const open = ref(false);
     :variant="variant"
     @close="open = false"
   >
-    <p class="body-sm">各店分别结算，切换不会清空已选商品</p>
     <div class="xz-cart-selector__list">
       <button
         v-for="entry in carts"
@@ -61,9 +60,7 @@ const open = ref(false);
           ><span class="title-sm">{{ entry.name || "店铺资料待核对" }}</span
           ><span class="body-sm"
             >共
-            {{
-              entry.lines.reduce((sum, line) => sum + line.qty, 0)
-            }}
+            {{ entry.lines.reduce((sum, line) => sum + line.qty, 0) }}
             件商品</span
           ></span
         >
