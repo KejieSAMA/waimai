@@ -15,14 +15,14 @@
 | `/orders/:id` | 订单详情（状态、明细、操作） | PageHeader + InfoList + DataTable |
 | `/addresses` | 收货地址，新增 / 编辑弹窗 | PageHeader + ListCell + Dialog |
 | `/me` | 账号设置 | PageHeader + InfoList |
-| `/login` | 用户登录（手机号 + 验证码） |  |
+| `/login` | 用户登录（账号 + 密码） |  |
 | `/merchant` → `/merchant/dashboard` | 工作台 | DeskMerchantDashboard |
 | `/merchant/orders` | 状态 Tab + 紧凑订单行 + 居中详情弹窗 | DeskMerchantOrders（按确认方案改造） |
 | `/merchant/products` | 商品管理 | DeskMerchantProducts |
 | `/merchant/products/new`、`/merchant/products/:id/edit` | 新增 / 编辑商品 | DeskMerchantProductEdit |
 | `/merchant/store` | 店铺设置（名称、Logo、公告、营业时间、起送价、配送费） | PageHeader + 表单卡片 |
 | `/merchant/apply` | 商家入驻申请 / 审核进度 / 驳回后修改 | 表单卡片 |
-| `/merchant/login` | 商家登录（手机号 + 密码） |  |
+| `/merchant/login` | 商家登录（账号 + 密码） |  |
 | `/admin` → `/admin/overview` | 数据总览 | DeskAdminDashboard |
 | `/admin/merchants` | 商家管理 | DeskAdminMerchants |
 | `/admin/audit`、`/admin/audit/:id` | 入驻审核（`:id` 打开右侧抽屉） | DeskAdminAudit |
@@ -30,6 +30,7 @@
 | `/admin/orders` | 订单监管 | DataTable |
 | `/admin/disputes` | 退款纠纷 | DataTable + drawer |
 | `/admin/categories` | 平台类目管理 | DataTable + modal |
+| `/admin/accounts` | 账号管理（筛选、授权、启停用、密码重置） | DataTable + modal |
 | `/admin/login` | 管理员登录（账号 + 密码） |  |
 | `/__ui` | 组件画廊（仅开发环境） |  |
 
@@ -54,6 +55,7 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 | `/mobile/admin/merchants` | 商家管理 | AdminMerchants |
 | `/mobile/admin/audit/:id` | 入驻审核 | AdminMerchantAudit |
 | `/mobile/admin/me`、`/mobile/admin/login` | 我的 / 登录 |  |
+| `/mobile/admin/accounts` | 账号管理（列表、编辑与操作） | 共享表单 + sheet |
 | `/mobile/__ui` | 组件画廊（仅开发环境） |  |
 
 购物车以店铺 ID 独立保存于当前浏览器 xz-cart v2，旧数组自动迁移；每店保存商品、配送方式、地址 ID 和备注，不保存报价或完整地址。两端确认订单通过 `?storeId=…` 指定单店，支持切换其他非空购物车，每次仅提交一家；成功只清理该店匹配的快照。店铺页仅展示自己的购物车，PC 顶栏角标为所有店铺商品总件数。
@@ -64,12 +66,12 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 
 ## 2. 账号与鉴权
 
-- 三种角色：`USER`、`MERCHANT`、`ADMIN`。一个手机号只对应一种角色。
-- 用户：手机号 + 短信验证码。开发环境不接短信，验证码固定 `123456` 并打印到后端日志；留好 `SmsProvider` 接口。
-- 商家：手机号 + 密码，注册后先提交入驻资料，审核通过才能营业。
-- 管理员：账号 + 密码，只由种子数据或已有管理员创建，不开放注册。
-- JWT：access token 2 小时 + refresh token 7 天（httpOnly cookie），三种角色分别存，互不覆盖（同一浏览器可同时登录用户端和商家后台）。
-- 中间件：`authenticate` → `requireRole(role)`；商家额外 `attachStore`（从登录用户查出 storeId 挂到 req 上）。
+- 账号使用唯一 username（小写 3–32 位英文、数字、下划线或连字符），手机号选填；账号启用状态与角色授权分开保存，一个账号可拥有 USER／MERCHANT／ADMIN 中的多个角色。
+- 统一账号密码登录；公开注册仅 USER，商家角色由管理员授予，店铺仍走现有入驻审核。密码至少 12 字符且不超过 bcrypt 72 字节，服务端仅保存哈希。不提供短信和默认凭据。
+- 一个浏览器使用 xz_refresh HttpOnly Cookie（7 天）与当前身份 access token（2 小时）；角色切换由服务端核验授权、增加会话版本并签发新凭据。refresh 仅恢复服务端当前身份，不接受客户端指定另一身份。旧角色 Cookie 失效并清理。
+- authenticate 每次读取会话、账号状态与授权，requireRole 验证当前身份，商家店铺归属只取登录态。临时密码首次登录须改密，仅允许身份查询、改密及退出；停用、改密、重置密码、角色变更撤销全部会话。
+- 管理端账号列表／详情、创建、修改资料、角色授权、状态、密码重置和审计，两端均有 /admin/accounts（手机含 /mobile 前缀）。保留固定分页与后台既有骨架。保护自身与最后管理员；商家停用／撤权冻结店铺，启用不自动解冻。
+- 原 User.role 迁移为 UserRole；旧账号禁用且密码清空，业务 ID 与关联不变。首管理员由本机交互 CLI 创建，无固定账号。详见 ACCOUNTS_MIGRATION.md。
 
 ## 3. API 清单（前缀 `/api/v1`）
 
@@ -82,7 +84,11 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 
 用户 `user`
 
-- `POST /auth/user/code`、`POST /auth/user/login`、`POST /auth/refresh`、`POST /auth/logout`
+- `POST /auth/register`：username、password、name、phone?，严格拒绝角色字段，只授予 USER。
+- `POST /auth/login`：username、password、role?；返回 accessToken、activeRole 和安全 user（含 roles、当前 role 兼容字段、mustChangePassword），角色未授权时拒绝。
+- `POST /auth/refresh`、`GET /auth/me`、`POST /auth/switch-role`（role）、`POST /auth/logout`、`POST /auth/password`（oldPassword、password）。旧短信及分角色登录／注册端点删除。
+- `GET /admin/accounts?keyword&role&status&page&pageSize`、`GET /admin/accounts/:id`、`GET /admin/accounts/:id/audit`。
+- `POST /admin/accounts`（username、name、phone?、password、roles）、`PUT /admin/accounts/:id`（name、phone?）、`PUT /admin/accounts/:id/roles|status|password`（分别 roles、status 或 password）。创建／重置设置首次改密；不提供物理删除。
 - `GET|POST|PUT|DELETE /user/addresses`
 - `POST /user/orders/preview` 后端计算金额（小计、配送费、满减、实付），另返回 minOrderCents、shortfallCents、checkoutAllowed；未达起送价仍返回报价，创建订单时继续严格校验，PICKUP 不受起送价限制。
 - 报价的 `items` 包含 `productId`、`qty`、`name`、`priceCents`、`lineTotalCents`；行小计由后端计算，前端按商品 ID 匹配，等待报价时保留已显示金额。
@@ -94,7 +100,7 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 
 商家 `merchant`
 
-- `POST /auth/merchant/register`、`POST /auth/merchant/login`
+- 商家不开放独立注册；统一登录及管理员角色授权见认证接口。
 - `GET|PUT /merchant/application`（入驻资料、证照图片）
 - `GET|PUT /merchant/store`、`PUT /merchant/store/open`（营业 / 休息）
 - `GET|POST|PUT|DELETE /merchant/dish-categories`
@@ -112,7 +118,7 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 
 管理 `admin`
 
-- `POST /auth/admin/login`
+- 管理员使用统一密码登录，仅已有管理员授权或本机 CLI 创建。
 - `GET /admin/stats/overview`、`GET /admin/stats/trend?days=14`、`GET /admin/stats/ranking`、`GET /admin/todos`
 - `GET /admin/merchants?status&keyword&categoryId&city&page`、`GET /admin/merchants/:id`
 - 管理列表附带 `counts`（同类目／城市／关键词范围内各状态及 all 数量），管理资料附带负责人姓名，公开列表不提供管理状态计数或负责人信息。
@@ -128,7 +134,7 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 
 ## 4. 数据模型（Prisma，SQLite / MySQL 通用）
 
-- `User`：id、phone（唯一）、name、role、passwordHash?、createdAt
+- `User`：id、username（唯一）、phone?、name、passwordHash?（迁移禁用账号可空）、status（ACTIVE／DISABLED）、mustChangePassword、lastLoginAt?、createdAt；UserRole 以 userId＋role 复合主键保存授权；RefreshSession 增加 activeRole、version。
 - `Address`：userId、contact、phone、detail、isDefault
 - `Category`（平台类目）：name、sort
 - `Store`：ownerId、name、logo、categoryId、city、address、contactPhone、notice、openHours、minOrderCents、deliveryFeeCents、status（PENDING / OPEN / CLOSED / FROZEN / REJECTED）、rejectReason、frozenReason、licenseImage、foodPermitImage、licenseExpireAt、permitExpireAt、rating、monthlySales、submitCount
@@ -146,10 +152,9 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - 商品：新建 → 平台开启审核（配置项 `PRODUCT_REVIEW=true`）时 REVIEW，否则 ON；REVIEW →（admin approve）→ ON /（reject + reason）→ REJECTED →（merchant 修改）→ REVIEW；ON ↔ OFF（merchant）；admin force-off → OFF 且 `forcedOff = true`，商家不能再上架直到修改后重新审核。
 - 订单：PENDING_PAY →（pay）→ PENDING →（merchant accept）→ PREPARING →（merchant ready）→ DELIVERING（外卖）/ PICKUP（自提）→ DONE；PENDING →（merchant reject / user cancel）→ CANCELLED（回补库存、模拟退款）；已支付未完成 →（user refund）→ REFUNDING →（merchant approve）→ CANCELLED /（merchant reject，用户可申诉）→ 管理端介入 resolve。PENDING_PAY 超过 15 分钟自动取消（定时任务）。
 
-## 6. 种子数据（与设计稿一致，便于对照截图）
+## 6. 初始化数据
 
-- 账号：管理员 `admin` / `admin123`；商家 `13800000001` / `merchant123`（老张家牛肉面，营业中）；用户 `13900000001`，验证码 `123456`。
-- 店铺与商品、订单、待审核商家：直接取自各页面 preview.html 里的示例数据（老张家牛肉面、阿香米线、一碗好粥、深夜烧烤研究所、甜蜜工坊（已冻结）等），让每个页面一打开就和截图内容接近。
+默认只初始化平台基础类目，不创建账号、店铺或订单。账号由公开用户注册、管理员创建或本机首管理员 CLI 建立。隔离测试库自行创建测试 fixture，不写入业务数据库。旧库升级必须先备份，迁移、核对及启用步骤见 ACCOUNTS_MIGRATION.md。
 
 ## 7. 开发者必须注意的问题
 

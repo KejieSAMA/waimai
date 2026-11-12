@@ -130,10 +130,23 @@ const menus: Record<string, NavItem[]> = {
     { key: "/admin/orders", label: "订单监管", icon: "order" },
     { key: "/admin/disputes", label: "退款纠纷", icon: "alert" },
     { key: "/admin/categories", label: "类目管理", icon: "grid" },
+    { key: "/admin/accounts", label: "账号管理", icon: "user" },
     { key: "/admin/me", label: "我的", icon: "user" },
   ],
 };
 const auth = useAuth();
+watch(
+  () => auth.revision,
+  () => {
+    for (const entry of cart.carts) {
+      const view = cart.forStore(entry.storeId);
+      view.invalidateQuote("");
+      view.addressId = "";
+    }
+  },
+  { flush: "sync" },
+);
+
 const { badges } = useRoleNotices(
   (path, target) => api(path, {}, target),
   computed(() => role.value.toUpperCase() as Role),
@@ -217,12 +230,14 @@ const tabs = computed(() =>
     >
       <RouterView
         :key="
-          route.path === '/checkout'
+          String(auth.revision) +
+          ':' +
+          (route.path === '/checkout'
             ? 'checkout:' +
               String(route.query.storeId ?? cart.resolveStoreId() ?? '')
             : route.path.startsWith('/store/')
               ? route.path
-              : undefined
+              : '')
         "
       />
     </div>

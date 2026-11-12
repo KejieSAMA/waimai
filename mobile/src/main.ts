@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
+import { useAuth } from "./common/auth";
 import { makeRouter } from "./router";
 import { startDeviceRouting } from "./common/device";
 import "@waimai/tokens/style.css";
@@ -11,6 +12,7 @@ if (!deviceRouting.redirected) {
   const app = createApp(App);
   app.onUnmount(deviceRouting.stop);
   app.use(createPinia());
+  app.onUnmount(useAuth().stop);
   app.use(makeRouter());
   app.mount("#app");
 }

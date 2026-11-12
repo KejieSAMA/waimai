@@ -2,20 +2,19 @@
 
 ## 环境准备
 
-使用 Node 22、pnpm 10 和可写的数据目录。根目录 `.env` 可从 `.env.example` 复制。生产环境的 `JWT_SECRET` 与 `JWT_REFRESH_SECRET` 必须替换为两个不同的随机密钥，长度至少 32 个字符。服务会校验这两个配置。
+使用 Node 22、pnpm 10，配置随机 JWT_SECRET（至少 32 字符），生产环境使用 HTTPS。模板占位密钥和缺失密钥在开发、生产都会拒绝启动。
 
-| 变量                 | 默认值或用途                                        |
-| -------------------- | --------------------------------------------------- |
-| `HOST`               | `0.0.0.0`                                           |
-| `PORT`               | API 和生产静态托管端口，默认 `3000`                 |
-| `FRONTEND_PORT`      | PC 开发入口，默认 `13599`                           |
-| `MOBILE_PORT`        | 手机开发服务，默认 `5174`                           |
-| `DATABASE_URL`       | `file:./dev.db`，相对 Prisma schema 目录            |
-| `JWT_SECRET`         | access token 签名，2 小时有效                       |
-| `JWT_REFRESH_SECRET` | refresh token 签名，7 天有效                        |
-| `PRODUCT_REVIEW`     | `true` 时新增或编辑商品进入审核                     |
-| `UPLOAD_DIR`         | 上传目录，相对 backend 工作目录，默认 `./uploads`   |
-| `NODE_ENV`           | 本地为 `development`，start 脚本设置为 `production` |
+| 变量             | 默认值或用途                                        |
+| ---------------- | --------------------------------------------------- |
+| `HOST`           | `0.0.0.0`                                           |
+| `PORT`           | API 和生产静态托管端口，默认 `3000`                 |
+| `FRONTEND_PORT`  | PC 开发入口，默认 `13599`                           |
+| `MOBILE_PORT`    | 手机开发服务，默认 `5174`                           |
+| `DATABASE_URL`   | `file:./dev.db`，相对 Prisma schema 目录            |
+| `JWT_SECRET`     | access token 签名，2 小时有效                       |
+| `PRODUCT_REVIEW` | `true` 时新增或编辑商品进入审核                     |
+| `UPLOAD_DIR`     | 上传目录，相对 backend 工作目录，默认 `./uploads`   |
+| `NODE_ENV`       | 本地为 `development`，start 脚本设置为 `production` |
 
 ## 初始化与运行
 
@@ -31,7 +30,7 @@ pnpm build
 pnpm start
 ```
 
-`db:setup` 生成 Prisma 客户端、部署迁移并写入演示种子。正式环境应先部署迁移，通过受控的种子创建管理员，并替换演示密码。增量部署使用以下命令保留已有业务数据。
+`db:setup` 生成 Prisma 客户端、部署迁移并写入基础类目，不创建演示账号。首次部署运行 `pnpm --filter @waimai/backend account:init`，在本机终端输入首管理员账号及密码。旧库升级先执行 [账号迁移说明](ACCOUNTS_MIGRATION.md)中的备份与验证；迁移会禁用旧账号、冻结店铺并撤销全部会话。增量部署使用以下命令保留业务数据。
 
 ```powershell
 pnpm --filter @waimai/backend db:generate
@@ -40,7 +39,9 @@ pnpm --filter @waimai/backend db:migrate
 
 `pnpm build` 生成两个前端的 `dist` 及后端的 `dist/server.js`。`pnpm start` 在 `0.0.0.0:3000` 提供 API、上传文件和两套前端，`/mobile/*` 返回手机版入口，其余页面返回 PC 入口。API 和上传的未知路径返回相应错误。
 
-生产 refresh cookie 使用 `secure` 和 `httpOnly`，浏览器访问通过 HTTPS 入口进行。短信发送通过 `SmsProvider` 接口接入，生产环境需要配置真实短信实现。支付当前采用规格要求的模拟支付。
+刷新凭据为服务器生成的随机值并仅存摘要，不再使用 JWT_REFRESH_SECRET；旧环境中的该变量可删除。
+
+生产 refresh cookie 使用 `secure` 和 `httpOnly`，浏览器访问通过 HTTPS 入口进行。账号只使用密码，不依赖短信或固定验证码。支付当前采用规格要求的模拟支付。
 
 ## Nginx
 

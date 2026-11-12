@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountControls from "../../../common/AccountControls.vue";
 import BackofficePage from "../../../components/BackofficePage.vue";
 import { Button } from "@waimai/ui";
 import InfoList from "../../../components/InfoList.vue";
@@ -31,7 +32,9 @@ async function logout() {
           { label: '姓名', value: auth.accounts[role]?.name },
           {
             label: '手机号',
-            value: phoneTail(auth.accounts[role]?.phone ?? ''),
+            value: auth.accounts[role]?.phone
+              ? phoneTail(auth.accounts[role]!.phone)
+              : '未填写',
           },
           { label: '账号身份', value: '管理员' },
         ]"
@@ -42,5 +45,6 @@ async function logout() {
         >
       </div>
     </section>
+    <AccountControls />
   </BackofficePage>
 </template>

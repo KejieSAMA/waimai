@@ -11,6 +11,7 @@ export async function api<T>(
   role: Role = "USER",
 ): Promise<T> {
   const auth = useAuth();
+  const version = auth.revision;
   const request = createApi(fetch, () => auth.tokens[role] ?? null);
   async function execute() {
     try {
@@ -27,6 +28,12 @@ export async function api<T>(
     }
   }
   const result = await execute();
+  if (
+    !path.startsWith("/public/") &&
+    !path.startsWith("/auth/") &&
+    auth.revision !== version
+  )
+    throw new Error("身份已变化，请重新操作");
   if (
     options.method &&
     options.method !== "GET" &&

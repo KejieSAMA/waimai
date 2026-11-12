@@ -1,51 +1,49 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-import type { Account, Role } from "@waimai/shared";
+import { createAuthState, type AuthRequest } from "@waimai/shared";
 export const useAuth = defineStore("auth", () => {
-  const accounts = ref<Partial<Record<Role, Account>>>({});
-  const tokens = ref<Partial<Record<Role, string>>>({});
-  const refreshing = new Map<Role, Promise<boolean>>();
-  function save(role: Role, session: { accessToken: string; user: Account }) {
-    accounts.value[role] = session.user;
-    tokens.value[role] = session.accessToken;
-  }
-  async function refresh(role: Role): Promise<boolean> {
-    const pending = refreshing.get(role);
-    if (pending) return pending;
-    const task = (async () => {
-      try {
-        const response = await fetch("/api/v1/auth/refresh", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role }),
-        });
-        const result = await response.json();
-        if (!response.ok) {
-          delete accounts.value[role];
-          delete tokens.value[role];
-          return false;
-        }
-        save(role, result.data);
-        return true;
-      } catch {
-        return false;
-      } finally {
-        refreshing.delete(role);
-      }
-    })();
-    refreshing.set(role, task);
-    return task;
-  }
-  async function logout(role: Role) {
-    await fetch("/api/v1/auth/logout", {
-      method: "POST",
+  const key = "xz-auth-change";
+  const state = createAuthState(request, () =>
+    localStorage.setItem(key, String(Date.now()) + Math.random()),
+  );
+  const transport: AuthRequest = async <T>(
+    path: string,
+    body?: unknown,
+    method = "POST",
+  ) => {
+    const response = await fetch("/api/v1" + path, {
+      method,
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
+      headers: {
+        "Content-Type": "application/json",
+        ...(state.accessToken.value
+          ? { Authorization: "Bearer " + state.accessToken.value }
+          : {}),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    delete accounts.value[role];
-    delete tokens.value[role];
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || "请求失败");
+    return result.data as T;
+  };
+  function request<T>(
+    path: string,
+    body?: unknown,
+    method?: string,
+  ): Promise<T> {
+    return transport<T>(path, body, method);
   }
-  return { accounts, tokens, save, refresh, logout };
+  const storage = (event: StorageEvent) => {
+    if (event.key === key) state.externalChange();
+  };
+  const focus = () => {
+    void state.refresh();
+  };
+  window.addEventListener("storage", storage);
+  window.addEventListener("focus", focus);
+  function stop() {
+    window.removeEventListener("storage", storage);
+    window.removeEventListener("focus", focus);
+  }
+  if (import.meta.hot) import.meta.hot.dispose(stop);
+  return { ...state, stop };
 });

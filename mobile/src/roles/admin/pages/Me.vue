@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountControls from "../../../common/AccountControls.vue";
 import { useTheme } from "@waimai/tokens";
 import { ListCell, ListCellGroup } from "@waimai/ui";
 import { useRouter } from "vue-router";
@@ -20,7 +21,7 @@ async function logout() {
   <div class="app-stack">
     <h1 class="title-lg">{{ auth.accounts[role]?.name }}</h1>
     <p class="body-sm app-muted">
-      尾号 {{ auth.accounts[role]?.phone.slice(-4) }}
+      尾号 {{ auth.accounts[role]?.phone?.slice(-4) }}
     </p>
     <ListCellGroup
       ><ListCell
@@ -28,6 +29,10 @@ async function logout() {
         icon="alert"
         arrow
         @click="router.push('/admin/disputes')" /><ListCell
+        title="账号管理"
+        icon="user"
+        arrow
+        @click="router.push('/admin/accounts')" /><ListCell
         title="类目管理"
         icon="grid"
         arrow
@@ -45,10 +50,7 @@ async function logout() {
         arrow
         @click="logout"
     /></ListCellGroup>
-    <div class="app-row body-sm">
-      <RouterLink to="/">用户首页</RouterLink
-      ><RouterLink to="/merchant">商家中心</RouterLink
-      ><RouterLink to="/admin">运营后台</RouterLink>
-    </div>
+
+    <AccountControls />
   </div>
 </template>

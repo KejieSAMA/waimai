@@ -24,6 +24,18 @@ const route = useRoute(),
   router = useRouter(),
   auth = useAuth();
 const carts = useCart();
+watch(
+  () => auth.revision,
+  () => {
+    for (const entry of carts.carts) {
+      const view = carts.forStore(entry.storeId);
+      view.invalidateQuote("");
+      view.addressId = "";
+    }
+  },
+  { flush: "sync" },
+);
+
 const pageBody = ref<InstanceType<typeof ScrollArea>>();
 watch(
   () => route.query.storeId,
@@ -60,6 +72,7 @@ const menus: Record<string, NavItem[]> = {
     { key: "/admin/orders", label: "订单监管", icon: "order" },
     { key: "/admin/disputes", label: "退款纠纷", icon: "alert" },
     { key: "/admin/categories", label: "类目管理", icon: "grid" },
+    { key: "/admin/accounts", label: "账号管理", icon: "user" },
     { key: "/admin/me", label: "我的", icon: "user" },
   ],
 };
@@ -168,12 +181,14 @@ const go = (path: string) => router.push(path);
       <div class="xz-container">
         <RouterView
           :key="
-            route.path === '/checkout'
+            String(auth.revision) +
+            ':' +
+            (route.path === '/checkout'
               ? 'checkout:' +
                 String(route.query.storeId ?? carts.resolveStoreId() ?? '')
               : route.path.startsWith('/store/')
                 ? route.path
-                : undefined
+                : '')
           "
         />
       </div>
@@ -215,6 +230,6 @@ const go = (path: string) => router.push(path);
           !['OPEN', 'CLOSED'].includes(merchantStore.status)
         "
         @update:model-value="setOpen" /></template
-    ><RouterView
+    ><RouterView :key="auth.revision"
   /></DesktopShell>
 </template>

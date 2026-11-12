@@ -1,114 +1,131 @@
 <script setup lang="ts">
 import { Button, Input } from "@waimai/ui";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import type { Role, Account } from "@waimai/shared";
+import { roleHome, type Role } from "@waimai/shared";
 import { useAuth } from "./auth";
-import { api } from "./api";
-import { run, busy } from "./feedback";
 const route = useRoute(),
   router = useRouter(),
   auth = useAuth();
-const role = computed(() => route.meta.role as Role);
-const phone = ref(
-  role.value === "ADMIN"
-    ? "admin"
-    : role.value === "MERCHANT"
-      ? "13800000001"
-      : "13900000001",
-);
-const password = ref(""),
-  code = ref(""),
+const role = computed(() => (route.meta.role as Role) ?? "USER");
+const username = ref(""),
+  password = ref(""),
   name = ref(""),
+  phone = ref(""),
   register = ref(false),
-  sent = ref(false);
-async function send() {
-  await run(async () => {
-    await api("/auth/user/code", {
-      method: "POST",
-      body: { phone: phone.value },
-    });
-    sent.value = true;
-  });
-}
+  pending = ref(false),
+  error = ref("");
+watch(role, () => {
+  password.value = "";
+  register.value = false;
+  error.value = "";
+});
 async function submit() {
-  await run(async () => {
-    const path =
-      role.value === "USER"
-        ? "/auth/user/login"
-        : `/auth/${role.value.toLowerCase()}/${register.value ? "register" : "login"}`;
-    const session = await api<{ accessToken: string; user: Account }>(path, {
-      method: "POST",
-      body: {
-        phone: phone.value,
-        password: password.value,
-        code: code.value,
-        name: name.value,
-      },
-    });
-    auth.save(role.value, session);
-    const redirect =
-      typeof route.query.redirect === "string" &&
-      route.query.redirect.startsWith("/") &&
-      !route.query.redirect.startsWith("//")
-        ? route.query.redirect
-        : role.value === "USER"
-          ? "/"
-          : role.value === "MERCHANT"
-            ? register.value
-              ? "/merchant/apply"
-              : "/merchant"
-            : "/admin";
-    await router.push(redirect);
-  });
+  if (pending.value) return;
+  pending.value = true;
+  error.value = "";
+  try {
+    await auth.login(
+      register.value
+        ? {
+            username: username.value,
+            password: password.value,
+            name: name.value,
+            phone: phone.value,
+          }
+        : {
+            username: username.value,
+            password: password.value,
+            role: role.value,
+          },
+      register.value,
+    );
+    const target = route.query.redirect;
+    const valid =
+      typeof target === "string" &&
+      target.startsWith("/") &&
+      !target.startsWith("//") &&
+      !target.includes("\\") &&
+      (auth.activeRole === "USER"
+        ? !/^\/(admin|merchant)(\/|$)/.test(target)
+        : target.startsWith("/" + auth.activeRole?.toLowerCase() + "/"));
+    await router.push(
+      auth.account?.mustChangePassword
+        ? "/password"
+        : valid
+          ? target
+          : roleHome(auth.activeRole),
+    );
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "登录失败";
+  } finally {
+    pending.value = false;
+    password.value = "";
+  }
 }
 </script>
 <template>
   <form class="app-login app-card app-stack" @submit.prevent="submit">
     <h1 class="title-lg">
       {{
-        role === "USER"
-          ? "登录盟信"
-          : role === "MERCHANT"
-            ? "商家登录"
-            : "管理员登录"
+        register
+          ? "注册账号"
+          : role === "ADMIN"
+            ? "管理员登录"
+            : role === "MERCHANT"
+              ? "商家登录"
+              : "登录盟信"
       }}
     </h1>
     <Input
-      v-model="phone"
-      :label="role === 'ADMIN' ? '账号' : '手机号'"
-      required
+      v-model="username"
+      label="账号"
       autocomplete="username"
-    /><template v-if="role === 'USER'"
-      ><Input
-        v-model="code"
-        label="验证码"
-        required
-        inputmode="numeric"
-        maxlength="6"
-      /><Button variant="outline" :disabled="busy" @click="send"
-        >获取验证</Button
-      >
-      <p v-if="sent" class="body-sm app-muted">
-        开发环境验证码为 123456，有效期 5 分钟
-      </p></template
-    ><Input
-      v-else
+      required
+      maxlength="32"
+      placeholder="英文、数字、下划线或连字符"
+      :disabled="pending"
+    />
+    <Input
       v-model="password"
       label="密码"
       type="password"
-      autocomplete="current-password"
+      :autocomplete="register ? 'new-password' : 'current-password'"
       required
-    /><Input v-if="register" v-model="name" label="负责人" required /><Button
-      type="submit"
-      block
-      :disabled="busy"
-      >{{ register ? "注册入驻" : "登录" }}</Button
-    ><Button
-      v-if="role === 'MERCHANT'"
+      :minlength="register ? 12 : undefined"
+      :disabled="pending"
+    />
+    <template v-if="register"
+      ><Input
+        v-model="name"
+        label="昵称"
+        required
+        maxlength="30"
+        :disabled="pending" /><Input
+        v-model="phone"
+        label="联系手机"
+        inputmode="tel"
+        maxlength="11"
+        placeholder="选填"
+        :disabled="pending"
+    /></template>
+    <p v-if="error" class="body-sm app-error" role="alert">{{ error }}</p>
+    <Button type="submit" block :disabled="pending">{{
+      pending ? "处理中" : register ? "注册账号" : "登录"
+    }}</Button>
+    <Button
+      v-if="role === 'USER'"
       variant="text"
-      @click="register = !register"
-      >{{ register ? "返回登录" : "注册入驻" }}</Button
+      :disabled="pending"
+      @click="
+        register = !register;
+        error = '';
+        password = '';
+      "
+      >{{ register ? "返回登录" : "注册账号" }}</Button
     >
+    <p class="body-sm app-muted">
+      忘记密码请联系管理员。商家身份由管理员授权。
+    </p>
   </form>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountControls from "../../../common/AccountControls.vue";
 import { Button } from "@waimai/ui";
 import PageHeader from "../../../components/PageHeader.vue";
 import InfoList from "../../../components/InfoList.vue";
@@ -33,7 +34,9 @@ async function logout() {
           { label: '昵称', value: auth.accounts[role]?.name },
           {
             label: '手机号',
-            value: phoneTail(auth.accounts[role]?.phone ?? ''),
+            value: auth.accounts[role]?.phone
+              ? phoneTail(auth.accounts[role]!.phone)
+              : '未填写',
           },
           { label: '账号身份', value: '用户' },
         ]"
@@ -44,9 +47,7 @@ async function logout() {
         >
       </div>
     </section>
-    <div class="app-card app-row body-md">
-      <RouterLink to="/merchant">商家中心</RouterLink>
-      <RouterLink to="/admin">运营后台</RouterLink>
-    </div>
+
+    <AccountControls />
   </div>
 </template>
