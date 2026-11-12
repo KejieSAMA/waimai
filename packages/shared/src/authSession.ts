@@ -16,6 +16,7 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
   const accessToken = ref("");
   const revision = ref(0);
   let generation = 0;
+  let profileSequence = 0;
   let refreshing: Promise<boolean> | undefined;
   const accounts = computed<Partial<Record<Role, Account>>>(() =>
     account.value && activeRole.value
@@ -101,7 +102,9 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
     broadcast();
   }
   async function logout(_role?: Role) {
+    const version = generation;
     await request("/auth/logout", {});
+    if (version !== generation) throw new Error("身份已变化，请重新操作");
     clear();
     broadcast();
   }
@@ -110,6 +113,32 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
     clear();
     broadcast();
   }
+  async function profileRequest(body?: { name: string; phone: string }) {
+    const sequence = ++profileSequence;
+    const version = generation;
+    const id = account.value?.id,
+      role = activeRole.value;
+    if (!id || !role) throw new Error("请先登录");
+    const result = await request<{ user: Account; activeRole: Role }>(
+      "/auth/me",
+      body,
+      body ? "PUT" : "GET",
+    );
+    if (
+      version !== generation ||
+      sequence !== profileSequence ||
+      result.user.id !== id ||
+      result.activeRole !== role
+    )
+      throw new Error("身份已变化，请重新操作");
+    save(role, { ...result, accessToken: accessToken.value });
+    // Metadata updates must not let an older refresh overwrite the saved profile.
+    generation++;
+    return result.user;
+  }
+  const readProfile = () => profileRequest();
+  const updateProfile = (body: { name: string; phone: string }) =>
+    profileRequest(body);
   function externalChange() {
     clear();
     void refresh();
@@ -128,6 +157,8 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
     switchRole,
     logout,
     changePassword,
+    readProfile,
+    updateProfile,
     externalChange,
   };
 }

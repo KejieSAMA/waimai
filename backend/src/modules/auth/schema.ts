@@ -18,6 +18,12 @@ export const contactSchema = z
   .union([phoneSchema, z.literal("")])
   .optional()
   .nullable();
+export const profileSchema = z
+  .object({
+    name: z.string().trim().min(1).max(30),
+    phone: contactSchema,
+  })
+  .strict();
 export const loginSchema = z
   .object({
     username: usernameSchema,

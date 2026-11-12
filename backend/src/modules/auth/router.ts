@@ -88,6 +88,18 @@ router.get(
     activeRole: req.actor!.role,
   })),
 );
+router.put(
+  "/me",
+  authenticate,
+  handler(async (req) =>
+    service.updateProfile(
+      req.actor!,
+      req.sessionId!,
+      req.sessionVersion!,
+      req.body,
+    ),
+  ),
+);
 router.post(
   "/switch-role",
   authenticate,

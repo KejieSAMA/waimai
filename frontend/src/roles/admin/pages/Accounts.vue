@@ -21,6 +21,7 @@ const actions: Record<string, string> = {
   "account-status": "修改状态",
   "account-password": "重置密码",
   "account-password-change": "修改密码",
+  "account-profile": "修改本人资料",
   "account-bootstrap": "初始化管理员",
   "account-recover": "恢复管理员",
 };

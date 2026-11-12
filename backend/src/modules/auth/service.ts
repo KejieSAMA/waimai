@@ -8,11 +8,20 @@ import { config } from "../../config";
 import { assert } from "../../http";
 import { recordAudit } from "../audit/service";
 import { sessionChanged } from "./events";
-import { loginSchema, registerSchema, passwordSchema } from "./schema";
+import {
+  loginSchema,
+  registerSchema,
+  passwordSchema,
+  profileSchema,
+} from "./schema";
 const digest = (token: string) =>
   createHash("sha256").update(token).digest("hex");
-export async function safeAccount(id: string, role: Role) {
-  const user = await db.user.findUniqueOrThrow({
+export async function safeAccount(
+  id: string,
+  role: Role,
+  tx: Prisma.TransactionClient = db,
+) {
+  const user = await tx.user.findUniqueOrThrow({
     where: { id },
     include: { roles: true },
   });
@@ -63,8 +72,12 @@ async function serializeSession(
     user: await safeAccount(session.userId, activeRole),
   };
 }
-export async function validateSession(id: string, version?: number) {
-  const session = await db.refreshSession.findUnique({
+export async function validateSession(
+  id: string,
+  version?: number,
+  tx: Prisma.TransactionClient = db,
+) {
+  const session = await tx.refreshSession.findUnique({
     where: { id },
     include: { user: { include: { roles: true } } },
   });
@@ -78,6 +91,35 @@ export async function validateSession(id: string, version?: number) {
     "登录已失效，请重新登录",
   );
   return session;
+}
+export async function updateProfile(
+  actor: { id: string; role: Role },
+  sessionId: string,
+  version: number,
+  input: unknown,
+) {
+  const p = profileSchema.parse(input);
+  return db.$transaction(async (tx) => {
+    const session = await validateSession(sessionId, version, tx);
+    assert(
+      session.userId === actor.id && session.activeRole === actor.role,
+      401,
+      "登录身份已变化",
+    );
+    assert(!session.user.mustChangePassword, 403, "请先修改密码");
+    const phone = p.phone === undefined ? session.user.phone : p.phone || null;
+    if (p.name !== session.user.name || phone !== session.user.phone) {
+      await tx.user.update({
+        where: { id: actor.id },
+        data: { name: p.name, phone },
+      });
+      await recordAudit(tx, actor, "account-profile", "Account", actor.id);
+    }
+    return {
+      user: await safeAccount(actor.id, actor.role, tx),
+      activeRole: actor.role,
+    };
+  });
 }
 export async function refreshSession(token: string, _legacyRole?: Role) {
   const stored = await db.refreshSession.findUnique({

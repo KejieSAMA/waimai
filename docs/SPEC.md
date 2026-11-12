@@ -87,6 +87,7 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - `POST /auth/register`：username、password、name、phone?，严格拒绝角色字段，只授予 USER。
 - `POST /auth/login`：username、password、role?；返回 accessToken、activeRole 和安全 user（含 roles、当前 role 兼容字段、mustChangePassword），角色未授权时拒绝。
 - `POST /auth/refresh`、`GET /auth/me`、`POST /auth/switch-role`（role）、`POST /auth/logout`、`POST /auth/password`（oldPassword、password）。旧短信及分角色登录／注册端点删除。
+- `PUT /auth/me`：仅接受本人 `{ name, phone? }`，昵称修剪后 1–30 字；省略手机保留，空字符串或 null 清空。拒绝任何额外字段，事务内重新核验会话、账号状态、当前授权及首次改密限制。返回 `{ user, activeRole }` 安全资料，不轮换凭据、不撤销正常会话；仅资料实际变化时记录 `account-profile` 审计，不含手机正文。
 - `GET /admin/accounts?keyword&role&status&page&pageSize`、`GET /admin/accounts/:id`、`GET /admin/accounts/:id/audit`。
 - `POST /admin/accounts`（username、name、phone?、password、roles）、`PUT /admin/accounts/:id`（name、phone?）、`PUT /admin/accounts/:id/roles|status|password`（分别 roles、status 或 password）。创建／重置设置首次改密；不提供物理删除。
 - `GET|POST|PUT|DELETE /user/addresses`
