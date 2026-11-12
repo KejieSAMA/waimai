@@ -4,7 +4,6 @@ import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
 import { computed, watch, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useTheme } from "@waimai/tokens";
 import type { NavItem, NavGroup } from "@waimai/ui";
 import type { Role, Store } from "@waimai/shared";
 import { useRoleNotices, merchantStoreEntry } from "@waimai/shared";
@@ -21,11 +20,9 @@ import {
 import { run } from "./feedback";
 import { useAuth } from "./auth";
 import { useCart } from "./cart";
-import { switchDevice } from "./device";
 const route = useRoute(),
   router = useRouter(),
   auth = useAuth();
-const { toggle } = useTheme();
 const carts = useCart();
 const pageBody = ref<InstanceType<typeof ScrollArea>>();
 watch(
@@ -218,11 +215,6 @@ const go = (path: string) => router.push(path);
           !['OPEN', 'CLOSED'].includes(merchantStore.status)
         "
         @update:model-value="setOpen" /></template
-    ><template #topRight
-      ><Button size="sm" variant="text" @click="toggle">切换主题</Button
-      ><Button size="sm" variant="text" @click="switchDevice(true)"
-        >手机版</Button
-      ><RouterLink to="/">用户首页</RouterLink></template
     ><RouterView
   /></DesktopShell>
 </template>
