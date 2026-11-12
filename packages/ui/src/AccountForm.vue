@@ -65,9 +65,9 @@ function role(value: Role, selected: boolean) {
       label="临时密码"
       required
       type="password"
-      minlength="12"
+      minlength="8"
       autocomplete="new-password"
-      hint="至少 12 个字符；账号首次登录必须改密"
+      hint="至少 8 个字符；账号首次登录必须改密"
     />
     <div
       v-if="kind === 'create' || kind === 'edit'"

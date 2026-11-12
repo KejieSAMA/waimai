@@ -53,10 +53,10 @@ async function save() {
       label="新密码"
       type="password"
       autocomplete="new-password"
-      minlength="12"
+      minlength="8"
       required
       :disabled="pending"
-      hint="至少 12 个字符，不超过 72 字节"
+      hint="至少 8 个字符，不超过 72 字节"
     />
     <Input
       v-model="confirm"

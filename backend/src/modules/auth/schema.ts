@@ -8,8 +8,8 @@ export const usernameSchema = z
   .regex(/^[a-z0-9_-]{3,32}$/, "账号须为 3–32 位英文、数字、下划线或连字符");
 export const passwordSchema = z
   .string()
-  .min(12, "密码至少 12 个字符")
-  .refine((v) => [...v].length >= 12, "密码至少 12 个字符")
+  .min(8, "密码至少 8 个字符")
+  .refine((v) => [...v].length >= 8, "密码至少 8 个字符")
   .refine((v) => Buffer.byteLength(v, "utf8") <= 72, "密码不能超过 72 字节");
 export const phoneSchema = z
   .string()

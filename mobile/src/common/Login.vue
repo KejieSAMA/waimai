@@ -92,7 +92,7 @@ async function submit() {
       type="password"
       :autocomplete="register ? 'new-password' : 'current-password'"
       required
-      :minlength="register ? 12 : undefined"
+      :minlength="register ? 8 : undefined"
       :disabled="pending"
     />
     <template v-if="register"
