@@ -33,3 +33,5 @@ export * from "./types";
 export { default as CartSelector } from "./CartSelector.vue";
 export { default as CartItems } from "./CartItems.vue";
 export { useGroupScroll } from "./useGroupScroll";
+
+export { default as AccountForm } from "./AccountForm.vue";

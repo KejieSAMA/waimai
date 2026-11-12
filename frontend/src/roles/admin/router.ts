@@ -1,6 +1,11 @@
 import type { RouteRecordRaw } from "vue-router";
 export default [
   {
+    path: "/admin/accounts",
+    component: () => import("./pages/Accounts.vue"),
+    meta: { role: "ADMIN", protected: true, title: "账号管理" },
+  },
+  {
     path: "/admin/overview",
     component: () => import("./pages/Dashboard.vue"),
     meta: { role: "ADMIN", protected: true, title: "数据总览" },
