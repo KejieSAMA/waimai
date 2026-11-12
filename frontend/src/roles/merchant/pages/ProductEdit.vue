@@ -10,7 +10,6 @@ import {
   Select,
   Tag,
 } from "@waimai/ui";
-import PageHeader from "../../../components/PageHeader.vue";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
@@ -149,35 +148,45 @@ async function save(listed = form.listed) {
 <template>
   <BackofficePage>
     <template #header>
-      <PageHeader
-        :title="editing ? '编辑商品' : '新增商品'"
-        :breadcrumb="['商品管理', editing ? '编辑商品' : '新增商品']"
-        ><template #tag
-          ><Tag v-if="!form.listed">草稿</Tag></template
-        ></PageHeader
-      ></template
+      <div class="product-editor-heading">
+        <nav class="xz-pagehead__crumbs caption" aria-label="面包屑">
+          <span>商品管理</span><span aria-hidden="true">/</span>
+          <span class="is-current" aria-current="page">{{
+            editing ? "编辑商品" : "新增商品"
+          }}</span>
+        </nav>
+        <Tag v-if="!form.listed">草稿</Tag>
+      </div>
+    </template>
+    <form
+      id="product-editor"
+      :aria-label="editing ? '编辑商品' : '新增商品'"
+      @submit.prevent="save(form.listed)"
     >
-    <form id="product-editor" @submit.prevent="save(form.listed)">
       <div class="ds-grid ds-form">
         <div class="ds-stack">
-          <section class="ds-card">
+          <section class="ds-card product-basic">
             <h2 class="ds-card__title title">基础信息</h2>
-            <div class="ds-fields">
+            <div class="ds-fields product-basic__fields">
               <Input
                 v-model="form.name"
                 label="商品名称"
                 required
                 maxlength="30"
-                hint="最多 30 个字"
               />
-              <Select
-                v-model="form.dishCategoryId"
-                label="所属分类"
-                placeholder="选择分类"
-                :options="
-                  categories.map((c) => ({ value: c.id, label: c.name }))
-                "
-              />
+              <div class="product-basic__select">
+                <span id="product-category-label" class="body-sm"
+                  >所属分类</span
+                >
+                <Select
+                  v-model="form.dishCategoryId"
+                  aria-labelledby="product-category-label"
+                  placeholder="选择分类"
+                  :options="
+                    categories.map((c) => ({ value: c.id, label: c.name }))
+                  "
+                />
+              </div>
               <Input
                 v-model="form.price"
                 label="售价"
@@ -203,7 +212,6 @@ async function save(listed = form.listed) {
                 type="number"
                 min="0"
                 required
-                :hint="'低于 ' + form.lowStock + ' 份时提醒'"
               /><Input
                 v-model="form.limit"
                 label="每单限购"
@@ -248,9 +256,6 @@ async function save(listed = form.listed) {
                 :desc="form.description"
               />
             </div>
-            <p class="body-sm app-muted">
-              用户在店铺点餐页看到的样子，随左侧填写实时更新
-            </p>
           </section>
           <section class="ds-card">
             <h2 class="ds-card__title title">上架设置</h2>
@@ -330,6 +335,60 @@ async function save(listed = form.listed) {
 </template>
 
 <style scoped>
+.product-editor-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.product-editor-heading .xz-pagehead__crumbs {
+  margin: 0;
+}
+#product-editor {
+  container: product-editor / inline-size;
+}
+.ds-form > .ds-stack {
+  min-width: 0;
+}
+.product-basic {
+  container: product-basic / inline-size;
+}
+.product-basic__fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+.product-basic__fields :deep(.xz-field),
+.product-basic__select {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+.product-basic__fields :deep(.xz-field__label),
+.product-basic__select > span {
+  white-space: nowrap;
+}
+.product-basic__fields :deep(.xz-field__control),
+.product-basic__select :deep(.xz-select) {
+  min-width: 0;
+}
+.product-basic__fields :deep(.xz-field__hint) {
+  grid-column: 2;
+}
+@container product-basic (min-width: 640px) {
+  .product-basic__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container product-basic (min-width: 960px) {
+  .product-basic__fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container product-editor (max-width: 919px) {
+  .ds-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .category-form p {
   margin: 0;
 }
