@@ -62,7 +62,7 @@ model Store {
   logo String @default("")
   categoryId String
   category Category @relation(fields:[categoryId], references:[id])
-  city String @default("北京")
+  city String @default("")
   address String @default("")
   contactPhone String @default("")
   notice String @default("")
@@ -88,6 +88,7 @@ model Store {
   orders Order[]
   reviews Review[]
   carts Cart[]
+  visits StoreVisit[]
 }
 model Cart {
   id String @id @default(cuid())
@@ -165,6 +166,8 @@ model Order {
   addressSnapshot String @default("{}")
   createdAt DateTime @default(now())
   paidAt DateTime?
+  paidVisitId String?
+  paidVisit StoreVisit? @relation(fields:[paidVisitId], references:[id], onDelete:SetNull)
   acceptedAt DateTime?
   readyAt DateTime?
   doneAt DateTime?
@@ -177,7 +180,23 @@ model Order {
   review Review?
   @@index([storeId, createdAt])
   @@index([userId, createdAt])
+  @@index([paidVisitId])
   @@unique([userId, requestId])
+}
+model StoreVisit {
+  id String @id @default(cuid())
+  storeId String
+  store Store @relation(fields:[storeId], references:[id], onDelete:Cascade)
+  day DateTime
+  visitorHash String
+  firstSeenAt DateTime @default(now())
+  paidOrders Order[]
+  @@unique([storeId, day, visitorHash])
+  @@index([day])
+}
+model TrafficCollection {
+  id String @id
+  startedAt DateTime @default(now())
 }
 model OrderItem {
   id String @id @default(cuid())

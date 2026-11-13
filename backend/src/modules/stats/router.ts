@@ -4,7 +4,10 @@ import * as stats from "./service";
 export function registerMerchantStats(merchant: Router) {
   merchant.get(
     "/stats/today",
-    handler(async (req) => stats.overview(req.storeId)),
+    handler(async (req, res) => {
+      res.setHeader("Cache-Control", "no-store");
+      return stats.overview(req.storeId);
+    }),
   );
   merchant.get(
     "/stats/trend",

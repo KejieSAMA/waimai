@@ -30,12 +30,14 @@ import {
   cartTransaction,
 } from "../cart/service";
 import { notifyOrder } from "./events";
+import { paidVisit } from "../traffic/service";
+import { PAYMENT_TTL_MS } from "../../rules";
+export { PAYMENT_TTL_MS } from "../../rules";
 const include = {
   items: true,
   store: true,
   review: { select: { id: true } },
 } satisfies Prisma.OrderInclude;
-export const PAYMENT_TTL_MS = 15 * 60 * 1000;
 function fingerprint(
   userId: string,
   body: unknown,
@@ -228,10 +230,13 @@ function serializeOrder<
     addressSnapshot: string;
     items: OrderItem[];
     createdAt: Date;
+    paidVisitId?: string | null;
   },
 >(order: T, role: string) {
+  const { paidVisitId, ...publicOrder } = order;
+  void paidVisitId;
   const safe = {
-    ...order,
+    ...publicOrder,
     paymentExpiresAt: new Date(
       order.createdAt.getTime() + PAYMENT_TTL_MS,
     ).toISOString(),
@@ -362,6 +367,7 @@ export async function actOnOrder(
   action: string,
   storeId?: string,
   reason?: string,
+  visitor?: string,
 ) {
   let changedState = false,
     expired = false;
@@ -373,12 +379,13 @@ export async function actOnOrder(
       include,
     });
     assert(old, 404, "订单不存在");
+    const now = new Date(Date.now());
     if (
       action === "pay" &&
       old.status === "PENDING_PAY" &&
-      Date.now() >= old.createdAt.getTime() + PAYMENT_TTL_MS
+      now.getTime() >= old.createdAt.getTime() + PAYMENT_TTL_MS
     ) {
-      changedState = await cancelExpired(tx, old.id, new Date());
+      changedState = await cancelExpired(tx, old.id, now);
       expired = true;
       return tx.order.findUniqueOrThrow({ where: { id }, include });
     }
@@ -424,11 +431,15 @@ export async function actOnOrder(
       "纠纷已由平台处理",
     );
     const status = orderTransition(old.status, action, old.type);
+    const visitId =
+      action === "pay"
+        ? await paidVisit(tx, old.storeId, visitor, now)
+        : undefined;
     const changed = await tx.order.updateMany({
       where: { id, status: old.status },
       data: {
         status,
-        ...(action === "pay" ? { paidAt: new Date() } : {}),
+        ...(action === "pay" ? { paidAt: now, paidVisitId: visitId } : {}),
         ...(action === "accept" ? { acceptedAt: new Date() } : {}),
         ...(action === "ready" ? { readyAt: new Date() } : {}),
         ...(action === "complete" ? { doneAt: new Date() } : {}),

@@ -1,45 +1,41 @@
 <script setup lang="ts">
 import NavBarIcon from "../../../components/NavBarIcon.vue";
-import { ListCell, ListCellGroup, StatCard, Switch, Tag } from "@waimai/ui";
-import { computed, onMounted, ref, watch } from "vue";
+import {
+  Button,
+  ListCell,
+  ListCellGroup,
+  StatCard,
+  Switch,
+  Tag,
+} from "@waimai/ui";
+import { computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
-  type Stats,
   type Store,
-  type Order,
-  type Page,
   dashboardMoney,
+  useMerchantDashboard,
+  trafficDescription,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
+import { useAuth } from "../../../common/auth";
 import { run } from "../../../common/feedback";
 import { useOrderStream } from "../../../common/events";
+import { orderActivity } from "../../../common/orderActivity";
 const router = useRouter(),
-  store = ref<Store>(),
-  stats = ref<Stats>(),
-  trend = ref<{ label: string; value: number }[]>([]),
-  orders = ref<Order[]>([]);
-async function load() {
-  const s = await api<Store | null>("/merchant/application", {}, "MERCHANT");
-  if (!s) {
-    await router.push("/merchant/apply");
-    return;
-  }
-  store.value = s;
-  const [a, b, c] = await Promise.all([
-    api<Stats>("/merchant/stats/today", {}, "MERCHANT"),
-    api<{ label: string; value: number }[]>(
-      "/merchant/stats/trend?days=7",
-      {},
-      "MERCHANT",
-    ),
-    api<Page<Order>>("/merchant/orders?status=PENDING", {}, "MERCHANT"),
-  ]);
-  stats.value = a;
-  trend.value = b;
-  orders.value = c.list;
-}
-const stream = useOrderStream(() => run(load));
-onMounted(() => run(load));
+  auth = useAuth();
+const dashboard = useMerchantDashboard(
+  (path, options) => api(path, options, "MERCHANT"),
+  computed(() =>
+    auth.activeRole === "MERCHANT" ? (auth.account?.id ?? "") : "",
+  ),
+  orderActivity,
+  {
+    loadStore: () => api<Store | null>("/merchant/application", {}, "MERCHANT"),
+    missing: () => router.replace("/merchant/apply"),
+  },
+);
+const { store, stats } = dashboard;
+const stream = useOrderStream(() => dashboard.refresh());
 async function setOpen(value: boolean) {
   await run(async () => {
     store.value = await api<Store>(
@@ -94,6 +90,15 @@ watch(store, (value) => {
       :badge="stats?.pending"
       @click="router.push('/merchant/orders')"
   /></PageSlot>
+  <p v-if="!store || !stats" class="app-empty body-sm" role="status">
+    {{ dashboard.error.value || "正在读取经营数据" }}
+    <Button
+      v-if="dashboard.error.value"
+      variant="text"
+      @click="dashboard.refresh()"
+      >重试</Button
+    >
+  </p>
   <div v-if="store && stats" class="xz-list sc-page-list">
     <ListCellGroup
       ><ListCell
@@ -131,11 +136,22 @@ watch(store, (value) => {
         unit="人"
       /><StatCard
         size="sm"
-        label="下单转化率"
-        :value="stats.conversionRate ?? '—'"
-        unit="%"
+        label="支付转化率"
+        :value="
+          stats.conversionRate == null ? '—' : stats.conversionRate.toFixed(1)
+        "
+        :unit="stats.conversionRate == null ? '' : '%'"
       /><StatCard size="sm" label="退款" :value="stats.refunds" unit="单" />
     </div>
+    <p class="body-sm" style="color: var(--ink-muted)">
+      {{ trafficDescription(stats) }}
+    </p>
+    <p v-if="dashboard.error.value" class="body-sm" role="alert">
+      {{ dashboard.error.value }}
+      <Button variant="text" size="sm" @click="dashboard.refresh()"
+        >重试</Button
+      >
+    </p>
     <ListCellGroup title="待处理"
       ><ListCell
         v-for="item in todos"
@@ -149,10 +165,7 @@ watch(store, (value) => {
             item.count
           }}</Tag></template
         ></ListCell
-      ><ListCell
-        title="差评待回复"
-        :value="stats?.badReviews"
-        icon="star" /></ListCellGroup
+      ></ListCellGroup
     ><ListCellGroup
       ><ListCell
         title="新订单提醒"

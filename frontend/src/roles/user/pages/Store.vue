@@ -20,6 +20,7 @@ import {
   money,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
+import { useStoreTraffic } from "../../../common/traffic";
 import { useCart } from "../../../common/cart";
 import { useAuth } from "../../../common/auth";
 const route = useRoute(),
@@ -31,6 +32,7 @@ const store = ref<Store>(),
   category = ref("");
 const dishes = ref<InstanceType<typeof ScrollArea>>();
 const { jump } = useGroupScroll(() => dishes.value?.getViewport(), category);
+useStoreTraffic(computed(() => store.value?.id ?? ""));
 const products = computed(() => store.value?.products ?? []);
 const selected = (p: Product) =>
   cart.lines.find((it) => it.product.id === p.id)?.qty ?? 0;

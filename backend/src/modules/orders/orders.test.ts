@@ -692,7 +692,7 @@ describe("订单金额、库存和权限", () => {
       ),
     ).toBe(true);
   });
-  it("总览使用真实库存及退款数据，未采集的访问指标为 null", async () => {
+  it("总览使用真实库存及退款数据，已启用采集的零访客为 0 且转化无分母为 null", async () => {
     const stats = await import("../stats/service");
     const before = await stats.overview(storeId);
     const product = await db.product.findUniqueOrThrow({
@@ -711,7 +711,7 @@ describe("订单金额、库存和权限", () => {
     });
     const after = await stats.overview(storeId);
     expect(after.lowStock).toBe(before.lowStock + 1);
-    expect(after.visitors).toBeNull();
+    expect(after.visitors).toBe(0);
     expect(after.conversionRate).toBeNull();
     expect(Number.isFinite(after.refundRate)).toBe(true);
     expect(after.validOrders).toBeLessThanOrEqual(after.orders);

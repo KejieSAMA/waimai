@@ -25,6 +25,7 @@ import { registerAdminProducts } from "./modules/products/router";
 import { registerAdminStats } from "./modules/stats/router";
 import { registerAdminAudit } from "./modules/audit/router";
 import { registerAdminAccounts } from "./modules/accounts/router";
+import { registerTraffic } from "./modules/traffic/router";
 export const router = Router();
 router.use("/auth", auth);
 router.get(
@@ -33,6 +34,7 @@ router.get(
 );
 registerRouterCategories(router);
 registerRouterStores(router);
+registerTraffic(router);
 registerRouterUploads(router);
 const user = Router();
 user.use(authenticate, requireRole("USER"));

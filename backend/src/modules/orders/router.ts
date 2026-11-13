@@ -6,6 +6,8 @@ import * as orders from "./service";
 import { sessionEvents } from "../auth/events";
 import { validateSession } from "../auth/service";
 import { orderEvents } from "./events";
+import { visitorHash } from "../traffic/identity";
+import { TRAFFIC_RULES } from "../../rules";
 export function registerUserOrders(user: Router) {
   user.post(
     "/orders/preview",
@@ -33,6 +35,9 @@ export function registerUserOrders(user: Router) {
           action,
           undefined,
           action === "refund" ? reasonSchema.parse(req.body).reason : undefined,
+          action === "pay"
+            ? visitorHash(req.cookies[TRAFFIC_RULES.cookieName])
+            : undefined,
         ),
       ),
     );

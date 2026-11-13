@@ -10,51 +10,44 @@ import {
   Tag,
 } from "../../../components/pc";
 import {
-  merchantStore,
   loadMerchantStore,
   merchantStoreError,
 } from "../../../common/merchantStatus";
 import TrendChart from "../../../components/TrendChart.vue";
-import { computed, onMounted, ref } from "vue";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 import {
-  type Stats,
-  type Order,
-  type Page,
   dashboardMoney,
+  useMerchantDashboard,
+  trafficDescription,
   time,
 } from "@waimai/shared";
 import { useAuth } from "../../../common/auth";
 import { api } from "../../../common/api";
 import { run } from "../../../common/feedback";
 import { useOrderStream } from "../../../common/events";
+import { orderActivity } from "../../../common/orderActivity";
 const router = useRouter(),
-  store = merchantStore,
-  stats = ref<Stats>(),
-  trend = ref<{ label: string; value: number }[]>([]),
-  orders = ref<Order[]>([]);
-async function load() {
-  const s = await loadMerchantStore(useAuth().accounts.MERCHANT!.id);
-  if (s === null) {
-    await router.push("/merchant/apply");
-    return;
-  }
-  if (!s) throw new Error(merchantStoreError.value || "店铺加载失败");
-  const [a, b, c] = await Promise.all([
-    api<Stats>("/merchant/stats/today", {}, "MERCHANT"),
-    api<{ label: string; value: number }[]>(
-      "/merchant/stats/trend?days=7",
-      {},
-      "MERCHANT",
-    ),
-    api<Page<Order>>("/merchant/orders?status=PENDING", {}, "MERCHANT"),
-  ]);
-  stats.value = a;
-  trend.value = b;
-  orders.value = c.list;
-}
-const stream = useOrderStream(() => run(load));
-onMounted(() => run(load));
+  auth = useAuth();
+const dashboard = useMerchantDashboard(
+  (path, options) => api(path, options, "MERCHANT"),
+  computed(() =>
+    auth.activeRole === "MERCHANT" ? (auth.account?.id ?? "") : "",
+  ),
+  orderActivity,
+  {
+    async loadStore() {
+      const result = await loadMerchantStore(auth.account!.id);
+      if (result === undefined)
+        throw new Error(merchantStoreError.value || "店铺加载失败");
+      return result;
+    },
+    missing: () => router.replace("/merchant/apply"),
+  },
+);
+const { store, stats, trend, orders } = dashboard;
+const load = () => dashboard.refresh();
+const stream = useOrderStream(load);
 const todos = computed(() =>
   stats.value
     ? [
@@ -117,11 +110,22 @@ async function accept(id: string) {
         :value="stats.visitors ?? '—'"
         unit="人"
       /><StatCard
-        label="下单转化率"
-        :value="stats.conversionRate ?? '—'"
-        unit="%"
+        label="支付转化率"
+        :value="
+          stats.conversionRate == null ? '—' : stats.conversionRate.toFixed(1)
+        "
+        :unit="stats.conversionRate == null ? '' : '%'"
       />
     </div>
+    <p class="body-sm" style="color: var(--ink-muted)">
+      {{ trafficDescription(stats) }}
+    </p>
+    <p v-if="dashboard.error.value" class="body-sm" role="alert">
+      {{ dashboard.error.value }}
+      <Button variant="text" size="sm" @click="dashboard.refresh()"
+        >重试</Button
+      >
+    </p>
     <div class="ds-grid ds-main">
       <TrendChart
         :data="trend"
@@ -142,8 +146,8 @@ async function accept(id: string) {
               item.count
             }}</Tag></template
           ></ListCell
-        ><ListCell title="差评待回复" :value="stats?.badReviews" icon="star"
-      /></ListCellGroup>
+        ></ListCellGroup
+      >
     </div>
     <div class="ds-section">
       <span class="title-sm">新订单</span>
@@ -192,4 +196,15 @@ async function accept(id: string) {
     </div>
     <p v-if="!orders.length" class="app-empty body-sm">暂无新订单</p>
   </BackofficePage>
+  <BackofficePage v-else
+    ><p class="app-empty body-sm" role="status">
+      {{ dashboard.error.value || "正在读取经营数据" }}
+      <Button
+        v-if="dashboard.error.value"
+        variant="text"
+        @click="dashboard.refresh()"
+        >重试</Button
+      >
+    </p></BackofficePage
+  >
 </template>

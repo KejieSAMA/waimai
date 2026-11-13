@@ -20,6 +20,7 @@ import {
   money,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
+import { useStoreTraffic } from "../../../common/traffic";
 import { useCart } from "../../../common/cart";
 import { useAuth } from "../../../common/auth";
 import PageSlot from "../../../components/PageSlot.vue";
@@ -30,6 +31,7 @@ const route = useRoute(),
 const cart = carts.forStore(String(route.params.id));
 const store = ref<Store>(),
   category = ref("");
+useStoreTraffic(computed(() => store.value?.id ?? ""));
 const keyword = ref(""),
   searchOpen = ref(false),
   dishList = ref<HTMLElement>();

@@ -1,4 +1,7 @@
 export * from "./device";
+export * from "./rules";
+export * from "./traffic";
+export * from "./merchantDashboard";
 export * from "./userOrders";
 export * from "./userOrderDetail";
 export * from "./merchantProducts";
@@ -186,6 +189,13 @@ export interface Stats {
   expiringLicenses: number;
   visitors: number | null;
   conversionRate: number | null;
+  convertedVisitors?: number | null;
+  traffic?: {
+    collectionStartedAt: string;
+    day: string;
+    timezone: "Asia/Shanghai";
+    partialDay: boolean;
+  } | null;
   revenueCents: number;
   orders: number;
   stores: number;

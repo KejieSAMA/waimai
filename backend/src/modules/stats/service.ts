@@ -3,6 +3,7 @@ import { orderStats, dailyStoreOrders } from "../orders/service";
 import { storeCounts, rankings, expiringLicenses } from "../stores/service";
 import { productCount, productSummary } from "../products/service";
 import { shanghaiDay } from "../../http";
+import { trafficStats } from "../traffic/service";
 export async function overview(storeId?: string) {
   const [orders, stores, products, productDetails, licenses] =
     await Promise.all([
@@ -20,8 +21,14 @@ export async function overview(storeId?: string) {
     ...productDetails,
     expiringLicenses: licenses,
     newStores: stores.newStores,
-    visitors: null,
-    conversionRate: null,
+    ...(storeId
+      ? await trafficStats(storeId)
+      : {
+          visitors: null,
+          convertedVisitors: null,
+          conversionRate: null,
+          traffic: null,
+        }),
   };
 }
 export async function trend(value: unknown, storeId?: string) {

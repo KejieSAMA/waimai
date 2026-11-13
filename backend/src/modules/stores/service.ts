@@ -19,6 +19,14 @@ import { recordAudit } from "../audit/service";
 import { privateOwner } from "../uploads/service";
 import { categoryExists } from "../categories/service";
 import { storeSchema, applicationSchema, managedStoreSchema } from "./schema";
+export async function visibleStore(id: string) {
+  const store = await db.store.findFirst({
+    where: { id, status: { in: ["OPEN", "CLOSED"] } },
+    select: { id: true, ownerId: true },
+  });
+  assert(store, 404, "店铺不存在");
+  return store;
+}
 export async function createManagedStore(
   tx: Prisma.TransactionClient,
   ownerId: string,

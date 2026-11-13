@@ -93,6 +93,7 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 - `GET /public/categories` 平台类目
 - `GET /public/stores?categoryId&sort=default|distance|sales|minOrder&page` 营业中 + 休息中的店铺（冻结、待审核、驳回的不返回）
 - `GET /public/stores/:id` 店铺详情 + 菜品分组 + 在售 / 售罄商品
+- `POST /public/stores/:id/visits` 空对象登记可见店铺访问；匿名 Cookie 确认后按店铺／上海自然日／浏览器去重，受限流及可选认证核验，不能提交数量或转化。规则见 TRAFFIC_METRICS.md。
 - `GET /public/stores/:id/reviews?page&pageSize` 可见店铺的公开评价，仅 ID、评分、正文、商家回复。
 
 用户 `user`
@@ -134,6 +135,7 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 - 订单列表另支持 `stage=PENDING|PREPARING|DELIVERING|REFUNDING`，配送分组包含待自提，保留给现有客户端；PC 新列表按精确 status 分组并使用统一固定分页。
 - `POST /merchant/orders/:id/accept|reject|ready|refund-approve|refund-reject`
 - `GET /merchant/stats/today`、`GET /merchant/stats/trend?days=7`、`GET /merchant/todos`
+- 今日统计的 visitors 为真实浏览器 UV，convertedVisitors 为其中同日同店支付成功 UV，conversionRate 为百分数（无访客 null），traffic 包含持久采集起点、统计日、Asia/Shanghai 与首日部分数据标记；管理端不汇总平台 UV。支付归因只随首次支付成功事务写入，退款不撤销，匿名明细保留 30 日，详见 TRAFFIC_METRICS.md。
 
 管理 `admin`
 
