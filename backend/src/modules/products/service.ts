@@ -16,6 +16,11 @@ export const findProduct = (
   storeId: string,
   tx: Prisma.TransactionClient = db,
 ) => tx.product.findFirst({ where: { id, storeId } });
+export const cartProducts = (
+  storeId: string,
+  ids: string[],
+  tx: Prisma.TransactionClient = db,
+) => tx.product.findMany({ where: { storeId, id: { in: ids } } });
 export async function listProducts(
   query: Record<string, unknown>,
   storeId?: string,

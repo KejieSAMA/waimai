@@ -21,6 +21,8 @@ model User {
   orders Order[]
   reviews Review[]
   sessions RefreshSession[]
+  carts Cart[]
+  cartMerges CartMerge[]
 }
 model UserRole {
   userId String
@@ -84,6 +86,28 @@ model Store {
   promotions Promotion[]
   orders Order[]
   reviews Review[]
+  carts Cart[]
+}
+model Cart {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  storeId String
+  store Store @relation(fields:[storeId], references:[id], onDelete:Cascade)
+  version Int @default(1)
+  type String @default("DELIVERY")
+  addressId String @default("")
+  note String @default("")
+  items String @default("[]")
+  updatedAt DateTime @updatedAt
+  @@unique([userId, storeId])
+}
+model CartMerge {
+  guestId String @id
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  issues String @default("[]")
+  createdAt DateTime @default(now())
 }
 model DishCategory {
   id String @id @default(cuid())
@@ -126,6 +150,7 @@ model Order {
   orderNo String @unique
   serialOfDay Int
   userId String
+  requestId String?
   user User @relation(fields:[userId], references:[id])
   storeId String
   store Store @relation(fields:[storeId], references:[id])
@@ -151,6 +176,7 @@ model Order {
   review Review?
   @@index([storeId, createdAt])
   @@index([userId, createdAt])
+  @@unique([userId, requestId])
 }
 model OrderItem {
   id String @id @default(cuid())

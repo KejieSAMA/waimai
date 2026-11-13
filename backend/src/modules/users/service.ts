@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { db } from "../../db";
 import { assert } from "../../http";
 import { phoneSchema } from "../auth/schema";
@@ -10,8 +11,11 @@ const addressSchema = z.object({
 });
 export const listAddresses = (userId: string) =>
   db.address.findMany({ where: { userId }, orderBy: { isDefault: "desc" } });
-export const ownedAddress = (id: string, userId: string) =>
-  db.address.findFirst({ where: { id, userId } });
+export const ownedAddress = (
+  id: string,
+  userId: string,
+  tx: Prisma.TransactionClient = db,
+) => tx.address.findFirst({ where: { id, userId } });
 export async function saveAddress(
   userId: string,
   id: string | undefined,

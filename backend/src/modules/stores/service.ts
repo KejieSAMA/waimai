@@ -10,6 +10,11 @@ import { categoryExists } from "../categories/service";
 import { storeSchema, applicationSchema } from "./schema";
 export const ownStore = (ownerId: string) =>
   db.store.findUnique({ where: { ownerId } });
+export const cartStore = (id: string, tx: Prisma.TransactionClient = db) =>
+  tx.store.findUnique({
+    where: { id },
+    select: { id: true, name: true, logo: true, status: true },
+  });
 export function safeStore<T extends Store>(store: T) {
   const {
     ownerId,

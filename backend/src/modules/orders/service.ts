@@ -17,9 +17,13 @@ import {
 } from "../products/service";
 import { ownedAddress } from "../users/service";
 import { recordAudit } from "../audit/service";
-import { orderSchema } from "./schema";
+import { orderSchema, createOrderSchema } from "./schema";
+import {
+  checkOrderCart,
+  consumeOrderCart,
+  cartTransaction,
+} from "../cart/service";
 import { notifyOrder } from "./events";
-type OrderInput = z.infer<typeof orderSchema>;
 const include = {
   items: true,
   store: true,
@@ -86,13 +90,36 @@ export async function quoteOrder(
   };
 }
 export async function createOrder(userId: string, body: unknown) {
-  const input: OrderInput = orderSchema.parse(body);
-  const address =
-    input.type === "DELIVERY"
-      ? await ownedAddress(input.addressId ?? "", userId)
-      : null;
-  assert(input.type !== "DELIVERY" || address, 400, "请选择收货地址");
-  return db.$transaction(async (tx) => {
+  const input = createOrderSchema.parse(body);
+  return cartTransaction(async (tx) => {
+    if (input.requestId) {
+      const existing = await tx.order.findUnique({
+        where: { userId_requestId: { userId, requestId: input.requestId } },
+        include,
+      });
+      if (existing) {
+        assert(
+          existing.storeId === input.storeId &&
+            existing.type === input.type &&
+            existing.note === input.note &&
+            JSON.stringify(
+              existing.items.map((i) => [i.productId, i.qty]).sort(),
+            ) ===
+              JSON.stringify(
+                input.items.map((i) => [i.productId, i.qty]).sort(),
+              ),
+          409,
+          "提交标识已使用，请重新核对订单",
+        );
+        return serializeOrder(existing, "USER");
+      }
+    }
+    const address =
+      input.type === "DELIVERY"
+        ? await ownedAddress(input.addressId ?? "", userId, tx)
+        : null;
+    assert(input.type !== "DELIVERY" || address, 400, "请选择收货地址");
+    await checkOrderCart(userId, input, tx);
     const quote = await quoteOrder(input, tx);
     assert(quote.checkoutAllowed, 409, "未达到起送金额");
     for (const it of quote.items) {
@@ -109,6 +136,7 @@ export async function createOrder(userId: string, body: unknown) {
         orderNo: Date.now() + randomUUID().replaceAll("-", "").slice(0, 12),
         serialOfDay,
         userId,
+        requestId: input.requestId,
         storeId: input.storeId,
         type: input.type,
         note: input.note,
@@ -136,6 +164,7 @@ export async function createOrder(userId: string, body: unknown) {
       },
       include,
     });
+    await consumeOrderCart(userId, input.storeId, input.cartRevision, tx);
     return serializeOrder(order, "USER");
   });
 }
@@ -213,6 +242,9 @@ export async function listOrders(
             : {};
   const where: Prisma.OrderWhereInput = {
     ...scopedWhere(actor, storeId),
+    ...(actor.role === "USER" && typeof query.requestId === "string"
+      ? { requestId: query.requestId }
+      : {}),
     ...(disputes ? { disputed: true, status: "REFUNDING" } : {}),
     ...(p.status ? { status: p.status } : {}),
     ...(p.keyword ? { orderNo: { contains: p.keyword } } : {}),

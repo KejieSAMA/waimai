@@ -14,3 +14,10 @@ export const orderSchema = z.object({
     .min(1)
     .max(100),
 });
+export const createOrderSchema = orderSchema.extend({
+  cartRevision: z.number().int().min(1).optional(),
+  requestId: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{16,100}$/)
+    .optional(),
+});
