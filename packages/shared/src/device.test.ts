@@ -1,21 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   detectDeviceMode,
-  deviceUrl,
-  parseDevicePreference,
   resolveDeviceRedirect,
-  watchDeviceRouting,
-  type DevicePreference,
   type DeviceRouteState,
+  consumeDeviceEntry,
+  deviceNavigationUrl,
+  watchDeviceRouting,
 } from "./device";
-
 const desktop: DeviceRouteState = {
   pathname: "/store/store-0",
   search: "?category=noodles",
   hash: "#dishes",
   userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
   platform: "Win32",
-  preference: null,
 };
 
 describe("浏览器设备识别", () => {
@@ -60,204 +57,64 @@ describe("浏览器设备识别", () => {
   });
 });
 
-describe("设备偏好格式与作用范围", () => {
-  it.each([
-    "mobile",
-    "desktop",
-    '"mobile"',
-    '"desktop"',
-    "",
-    "broken",
-    "null",
-    "[]",
-    '{"version":1,"mode":"mobile","detectedMode":"desktop"}',
-    '{"version":2,"mode":"mobile"}',
-    '{"version":2,"mode":"invalid","detectedMode":"desktop"}',
-    '{"version":2,"mode":"mobile","detectedMode":"invalid"}',
-  ])("忽略旧偏好或无效记录 %s", (raw) => {
-    expect(parseDevicePreference(raw)).toBeNull();
-  });
-
-  it("无存储时正常自动识别", () => {
-    expect(parseDevicePreference(null)).toBeNull();
-  });
-
-  it.each(["mobile", "desktop"] as const)("读取版本化的 %s 偏好", (mode) => {
-    const preference: DevicePreference = {
-      version: 2,
-      mode,
-      detectedMode: "desktop",
-    };
-    expect(parseDevicePreference(JSON.stringify(preference))).toEqual(
-      preference,
-    );
-  });
-
-  it("同一设备状态下应用手动选择，但不改变设备识别结果", () => {
-    const state: DeviceRouteState = {
-      ...desktop,
-      preference: { version: 2, mode: "mobile", detectedMode: "desktop" },
-    };
-    expect(detectDeviceMode(state)).toBe("desktop");
-    expect(resolveDeviceRedirect(state)).toBe(
-      "/mobile/store/store-0?category=noodles#dishes",
-    );
-    expect(
-      resolveDeviceRedirect({ ...state, pathname: "/mobile/store/store-0" }),
-    ).toBeNull();
-  });
-
-  it("设备状态改变后不再应用此前的版本选择", () => {
-    const state: DeviceRouteState = {
-      ...desktop,
-      mobileHint: true,
-      preference: { version: 2, mode: "desktop", detectedMode: "desktop" },
-    };
-    expect(resolveDeviceRedirect(state)).toBe(
-      "/mobile/store/store-0?category=noodles#dishes",
-    );
+describe("自动来源仅跨本次跳转", () => {
+  it("双向自动分流保留路径、参数和锚点，直接手机版优先", () => {
     expect(
       resolveDeviceRedirect({
-        ...state,
-        mobileHint: false,
+        ...desktop,
         pathname: "/mobile/store/store-0",
-        preference: { version: 2, mode: "mobile", detectedMode: "mobile" },
+        automaticEntry: true,
       }),
     ).toBe("/store/store-0?category=noodles#dishes");
+    expect(
+      resolveDeviceRedirect({
+        ...desktop,
+        pathname: "/mobile/store/store-0",
+        automaticEntry: false,
+      }),
+    ).toBeNull();
+    expect(
+      resolveDeviceRedirect({
+        ...desktop,
+        mobileHint: true,
+        automaticEntry: true,
+      }),
+    ).toBe("/mobile/store/store-0?category=noodles#dishes");
   });
-});
-
-describe("设备路径切换", () => {
   it.each([
-    "/store/store-0",
-    "/orders/order-1",
-    "/merchant/products/product-1/edit",
-    "/merchant/dashboard",
-    "/admin/audit/store-1",
-    "/admin/overview",
-    "/me",
-    "/merchant/me",
-    "/admin/me",
-    "/addresses",
-  ])("双向切换保留页面 %s", (pathname) => {
-    expect(deviceUrl({ ...desktop, pathname }, "mobile")).toBe(
-      `/mobile${pathname}${desktop.search}${desktop.hash}`,
-    );
-    expect(
-      deviceUrl({ ...desktop, pathname: `/mobile${pathname}` }, "desktop"),
-    ).toBe(`${pathname}${desktop.search}${desktop.hash}`);
-  });
-
-  it("保留登录回跳参数的编码和页面锚点", () => {
-    expect(
-      deviceUrl(
-        {
-          pathname: "/login",
-          search: "?redirect=%2Forders%2Forder-1%3Fx%3D1",
-          hash: "#form",
-        },
-        "mobile",
-      ),
-    ).toBe("/mobile/login?redirect=%2Forders%2Forder-1%3Fx%3D1#form");
-  });
-
-  it("正确处理根路径以及完整 mobile 路径边界", () => {
-    expect(deviceUrl({ pathname: "/", search: "", hash: "" }, "mobile")).toBe(
-      "/mobile/",
-    );
-    for (const pathname of ["/mobile", "/mobile/"])
-      expect(deviceUrl({ pathname, search: "", hash: "" }, "desktop")).toBe(
-        "/",
-      );
-    expect(
-      deviceUrl({ ...desktop, pathname: "/mobile-store" }, "desktop"),
-    ).toBe("/mobile-store?category=noodles#dishes");
-  });
-
-  it.each([
-    ["/", false, null],
-    ["/", true, "/mobile/"],
-    ["/mobile/", false, "/"],
-    ["/mobile/", true, null],
-  ] as const)(
-    "首页 %s 的手机标识 %s 对应 %s",
-    (pathname, mobileHint, expected) => {
-      expect(
-        resolveDeviceRedirect({
-          ...desktop,
-          pathname,
-          search: "",
-          hash: "",
-          mobileHint,
-        }),
-      ).toBe(expected);
-    },
-  );
-
-  it.each([true, false])(
-    "设备标识为 %s 时双端判断一致，跳转后不再重复",
-    (mobileHint) => {
-      const state = { ...desktop, mobileHint };
-      const from = mobileHint
-        ? state
-        : { ...state, pathname: "/mobile/store/store-0" };
-      expect(resolveDeviceRedirect(from)).toBe(
-        deviceUrl(state, detectDeviceMode(state)),
-      );
-      const pathname = mobileHint ? "/mobile/store/store-0" : "/store/store-0";
-      expect(resolveDeviceRedirect({ ...state, pathname })).toBeNull();
-    },
-  );
-});
-
-describe("设备状态监听", () => {
-  it("初次检测到手机时立即跳转，无须等页面挂载", () => {
-    const replace = vi.fn();
-    const subscribe = vi.fn();
-    const result = watchDeviceRouting({
-      read: () => ({ ...desktop, mobileHint: true }),
-      replace,
-      subscribe,
+    "",
+    "?a=%2Forders%3Fx%3D1",
+    "?a=%20&&x=2",
+    "?__xz_auto_entry=other",
+  ])("传输标记消费后恢复原始查询 %s", (search) => {
+    const url = deviceNavigationUrl("/mobile/orders" + search + "#items");
+    const taggedSearch = url.slice(url.indexOf("?"), url.indexOf("#"));
+    expect(consumeDeviceEntry(taggedSearch)).toEqual({
+      automaticEntry: true,
+      search,
     });
-    expect(result.redirected).toBe(true);
-    expect(replace).toHaveBeenCalledExactlyOnceWith(
-      "/mobile/store/store-0?category=noodles#dishes",
-    );
+    expect(consumeDeviceEntry(search)).toEqual({
+      automaticEntry: false,
+      search,
+    });
+  });
+  it("明确手机版不订阅；自动手机版检测设备改变后只跳转一次并清理监听", () => {
+    let state = {
+      ...desktop,
+      pathname: "/mobile/orders",
+      mobileHint: true,
+      automaticEntry: false,
+    };
+    const subscribe = vi.fn(),
+      replace = vi.fn();
+    expect(
+      watchDeviceRouting({ read: () => state, replace, subscribe }).redirected,
+    ).toBe(false);
     expect(subscribe).not.toHaveBeenCalled();
-  });
-
-  it("状态变化使用当前页面地址，并在跳转时清理监听", () => {
-    let state = { ...desktop };
+    state = { ...state, automaticEntry: true };
     let check = () => {};
-    const stop = vi.fn();
-    const replace = vi.fn();
-    const result = watchDeviceRouting({
-      read: () => state,
-      replace,
-      subscribe(callback) {
-        check = callback;
-        return stop;
-      },
-    });
-    expect(result.redirected).toBe(false);
-    check();
-    expect(replace).not.toHaveBeenCalled();
-    state = { ...state, pathname: "/orders/order-2", mobileHint: true };
-    check();
-    check();
-    result.stop();
-    expect(replace).toHaveBeenCalledExactlyOnceWith(
-      "/mobile/orders/order-2?category=noodles#dishes",
-    );
-    expect(stop).toHaveBeenCalledOnce();
-  });
-
-  it("卸载或热更新后不再响应设备状态，重复清理安全", () => {
-    let check = () => {};
-    const replace = vi.fn();
     const unsubscribe = vi.fn();
-    const state = { ...desktop };
-    const result = watchDeviceRouting({
+    const routing = watchDeviceRouting({
       read: () => state,
       replace,
       subscribe(callback) {
@@ -265,11 +122,104 @@ describe("设备状态监听", () => {
         return unsubscribe;
       },
     });
-    result.stop();
-    result.stop();
-    state.mobileHint = true;
+    state = { ...state, mobileHint: false };
     check();
+    check();
+    routing.stop();
+    expect(replace).toHaveBeenCalledExactlyOnceWith(
+      "/orders?category=noodles&__xz_auto_entry=1#dishes",
+    );
     expect(unsubscribe).toHaveBeenCalledOnce();
-    expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("按入口分流", () => {
+  it.each([
+    "/",
+    "/merchant",
+    "/admin",
+    "/store/store-0",
+    "/orders/order-1",
+    "/merchant/products/product-1/edit",
+    "/admin/audit/store-1",
+    "/me",
+    "/merchant/me",
+    "/admin/me",
+  ])("无前缀 %s 按设备决定是否跳转且保留完整地址", (pathname) => {
+    const state = { ...desktop, pathname };
+    expect(resolveDeviceRedirect(state)).toBeNull();
+    const target = resolveDeviceRedirect({ ...state, mobileHint: true });
+    expect(target).toBe(`/mobile${pathname}${desktop.search}${desktop.hash}`);
+    expect(
+      resolveDeviceRedirect({
+        ...state,
+        mobileHint: true,
+        pathname: "/mobile" + pathname,
+      }),
+    ).toBeNull();
+  });
+  it.each([
+    "/mobile",
+    "/mobile/",
+    "/mobile/store/store-0",
+    "/mobile/merchant",
+    "/mobile/admin/audit/store-1",
+    "/mobile/settings",
+    "/mobile/account/profile",
+  ])("明确的手机版入口 %s 在电脑和手机均保持", (pathname) => {
+    for (const mobileHint of [true, false, undefined])
+      expect(
+        resolveDeviceRedirect({ ...desktop, pathname, mobileHint }),
+      ).toBeNull();
+  });
+  it("无前缀手机首页进入 /mobile/，电脑首页保留", () => {
+    expect(
+      resolveDeviceRedirect({
+        ...desktop,
+        pathname: "/",
+        search: "",
+        hash: "",
+      }),
+    ).toBeNull();
+    expect(
+      resolveDeviceRedirect({
+        ...desktop,
+        pathname: "/",
+        search: "",
+        hash: "",
+        mobileHint: true,
+      }),
+    ).toBe("/mobile/");
+  });
+  it("登录回跳参数原样保留，不解码或重复编码", () => {
+    expect(
+      resolveDeviceRedirect({
+        ...desktop,
+        pathname: "/admin/login",
+        search: "?redirect=%2Fadmin%2Forders%3Fstatus%3DPENDING",
+        hash: "#form",
+        mobileHint: true,
+      }),
+    ).toBe(
+      "/mobile/admin/login?redirect=%2Fadmin%2Forders%3Fstatus%3DPENDING#form",
+    );
+  });
+  it.each(["/mobile-store", "/mobiles", "/mobile.html"])(
+    "路径 %s 不属于手机版前缀",
+    (pathname) => {
+      expect(
+        resolveDeviceRedirect({ ...desktop, pathname, mobileHint: true }),
+      ).toBe(`/mobile${pathname}${desktop.search}${desktop.hash}`);
+    },
+  );
+  it("手机版路径优先于设备信息，不会触发反向跳转", () => {
+    const state = {
+      ...desktop,
+      pathname: "/mobile/",
+      get mobileHint(): boolean {
+        throw new Error("不应读取设备标识");
+      },
+    };
+    expect(resolveDeviceRedirect(state)).toBeNull();
   });
 });

@@ -6,7 +6,6 @@ import InfoList from "../../../components/InfoList.vue";
 import { phoneTail } from "@waimai/shared";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../../common/auth";
-import { switchDevice } from "../../../common/device";
 import { run, busy } from "../../../common/feedback";
 const auth = useAuth(),
   router = useRouter();
@@ -20,11 +19,6 @@ async function logout() {
 </script>
 <template>
   <BackofficePage class="app-stack">
-    <template #header>
-      <div class="bo-page__actions">
-        <Button variant="outline" @click="switchDevice(true)">手机版</Button>
-      </div>
-    </template>
     <section class="app-card app-stack" aria-label="账号信息">
       <h2 class="title-sm">账号信息</h2>
       <InfoList
