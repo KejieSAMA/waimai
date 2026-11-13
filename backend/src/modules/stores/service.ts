@@ -1,3 +1,8 @@
+import {
+  storeMetrics,
+  withStoreMetrics,
+  withProductMetrics,
+} from "../orders/metrics";
 import { z } from "zod";
 import { Prisma, type Store } from "@prisma/client";
 import { db } from "../../db";
@@ -8,8 +13,10 @@ import { recordAudit } from "../audit/service";
 import { privateOwner } from "../uploads/service";
 import { categoryExists } from "../categories/service";
 import { storeSchema, applicationSchema } from "./schema";
-export const ownStore = (ownerId: string) =>
-  db.store.findUnique({ where: { ownerId } });
+export const ownStore = async (ownerId: string) => {
+  const row = await db.store.findUnique({ where: { ownerId } });
+  return row ? (await withStoreMetrics([row]))[0] : null;
+};
 export const cartStore = (id: string, tx: Prisma.TransactionClient = db) =>
   tx.store.findUnique({
     where: { id },
@@ -60,7 +67,7 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
     ...(p.keyword ? { name: { contains: p.keyword } } : {}),
   };
   const sort = z
-    .enum(["default", "distance", "sales", "minOrder"])
+    .enum(["default", "sales", "minOrder"])
     .default("default")
     .parse(query.sort);
   const orderBy: Prisma.StoreOrderByWithRelationInput =
@@ -69,12 +76,24 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
       : sort === "minOrder"
         ? { minOrderCents: "asc" }
         : { createdAt: "asc" };
+  let ranked: string[] | undefined;
+  if (sort === "sales") {
+    const candidates = await db.store.findMany({ where, select: { id: true } });
+    const metrics = await storeMetrics(candidates.map((c) => c.id));
+    ranked = candidates
+      .sort(
+        (a, b) =>
+          metrics.get(b.id)!.monthlySales - metrics.get(a.id)!.monthlySales ||
+          a.id.localeCompare(b.id),
+      )
+      .slice(p.skip, p.skip + p.pageSize)
+      .map((c) => c.id);
+  }
   const [list, total] = await Promise.all([
     db.store.findMany({
-      where,
+      where: ranked ? { ...where, id: { in: ranked } } : where,
       orderBy,
-      skip: p.skip,
-      take: p.take,
+      ...(ranked ? {} : { skip: p.skip, take: p.take }),
       include: {
         category: true,
         promotions: true,
@@ -83,7 +102,13 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
     }),
     db.store.count({ where }),
   ]);
-  const result = pageResult(admin ? list : list.map(safeStore), total, p);
+  if (ranked) list.sort((a, b) => ranked.indexOf(a.id) - ranked.indexOf(b.id));
+  const enriched = await withStoreMetrics(list);
+  const result = pageResult(
+    admin ? enriched : enriched.map(safeStore),
+    total,
+    p,
+  );
   if (!admin) return result;
   const groups = await db.store.groupBy({
     by: ["status"],
@@ -125,7 +150,8 @@ export async function storeDetail(id: string, admin = false) {
   );
   const result = {
     ...store,
-    products: store.products.map((p) => ({
+    ...(await storeMetrics([store.id])).get(store.id)!,
+    products: (await withProductMetrics(store.products)).map((p) => ({
       ...p,
       displayStatus: p.status === "ON" && p.stock === 0 ? "SOLDOUT" : p.status,
     })),
@@ -250,24 +276,16 @@ export async function expiringLicenses(storeId?: string) {
     },
   });
 }
-export const rankings = async (ids?: string[]) =>
-  (
-    await db.store.findMany({
-      where: ids ? { id: { in: ids } } : { status: "OPEN" },
-      orderBy: { monthlySales: "desc" },
-      take: ids ? undefined : 10,
-      include: { category: true },
-    })
-  ).map(safeStore);
-
-export const recordStoreSale = (
-  tx: Prisma.TransactionClient,
-  storeId: string,
-) =>
-  tx.store.update({
-    where: { id: storeId },
-    data: { monthlySales: { increment: 1 } },
+export const rankings = async (ids?: string[]) => {
+  const rows = await db.store.findMany({
+    where: ids ? { id: { in: ids } } : { status: "OPEN" },
+    include: { category: true },
   });
+  const enriched = (await withStoreMetrics(rows)).sort(
+    (a, b) => b.monthlySales - a.monthlySales || a.id.localeCompare(b.id),
+  );
+  return (ids ? enriched : enriched.slice(0, 10)).map(safeStore);
+};
 
 export async function freezeForAccount(
   tx: Prisma.TransactionClient,

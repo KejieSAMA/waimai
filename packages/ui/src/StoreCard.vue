@@ -5,7 +5,7 @@ withDefaults(
   defineProps<{
     name: string;
     logo?: string;
-    rating?: number;
+    rating?: number | null;
     sales?: string;
     time?: string;
     distance?: string;
@@ -41,7 +41,8 @@ withDefaults(
       </div>
       <div class="xz-store__row body-sm">
         <span v-if="rating != null" class="xz-store__rating"
-          ><Icon name="star" :size="13" />{{ rating }}分</span
+          ><Icon name="star" :size="13" />{{ rating.toFixed(1) }}分</span
+        ><span v-else class="body-sm">暂无评分</span
         ><span v-if="sales">月售 {{ sales }}</span
         ><span class="xz-store__spacer">{{
           [time, distance].filter(Boolean).join(" · ")

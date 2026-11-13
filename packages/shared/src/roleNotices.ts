@@ -1,6 +1,10 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
 import type { Role, Stats } from "./index";
 const listeners = new Set<(role: Role) => void>();
+export function onRoleDataInvalidated(callback: (role: Role) => void) {
+  listeners.add(callback);
+  onScopeDispose(() => listeners.delete(callback));
+}
 export function invalidateRoleData(role: Role) {
   for (const listener of listeners) listener(role);
 }

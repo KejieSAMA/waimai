@@ -93,7 +93,8 @@ export interface Store {
   status: StoreStatus;
   rejectReason: string | null;
   frozenReason: string | null;
-  rating: number;
+  rating: number | null;
+  reviewCount?: number;
   monthlySales: number;
   licenseImage?: string;
   foodPermitImage?: string;

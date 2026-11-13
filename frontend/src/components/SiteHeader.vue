@@ -12,6 +12,7 @@ const emit = defineEmits<{
   login: [];
   cart: [];
   account: [];
+  address: [];
 }>();
 const { theme, toggle } = useTheme();
 </script>
@@ -19,9 +20,13 @@ const { theme, toggle } = useTheme();
   <header class="xz-site">
     <div class="xz-site__inner">
       <span class="xz-site__brand title-lg">盟信</span
-      ><span class="xz-site__place body-md"
-        ><Icon name="location" :size="18" />{{ location || "望京 SOHO" }}</span
+      ><button
+        type="button"
+        class="xz-site__place body-md site-address"
+        @click="emit('address')"
       >
+        <Icon name="location" :size="18" />{{ location || "选择收货地址" }}
+      </button>
       <nav class="xz-site__links" aria-label="网站导航">
         <button
           type="button"
@@ -93,5 +98,24 @@ const { theme, toggle } = useTheme();
   color: inherit;
   cursor: pointer;
   min-height: var(--size-button-md);
+}
+</style>
+
+<style scoped>
+.site-address {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  max-width: calc(var(--size-cart-panel) * 1.2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.site-address:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: var(--space-1);
 }
 </style>

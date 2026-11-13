@@ -198,7 +198,14 @@ watch(
           <Tag :tone="storeStatuses[store.status].tone">{{
             storeStatuses[store.status].label
           }}</Tag
-          ><span>{{ store.rating }} 分 · 月售 {{ store.monthlySales }}+</span>
+          ><span
+            >{{
+              store.rating == null
+                ? "暂无评分"
+                : store.rating.toFixed(1) + " 分"
+            }}
+            · 月售 {{ store.monthlySales }}+</span
+          >
         </div>
         <div class="app-store-promotions">
           <Tag
@@ -231,7 +238,7 @@ watch(
       class="ds-tabs"
       :items="[
         { key: 'dishes', label: '点菜' },
-        { key: 'reviews', label: '评价 ' + store.rating },
+        { key: 'reviews', label: '评价 ' + (store.reviewCount ?? 0) },
         { key: 'store', label: '商家' },
       ]"
     />

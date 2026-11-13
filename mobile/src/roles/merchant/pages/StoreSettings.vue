@@ -12,7 +12,7 @@ const store = ref<Store | null>(null),
 const form = reactive({
   name: "",
   categoryId: "",
-  city: "北京",
+  city: "",
   address: "",
   contactPhone: "",
   notice: "",

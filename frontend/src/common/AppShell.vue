@@ -6,7 +6,11 @@ import { computed, watch, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { NavItem, NavGroup } from "@waimai/ui";
 import type { Role, Store } from "@waimai/shared";
-import { useRoleNotices, merchantStoreEntry } from "@waimai/shared";
+import {
+  useRoleNotices,
+  merchantStoreEntry,
+  onRoleDataInvalidated,
+} from "@waimai/shared";
 import { api } from "./api";
 import {
   merchantStore,
@@ -41,10 +45,50 @@ watch(
 );
 const role = computed(
   () =>
-    String(route.meta.role ?? "USER").toLowerCase() as
-      "user" | "merchant" | "admin",
+    String(
+      route.meta.accountArea
+        ? (auth.activeRole ?? "USER")
+        : (route.meta.role ?? "USER"),
+    ).toLowerCase() as "user" | "merchant" | "admin",
 );
 const account = computed(() => auth.accounts[role.value.toUpperCase() as Role]);
+const headerAddress = ref("");
+let addressVersion = 0;
+async function loadHeaderAddress() {
+  const current = ++addressVersion;
+  if (auth.activeRole !== "USER" || !auth.account) {
+    headerAddress.value = "";
+    return;
+  }
+  try {
+    const rows =
+      await api<import("@waimai/shared").Address[]>("/user/addresses");
+    if (current === addressVersion)
+      headerAddress.value = rows.find((row) => row.isDefault)?.detail ?? "";
+  } catch {
+    if (current === addressVersion) headerAddress.value = "";
+  }
+}
+watch(
+  () => auth.revision,
+  () => {
+    headerAddress.value = "";
+    void loadHeaderAddress();
+  },
+  { immediate: true },
+);
+watch(
+  () => route.fullPath,
+  () => void loadHeaderAddress(),
+);
+onRoleDataInvalidated((target) => {
+  if (target === "USER") void loadHeaderAddress();
+});
+onMounted(() => window.addEventListener("focus", loadHeaderAddress));
+onBeforeUnmount(() => {
+  addressVersion++;
+  window.removeEventListener("focus", loadHeaderAddress);
+});
 const containedScroll = computed(() => route.meta.containedScroll === true);
 const menus: Record<string, NavItem[]> = {
   user: [
@@ -131,7 +175,11 @@ async function setOpen(open: boolean) {
 }
 const selected = computed(() =>
   String(
-    route.meta.siteNav ??
+    (route.meta.accountArea
+      ? role.value === "user"
+        ? "/me"
+        : `/${role.value}/me`
+      : route.meta.siteNav) ??
       nav.value.find(
         (it) =>
           route.path === it.key ||
@@ -159,6 +207,8 @@ const go = (path: string) => router.push(path);
   >
     <SiteHeader
       :user="account"
+      :location="headerAddress"
+      @address="go('/addresses')"
       :cart-count="carts.totalCount"
       :model-value="selected"
       @update:model-value="go"

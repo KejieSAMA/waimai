@@ -42,7 +42,7 @@ const {
           { value: 'sales', label: '销量最高' },
           { value: 'minOrder', label: '起送价最低' },
         ]"
-      /><span class="app-muted">附近商家</span>
+      /><span class="app-muted">商家列表</span>
     </div>
     <div class="ds-stores">
       <StoreCard

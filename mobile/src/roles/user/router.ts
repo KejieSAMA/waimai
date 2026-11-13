@@ -8,7 +8,7 @@ export default [
   {
     path: "/",
     component: () => import("./pages/Home.vue"),
-    meta: { role: "USER", protected: false, title: "附近商家" },
+    meta: { role: "USER", protected: false, title: "商家列表" },
   },
   {
     path: "/store/:id",

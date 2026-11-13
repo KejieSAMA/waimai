@@ -10,7 +10,7 @@ defineProps<{
   owner?: string;
   joined?: string;
   orders?: number;
-  rating?: number;
+  rating?: number | null;
   reason?: string;
   actions?: Action[];
 }>();
@@ -35,7 +35,9 @@ defineProps<{
             >{{ status === "PENDING" ? "提交于" : "入驻" }}
             {{ joined }}</template
           ><template v-if="orders != null"> · 月订单 {{ orders }}</template
-          ><template v-if="rating != null"> · 评分 {{ rating }}</template>
+          ><template v-if="rating != null">
+            · 评分 {{ rating.toFixed(1) }}</template
+          ><template v-else> · 暂无评分</template>
         </div>
       </div>
     </div>

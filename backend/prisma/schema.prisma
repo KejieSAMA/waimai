@@ -77,12 +77,13 @@ model Store {
   foodPermitImage String @default("")
   licenseExpireAt DateTime?
   permitExpireAt DateTime?
-  rating Float @default(5)
+  rating Float?
   monthlySales Int @default(0)
   submitCount Int @default(1)
   createdAt DateTime @default(now())
   dishCategories DishCategory[]
   products Product[]
+  promotionsVersion Int @default(0)
   promotions Promotion[]
   orders Order[]
   reviews Review[]
