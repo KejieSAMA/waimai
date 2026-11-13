@@ -25,7 +25,7 @@ const list = ref<Product[]>([]),
   pending = ref<{ id: string; action: string } | null>(null);
 const columns = [
   { key: "name", title: "商品" },
-  { key: "storeId", title: "店铺编号" },
+  { key: "storeId", title: "店铺" },
   { key: "priceCents", title: "价格", align: "right" as const, num: true },
   { key: "displayStatus", title: "状态" },
   { key: "actions", title: "操作" },
@@ -109,6 +109,8 @@ async function send(id: string, action: string) {
           :name="row.name"
           :src="firstImage(row.images)"
           :sub="row.rejectReason || undefined" /></template
+      ><template #storeId="{ row }"
+        >{{ row.store?.name || "未命名店铺" }}（{{ row.storeId }}）</template
       ><template #priceCents="{ row }">{{ money(row.priceCents) }}</template
       ><template #displayStatus="{ row }"
         ><Tag :tone="productStatuses[row.displayStatus].tone">{{

@@ -58,6 +58,7 @@ export interface Category {
 export interface Product {
   id: string;
   storeId: string;
+  store?: { name: string };
   dishCategoryId: string;
   name: string;
   description: string;

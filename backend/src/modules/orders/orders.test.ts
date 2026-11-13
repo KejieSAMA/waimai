@@ -429,6 +429,44 @@ describe("订单金额、库存和权限", () => {
       .auth(merchantToken, { type: "bearer" });
     expect(products.body.data.total).toBeGreaterThan(0);
   });
+  it("商品巡检返回各商品的店铺名称且不附带店铺私有资料", async () => {
+    const admin = await db.user.create({
+      data: {
+        username: "13955555556",
+        phone: "13955555556",
+        name: "商品巡检测试",
+        roles: { create: { role: "ADMIN" } },
+      },
+    });
+    const auth = await import("../auth/service");
+    const adminToken = (await auth.issueSession(admin)).accessToken;
+    const response = await request(app)
+      .get("/api/v1/admin/products?keyword=牛肉面&pageSize=100")
+      .auth(adminToken, { type: "bearer" });
+    expect(response.status).toBe(200);
+    expect(response.body.data.list).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: productId,
+          storeId,
+          store: { name: "测试店 0" },
+        }),
+        expect.objectContaining({
+          id: otherProductId,
+          storeId: otherStoreId,
+          store: { name: "测试店 1" },
+        }),
+      ]),
+    );
+    const merchant = await request(app)
+      .get("/api/v1/merchant/products?pageSize=100")
+      .auth(merchantToken, { type: "bearer" });
+    expect(merchant.status).toBe(200);
+    for (const product of merchant.body.data.list) {
+      expect(product.storeId).toBe(storeId);
+      expect(product).not.toHaveProperty("store");
+    }
+  });
   it("新商家可读取并提交入驻申请", async () => {
     const auth = await import("../auth/service");
     const owner = await db.user.create({

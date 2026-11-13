@@ -64,6 +64,9 @@ export async function listProducts(
       skip: p.skip,
       take: p.take,
       orderBy: { createdAt: "asc" },
+      ...(storeId === undefined
+        ? { include: { store: { select: { name: true } } } }
+        : {}),
     }),
     db.product.count({ where }),
   ]);
