@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
-import { ListCell, ListCellGroup, StatCard, Tag } from "@waimai/ui";
+import { ListCell, ListCellGroup, StatCard, Tag } from "../../../components/pc";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {

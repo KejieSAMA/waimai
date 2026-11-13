@@ -1,17 +1,16 @@
 <script setup lang="ts">
+import { useGroupScroll, ScrollArea } from "@waimai/ui";
+import { Badge, type ItemType } from "ant-design-vue";
 import {
   Button,
-  CategoryNav,
-  useGroupScroll,
   Tabs,
   DishCard,
   Tag,
   Thumb,
-  ScrollArea,
   Dialog,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import CartPanel from "../../../components/CartPanel.vue";
-import { computed, onScopeDispose, ref, watch } from "vue";
+import { computed, h, onScopeDispose, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   type Store,
@@ -120,6 +119,18 @@ const categoryCount = (id: string) =>
   cart.lines
     .filter((line) => !id || line.product.dishCategoryId === id)
     .reduce((sum, line) => sum + line.qty, 0);
+const menuLabel = (label: string, count: number) =>
+  h("span", { class: "pc-catnav__label" }, [
+    h("span", { class: "pc-catnav__text", title: label }, label),
+    count ? h(Badge, { count, size: "small", overflowCount: 99 }) : null,
+  ]);
+const categoryItems = computed<ItemType[]>(() => [
+  { key: "", label: menuLabel("全部菜品", categoryCount("")) },
+  ...(store.value?.dishCategories ?? []).map((c) => ({
+    key: c.id,
+    label: menuLabel(c.name, categoryCount(c.id)),
+  })),
+]);
 const storeReload = ref(0);
 const storeLoading = ref(false),
   storeError = ref("");
@@ -243,20 +254,14 @@ watch(
       ]"
     />
     <div v-if="view === 'dishes'" class="ds-storelayout">
-      <div class="ds-catcard">
-        <CategoryNav
-          :model-value="category"
-          @update:model-value="jump"
-          :items="[
-            { key: '', label: '全部菜品', count: categoryCount('') },
-            ...(store.dishCategories ?? []).map((c) => ({
-              key: c.id,
-              label: c.name,
-              count: categoryCount(c.id),
-            })),
-          ]"
+      <ScrollArea class="ds-catcard pc-catnav" label="菜品分类" contain>
+        <a-menu
+          mode="inline"
+          :selected-keys="[category]"
+          :items="categoryItems"
+          @click="({ key }: { key: string | number }) => jump(String(key))"
         />
-      </div>
+      </ScrollArea>
       <ScrollArea
         ref="dishes"
         scrollbar-placement="outside"
@@ -442,7 +447,7 @@ watch(
 .app-dish-group + .app-dish-group {
   margin-top: var(--space-5);
 }
-.app-store-page > .xz-tabs {
+.app-store-page > .pc-tabs {
   flex: none;
   margin-bottom: 0;
 }
@@ -475,8 +480,20 @@ watch(
 </style>
 
 <style scoped>
-.ds-catcard :deep(.xz-catnav) {
-  width: 100%;
-  height: 100%;
+.pc-catnav :deep(.ant-menu) {
+  border-inline-end: 0 !important;
+  background: transparent;
+  padding: var(--space-1);
+}
+.pc-catnav :deep(.pc-catnav__label) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+.pc-catnav :deep(.pc-catnav__text) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

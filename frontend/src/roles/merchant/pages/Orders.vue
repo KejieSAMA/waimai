@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Button, Dialog, Input, SearchBar, Tabs, Tag, Price } from "@waimai/ui";
+import { Price } from "@waimai/ui";
+import {
+  Button,
+  Dialog,
+  Input,
+  SearchBar,
+  Tabs,
+  Tag,
+} from "../../../components/pc";
 import {
   money,
   merchantOrderContact,
@@ -313,7 +321,7 @@ const detailAddress = computed(() => {
 }
 .merchant-order-table :deep(table) {
   table-layout: fixed;
-  min-width: calc(var(--size-sidebar) * 5);
+  min-width: calc(var(--size-sidebar) * 4.5);
 }
 .merchant-order-table :deep(td) {
   padding-top: var(--space-2);

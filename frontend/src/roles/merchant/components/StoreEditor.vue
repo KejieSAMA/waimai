@@ -10,7 +10,6 @@ import {
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import {
   Button,
-  CategoryNav,
   Dialog,
   Input,
   Select,
@@ -18,7 +17,7 @@ import {
   Tag,
   Thumb,
   QualificationCard,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import {
   merchantStoreRedirect,
   storeStatuses,
@@ -193,13 +192,19 @@ onBeforeUnmount(() => {
       }}<Button variant="text" @click="editor.load">重试</Button>
     </div>
     <div v-else class="store-editor">
-      <CategoryNav
-        v-model="editor.section"
+      <a-menu
+        class="store-editor__nav"
+        mode="inline"
+        :selected-keys="[editor.section]"
         :items="[
           { key: 'base', label: '基础信息' },
           { key: 'business', label: '营业配送' },
           { key: 'qualification', label: '资质信息' },
         ]"
+        @click="
+          ({ key }: { key: string | number }) =>
+            (editor.section = String(key) as typeof editor.section)
+        "
       />
       <form
         id="store-editor"
@@ -233,6 +238,7 @@ onBeforeUnmount(() => {
                 required
               /><Select
                 v-model="editor.form.categoryId"
+                layout="vertical"
                 label="平台类目"
                 :options="
                   editor.categories.map((c) => ({ value: c.id, label: c.name }))
@@ -403,14 +409,16 @@ onBeforeUnmount(() => {
 }
 .store-editor {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
 }
-.store-editor > :deep(.xz-catnav) {
-  width: 100%;
+.store-editor__nav.ant-menu {
   position: sticky;
   top: 0;
+  width: 100%;
+  padding: var(--space-1);
+  border-inline-end: 0 !important;
   border-radius: var(--radius-lg);
 }
 .store-editor__form {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Button } from "@waimai/ui";
+import { Button } from "../components/pc";
 import { roleHome, type Role } from "@waimai/shared";
 import { useRouter } from "vue-router";
 import { useAuth } from "./auth";

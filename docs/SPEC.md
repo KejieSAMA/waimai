@@ -203,8 +203,8 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - [ ] `pnpm install` 后 `pnpm dev` 一条命令启动三端；http://localhost:5173 打开即用户首页
 - [ ] `/merchant`、`/admin`、`/mobile`、`/mobile/merchant`、`/mobile/admin` 都能访问，用种子账号登录，刷新任意子路由不 404
 - [ ] 主流程走通：用户下单 → 商家收到实时提醒 → 接单 → 出餐 → 完成；退款 → 商家处理；管理员审核新商家 → 商家营业 → 上架商品 → 用户可见；管理员冻结 → 用户不可见
-- [ ] 20 个页面与对应截图在浅色 / 深色下视觉一致（间距、颜色、字体、状态词）
-- [ ] `frontend` 与 `mobile` 之间没有 import；业务代码里没有写死的颜色值（可用脚本 grep `#[0-9a-f]{3,6}` 检查，tokens 包除外）
+- [ ] 手机端 10 个页面与对应截图在浅色 / 深色下视觉一致（间距、颜色、字体、状态词）；PC 端与方案 A（`design-demos/fresh.html`）在浅色 / 深色下视觉一致
+- [ ] `frontend` 与 `mobile` 之间没有 import；业务代码里没有写死的颜色值（可用脚本 grep `#[0-9a-f]{3,6}` 检查，tokens 包与 PC 主题文件 `frontend/src/theme/` 除外）
 - [ ] `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build` 全部通过
 - [ ] `pnpm build && pnpm start` 后 http://localhost:3000 同时提供 PC、手机两个应用和 API
 - [ ] `README.md` 写清启动、账号、目录说明；`docs/DECISIONS.md`、`docs/DEPLOY.md` 完整

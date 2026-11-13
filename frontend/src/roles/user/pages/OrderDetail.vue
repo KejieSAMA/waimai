@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Dialog, Input, Select, Tag } from "@waimai/ui";
+import { Button, Dialog, Input, Select, Tag } from "../../../components/pc";
 import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {

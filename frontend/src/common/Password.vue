@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Button, Input } from "@waimai/ui";
+import { Button, Input } from "../components/pc";
 import { useRouter } from "vue-router";
 import { useAuth } from "./auth";
 const auth = useAuth(),

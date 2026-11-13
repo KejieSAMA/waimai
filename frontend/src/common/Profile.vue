@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import AccountLayout from "./AccountLayout.vue";
 import { useRouter } from "vue-router";
-import { Button, Dialog, Input } from "@waimai/ui";
+import { Button, Dialog, Input } from "../components/pc";
 import { useProfileEditor } from "@waimai/shared";
 import BackofficePage from "../components/BackofficePage.vue";
 import { useAuth } from "./auth";

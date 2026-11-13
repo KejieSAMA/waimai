@@ -1,16 +1,20 @@
 <script setup lang="ts" generic="R extends object">
-import { Button, Checkbox, ScrollArea } from "@waimai/ui";
+// a-table 渲染表格；外层仍是覆盖式 ScrollArea，fill 模式表头吸顶，滚动条不占宽度。
+import { ScrollArea } from "@waimai/ui";
 import { computed, ref, watch } from "vue";
 import type { Action } from "@waimai/shared";
+import ActionButton from "./antd/ActionButton.vue";
+
+type Column = {
+  key: string;
+  title: string;
+  width?: number | string;
+  align?: "left" | "right" | "center";
+  num?: boolean;
+};
 const props = withDefaults(
   defineProps<{
-    columns: {
-      key: string;
-      title: string;
-      width?: number | string;
-      align?: "left" | "right" | "center";
-      num?: boolean;
-    }[];
+    columns: Column[];
     rows: R[];
     rowKey?: string;
     selectable?: boolean;
@@ -22,153 +26,158 @@ const props = withDefaults(
   }>(),
   { rowKey: "id", selected: () => [] },
 );
+const emit = defineEmits<{ select: [keys: string[]]; rowClick: [row: R] }>();
+
 const scroll = ref<InstanceType<typeof ScrollArea>>();
 watch(
   () => props.resetKey,
   () => scroll.value?.scrollTo({ top: 0 }),
   { flush: "post" },
 );
-const emit = defineEmits<{ select: [keys: string[]]; rowClick: [row: R] }>();
-const all = computed(
-  () =>
-    props.rows.length > 0 &&
-    props.rows.every((r) =>
-      props.selected.includes(String(r[props.rowKey as keyof R])),
-    ),
+
+const keyOf = (row: R) => String(row[props.rowKey as keyof R]);
+const antColumns = computed(() =>
+  props.columns.map((c) => ({
+    key: c.key,
+    dataIndex: c.key,
+    title: c.title,
+    width: c.width,
+    align: c.align || "left",
+    className: c.num ? "xz-num" : undefined,
+  })),
 );
-function toggle(id: string) {
-  emit(
-    "select",
-    props.selected.includes(id)
-      ? props.selected.filter((x) => x !== id)
-      : [...props.selected, id],
-  );
-}
+const rowSelection = computed(() =>
+  props.selectable
+    ? {
+        selectedRowKeys: props.selected,
+        columnWidth: 48,
+        onChange: (keys: (string | number)[]) =>
+          emit("select", keys.map(String)),
+      }
+    : undefined,
+);
+const customRow = (row: R) => ({ onClick: () => emit("rowClick", row) });
+const rowClassName = (row: R) =>
+  props.activeKey !== undefined && keyOf(row) === String(props.activeKey)
+    ? "is-active"
+    : "";
+const record = (r: unknown) => r as R;
 </script>
 <template>
-  <div class="xz-table" :class="{ 'bo-table--fill': fill }">
-    <div v-if="$slots.toolbar" class="xz-table__toolbar">
+  <div class="pc-table" :class="{ 'pc-table--fill': fill }">
+    <div v-if="$slots.toolbar" class="pc-table__toolbar">
       <slot name="toolbar" />
     </div>
-    <div v-if="selectable && selected.length" class="xz-table__batch body-md">
-      <span class="xz-table__count">已选 {{ selected.length }} 项</span
-      ><slot name="batchActions" /><Button
+    <div v-if="selectable && selected.length" class="pc-table__batch">
+      <span class="pc-table__count">已选 {{ selected.length }} 项</span>
+      <slot name="batchActions" />
+      <ActionButton
         v-for="a in batchActions"
         :key="a.label"
-        size="sm"
+        size="small"
         :variant="a.variant || 'outline'"
         @click="a.onClick?.()"
-        >{{ a.label }}</Button
-      ><Button size="sm" variant="text" @click="emit('select', [])"
-        >取消选择</Button
+        >{{ a.label }}</ActionButton
+      >
+      <a-button size="small" type="link" @click="emit('select', [])"
+        >取消选择</a-button
       >
     </div>
     <ScrollArea
       ref="scroll"
-      class="xz-table__scroll"
+      class="pc-table__scroll"
       :axis="fill ? 'both' : 'x'"
       :scrollbar-placement="fill ? 'outside' : 'inside'"
       label="表格内容"
       :contain="fill"
     >
-      <table>
-        <thead>
-          <tr>
-            <th v-if="selectable" class="xz-table__sel">
-              <Checkbox
-                :model-value="all"
-                :indeterminate="!all && !!selected.length"
-                aria-label="全选"
-                @update:model-value="
-                  emit(
-                    'select',
-                    all ? [] : rows.map((r) => String(r[rowKey as keyof R])),
-                  )
-                "
-              />
-            </th>
-            <th
-              v-for="column in columns"
-              :key="column.key"
-              class="body-sm"
-              :style="{
-                width:
-                  typeof column.width === 'number'
-                    ? column.width + 'px'
-                    : column.width,
-                textAlign: column.align || 'left',
-              }"
-            >
-              {{ column.title }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in rows"
-            :key="String(row[rowKey as keyof R])"
-            :class="{
-              'is-selected': selected.includes(String(row[rowKey as keyof R])),
-              'is-active': activeKey === row[rowKey as keyof R],
-            }"
-            @click="emit('rowClick', row)"
-          >
-            <td v-if="selectable" class="xz-table__sel">
-              <Checkbox
-                :model-value="selected.includes(String(row[rowKey as keyof R]))"
-                aria-label="选择此行"
-                @update:model-value="toggle(String(row[rowKey as keyof R]))"
-              />
-            </td>
-            <td
-              v-for="column in columns"
-              :key="column.key"
-              :class="['body-md', { 'xz-num': column.num }]"
-              :style="{ textAlign: column.align || 'left' }"
-            >
-              <slot :name="column.key" :row="row">{{
-                row[column.key as keyof R]
-              }}</slot>
-            </td>
-          </tr>
-          <tr v-if="!rows.length">
-            <td
-              :colspan="columns.length + (selectable ? 1 : 0)"
-              class="xz-table__empty body-md"
-            >
-              <slot name="empty">暂无数据</slot>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <a-table
+        :columns="antColumns"
+        :data-source="rows"
+        :row-key="keyOf"
+        :row-selection="rowSelection"
+        :custom-row="customRow"
+        :row-class-name="rowClassName"
+        :pagination="false"
+        size="middle"
+      >
+        <template #bodyCell="{ column, record: r }">
+          <slot :name="String(column.key)" :row="record(r)">{{
+            record(r)[column.key as keyof R]
+          }}</slot>
+        </template>
+        <template #emptyText>
+          <div class="pc-table__empty"><slot name="empty">暂无数据</slot></div>
+        </template>
+      </a-table>
     </ScrollArea>
-    <div v-if="$slots.footer" class="xz-table__foot">
+    <div v-if="$slots.footer" class="pc-table__foot">
       <slot name="footer" />
     </div>
   </div>
 </template>
 
 <style scoped>
-.bo-table--fill {
+.pc-table {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--line);
+}
+.pc-table--fill {
   flex: 1;
   min-height: 0;
-  overflow: visible;
 }
-.bo-table--fill > .xz-table__toolbar,
-.bo-table--fill > .xz-table__batch,
-.bo-table--fill > .xz-table__foot {
+.pc-table__toolbar,
+.pc-table__batch,
+.pc-table__foot {
   flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
 }
-.bo-table--fill > .xz-table__scroll {
+.pc-table__toolbar {
+  border-bottom: 1px solid var(--line);
+}
+.pc-table__batch {
+  background: var(--brand-soft);
+  border-bottom: 1px solid var(--line);
+}
+.pc-table__count {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.pc-table__foot {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+}
+.pc-table__scroll {
+  min-width: 0;
+}
+.pc-table--fill > .pc-table__scroll {
   flex: 1;
   min-height: 0;
 }
-.bo-table--fill :deep(thead th) {
+.pc-table__empty {
+  padding: var(--space-8) 0;
+  color: var(--ink-muted);
+}
+.pc-table :deep(.ant-table) {
+  background: transparent;
+}
+.pc-table--fill :deep(.ant-table-thead > tr > th) {
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: var(--surface-raised);
+  z-index: 2;
+}
+.pc-table :deep(.ant-table-tbody > tr) {
+  cursor: pointer;
+}
+.pc-table :deep(.ant-table-tbody > tr.is-active > td) {
+  background: var(--brand-soft);
 }
 </style>

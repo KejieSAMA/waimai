@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { SearchBar, Thumb, Icon } from "@waimai/ui";
 import SideNav from "./SideNav.vue";
+import AppIcon from "./antd/AppIcon.vue";
 import type { NavGroup } from "@waimai/ui";
 defineProps<{
   role: "merchant" | "admin";
@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>();
 </script>
 <template>
-  <div :class="['xz-shell', 'xz-desk', 'xz-shell--' + role]">
+  <div :class="['pc-shell', 'pc-shell--' + role]">
     <SideNav
       :role="role"
       :brand="role === 'merchant' ? '盟信商家后台' : '盟信管理后台'"
@@ -26,37 +26,36 @@ const emit = defineEmits<{
       @update:model-value="emit('update:modelValue', $event)"
       ><template v-if="$slots.footer" #footer><slot name="footer" /></template
     ></SideNav>
-    <div class="xz-shell__main">
-      <header class="xz-topbar">
-        <div class="xz-topbar__left">
+    <div class="pc-shell__main">
+      <header class="pc-topbar">
+        <div class="pc-topbar__left">
           <slot name="topLeft"
-            ><SearchBar v-if="search" :placeholder="search"
+            ><a-input-search
+              v-if="search"
+              :placeholder="search"
+              class="pc-topbar__search"
           /></slot>
         </div>
-        <div class="xz-topbar__right">
-          <slot name="topRight" /><button
-            type="button"
-            class="xz-nav__icon"
-            aria-label="查看待办消息"
-            @click="emit('notices')"
-          >
-            <Icon name="bell" :size="22" /><span
-              v-if="notices"
-              class="xz-nav__badge caption"
-              >{{ notices }}</span
-            ></button
-          ><span v-if="user" class="xz-topbar__user"
-            ><Thumb
-              class="xz-topbar__avatar"
-              kind="logo"
-              :name="user.name"
-            /><span class="xz-topbar__who"
-              ><span class="body-md">{{ user.name }}</span
-              ><span class="xz-topbar__role caption">{{
-                user.role
-              }}</span></span
-            ></span
-          >
+        <div class="pc-topbar__right">
+          <slot name="topRight" />
+          <a-badge :count="notices" :overflow-count="99" size="small">
+            <a-button
+              type="text"
+              shape="circle"
+              aria-label="查看待办消息"
+              @click="emit('notices')"
+              ><AppIcon name="bell" :size="18"
+            /></a-button>
+          </a-badge>
+          <span v-if="user" class="pc-topbar__user">
+            <a-avatar shape="square" class="pc-topbar__avatar">{{
+              user.name.slice(0, 1)
+            }}</a-avatar>
+            <span class="pc-topbar__who">
+              <span class="pc-topbar__name">{{ user.name }}</span>
+              <span class="pc-topbar__role">{{ user.role }}</span>
+            </span>
+          </span>
         </div>
       </header>
       <main class="bo-shell-content"><slot /></main>
@@ -66,6 +65,61 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+.pc-shell {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface);
+  color: var(--ink);
+}
+.pc-shell__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.pc-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--size-topbar);
+  padding: 0 var(--space-6);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--line);
+}
+.pc-topbar__left {
+  flex: 1;
+  min-width: 0;
+}
+.pc-topbar__search {
+  max-width: 360px;
+}
+.pc-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.pc-topbar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pc-topbar__avatar {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.pc-topbar__who {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.pc-topbar__role {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
 .bo-shell-content {
   display: flex;
   flex: 1;

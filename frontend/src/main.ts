@@ -1,14 +1,11 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
+import Antd from "ant-design-vue";
 import App from "./App.vue";
 import { useAuth } from "./common/auth";
 import { makeRouter } from "./router";
 import { startDeviceRouting } from "./common/device";
-import {
-  overlayScrollbarsKey,
-  selectPresentationKey,
-  dialogPresentationKey,
-} from "@waimai/ui";
+import { overlayScrollbarsKey } from "@waimai/ui";
 import "@waimai/tokens/style.css";
 import "./common/style.css";
 const deviceRouting = startDeviceRouting();
@@ -17,8 +14,7 @@ if (!deviceRouting.redirected) {
   const app = createApp(App);
   app.onUnmount(deviceRouting.stop);
   app.provide(overlayScrollbarsKey, true);
-  app.provide(selectPresentationKey, "dropdown");
-  app.provide(dialogPresentationKey, "modal");
+  app.use(Antd);
   app.use(createPinia());
   app.onUnmount(useAuth().stop);
   app.use(makeRouter());

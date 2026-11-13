@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Input } from "@waimai/ui";
+import { Button, Input } from "../components/pc";
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { roleHome, type Role } from "@waimai/shared";

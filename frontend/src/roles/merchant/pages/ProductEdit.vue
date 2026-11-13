@@ -9,7 +9,7 @@ import {
   Input,
   Select,
   Tag,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
@@ -149,12 +149,12 @@ async function save(listed = form.listed) {
   <BackofficePage>
     <template #header>
       <div class="product-editor-heading">
-        <nav class="xz-pagehead__crumbs caption" aria-label="面包屑">
-          <span>商品管理</span><span aria-hidden="true">/</span>
-          <span class="is-current" aria-current="page">{{
+        <a-breadcrumb aria-label="面包屑">
+          <a-breadcrumb-item>商品管理</a-breadcrumb-item>
+          <a-breadcrumb-item aria-current="page">{{
             editing ? "编辑商品" : "新增商品"
-          }}</span>
-        </nav>
+          }}</a-breadcrumb-item>
+        </a-breadcrumb>
         <Tag v-if="!form.listed">草稿</Tag>
       </div>
     </template>
@@ -175,12 +175,10 @@ async function save(listed = form.listed) {
                 maxlength="30"
               />
               <div class="product-basic__select">
-                <span id="product-category-label" class="body-sm"
-                  >所属分类</span
-                >
                 <Select
                   v-model="form.dishCategoryId"
-                  aria-labelledby="product-category-label"
+                  layout="vertical"
+                  label="所属分类"
                   placeholder="选择分类"
                   :options="
                     categories.map((c) => ({ value: c.id, label: c.name }))
@@ -340,9 +338,6 @@ async function save(listed = form.listed) {
   align-items: center;
   gap: var(--space-3);
 }
-.product-editor-heading .xz-pagehead__crumbs {
-  margin: 0;
-}
 #product-editor {
   container: product-editor / inline-size;
 }
@@ -355,24 +350,8 @@ async function save(listed = form.listed) {
 .product-basic__fields {
   grid-template-columns: minmax(0, 1fr);
 }
-.product-basic__fields :deep(.xz-field),
 .product-basic__select {
-  display: grid;
-  grid-template-columns: 5em minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
   min-width: 0;
-}
-.product-basic__fields :deep(.xz-field__label),
-.product-basic__select > span {
-  white-space: nowrap;
-}
-.product-basic__fields :deep(.xz-field__control),
-.product-basic__select :deep(.xz-select) {
-  min-width: 0;
-}
-.product-basic__fields :deep(.xz-field__hint) {
-  grid-column: 2;
 }
 @container product-basic (min-width: 640px) {
   .product-basic__fields {

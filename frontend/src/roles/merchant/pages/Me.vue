@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AccountControls from "../../../common/AccountControls.vue";
 import BackofficePage from "../../../components/BackofficePage.vue";
-import { Button } from "@waimai/ui";
+import { Button } from "../../../components/pc";
 import InfoList from "../../../components/InfoList.vue";
 import { phoneTail } from "@waimai/shared";
 import { useRouter } from "vue-router";

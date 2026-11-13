@@ -9,7 +9,7 @@ import {
   Switch,
   Tabs,
   Tag,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import {

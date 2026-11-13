@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive } from "vue";
 import { useRoute } from "vue-router";
-import { Button, Dialog, Input, Select } from "@waimai/ui";
+import { Button, Dialog, Input, Select } from "../../../components/pc";
 import { useMerchantReviews, time } from "@waimai/shared";
 import { api } from "../../../common/api";
 import BackofficePage from "../../../components/BackofficePage.vue";

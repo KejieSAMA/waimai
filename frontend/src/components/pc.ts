@@ -1,0 +1,35 @@
+// PC 端组件入口：antd 适配的基础组件（与 @waimai/ui 同名 props）、卡片与业务组件。
+// 页面从这里按原名导入，模板基本不变；@waimai/ui 只保留 ScrollArea、useGroupScroll、Price 与类型。
+export { default as Button } from "./antd/PcButton.vue";
+export { default as Input } from "./antd/PcInput.vue";
+export { default as Select } from "./antd/PcSelect.vue";
+export { default as Tabs } from "./antd/PcTabs.vue";
+export { default as Tag } from "./antd/PcTag.vue";
+export { default as Switch } from "./antd/PcSwitch.vue";
+export { default as Checkbox } from "./antd/PcCheckbox.vue";
+export { default as SearchBar } from "./antd/PcSearch.vue";
+export { default as Thumb } from "./antd/PcThumb.vue";
+export { default as ListCell } from "./antd/PcListCell.vue";
+export { default as ListCellGroup } from "./antd/PcListCellGroup.vue";
+export { default as Dialog } from "./antd/PcDialog.vue";
+export { default as Icon } from "./antd/AppIcon.vue";
+export { default as PcField } from "./antd/PcField.vue";
+export { default as ActionButton } from "./antd/ActionButton.vue";
+export { default as QtyStepper } from "./cards/QtyStepper.vue";
+export { default as StoreCard } from "./cards/StoreCard.vue";
+export { default as DishCard } from "./cards/DishCard.vue";
+export { default as OrderCard } from "./cards/OrderCard.vue";
+export { default as StatCard } from "./cards/StatCard.vue";
+export { default as AccountForm } from "./biz/AccountForm.vue";
+export { default as AddressForm } from "./biz/AddressForm.vue";
+export { default as PromotionFields } from "./biz/PromotionFields.vue";
+export { default as CartSyncNotice } from "./biz/CartSyncNotice.vue";
+export { default as CheckoutAddress } from "./biz/CheckoutAddress.vue";
+export { default as CartSelector } from "./biz/CartSelector.vue";
+export { default as CartItems } from "./biz/CartItems.vue";
+export { default as CheckoutItem } from "./biz/CheckoutItem.vue";
+export { default as CheckoutFees } from "./biz/CheckoutFees.vue";
+export { default as CheckoutTotal } from "./biz/CheckoutTotal.vue";
+export { default as QualificationCard } from "./biz/QualificationCard.vue";
+export { default as ImageUpload } from "./biz/ImageUpload.vue";
+export { tagColor, buttonProps } from "./antd/mapping";

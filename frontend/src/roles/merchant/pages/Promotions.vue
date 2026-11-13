@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { Button, Dialog, PromotionFields } from "@waimai/ui";
+import { Button, Dialog, PromotionFields } from "../../../components/pc";
 import { usePromotionsEditor } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useDraftLeave } from "../../../common/draftLeave";

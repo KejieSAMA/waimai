@@ -1,6 +1,6 @@
 # 小灶外卖平台 · 开发总规范（Codex 必读）
 
-你要在本仓库里从零实现一个餐饮外卖 / 到店平台，三端：**用户端**（点餐）、**商家端**（经营、上下架商品、处理订单）、**管理端**（统筹所有商家：审核、冻结、监管）。每一端都有 **PC 版** 和 **手机版**。界面、交互、文案全部以 `design-system/` 为准，你只负责把它变成可运行的产品。
+你要在本仓库里从零实现一个餐饮外卖 / 到店平台，三端：**用户端**（点餐）、**商家端**（经营、上下架商品、处理订单）、**管理端**（统筹所有商家：审核、冻结、监管）。每一端都有 **PC 版** 和 **手机版**。手机版的界面、交互、文案以 `design-system/` 为准；PC 版（`frontend/`）的视觉采用设计方案 A（清爽橙）并使用 ant-design-vue 4 组件（见第 1.1 节），文案、状态词和业务规则仍以 `design-system/` 为准。
 
 详细的路由表、API 清单、数据模型、状态机和验收清单在 `docs/SPEC.md`，开始前必须读完。
 
@@ -20,12 +20,12 @@
 | `design-system/README.md` | 品牌手册：三端如何区分、文案规则、色彩、状态色表、字体、间距、桌面规则、组件清单。**必读** |
 | `design-system/architecture.md` | 三端权限分工、各端页面、商家入驻 / 商品上下架 / 订单状态流转。**必读** |
 | `design-system/tokens.json` / `tokens.css` | 全部 token。`tokens.css` 是编译好的 CSS 变量 + 字体样式类（`.title` `.body-md` `.price` …），浅色 / 深色由 `<html data-theme="light|dark">` 切换 |
-| `design-system/components/bundle.css` | 全部组件样式（`xz-` 前缀）。**原样复用**，只允许按区块拆文件，不改选择器和数值 |
-| `design-system/components/bundle.js` | 组件的 React 参考实现。**移植为 Vue 3 SFC**：组件名、props、DOM 结构、`xz-` 类名保持一致，这样 `bundle.css` 无需改动即可生效 |
+| `design-system/components/bundle.css` | 全部组件样式（`xz-` 前缀）。**原样复用**，只允许按区块拆文件，不改选择器和数值（`packages/tokens` 与手机端；PC 端见第 1.1 节） |
+| `design-system/components/bundle.js` | 组件的 React 参考实现。**移植为 Vue 3 SFC**：组件名、props、DOM 结构、`xz-` 类名保持一致，这样 `bundle.css` 无需改动即可生效（`packages/ui` 与手机端） |
 | `design-system/components/index.d.ts` | 每个组件的 props 规格 |
 | `design-system/components/<Name>/README.md` | 组件用法与约束 |
 | `design-system/components/<Name>/preview.html` | 组件 / 页面的示例数据与组合方式（`React.createElement` 写法，照着翻成 Vue 模板） |
-| `design-system/screenshots/<Name>-light.png` / `-dark.png` | 每个组件和页面的渲染截图 = 视觉验收标准 |
+| `design-system/screenshots/<Name>-light.png` / `-dark.png` | 每个组件和页面的渲染截图 = 手机端视觉验收标准；PC 端只作信息结构参考 |
 | `design-system/demo/index.html` | 全部组件与页面的可运行参考（离线，双击打开；`?theme=dark` 看深色）。只作对照，不要复制 React 运行时进产品 |
 
 页面视觉稿（各有 preview.html + 截图）：
@@ -33,11 +33,18 @@
 - PC 端：`DeskUserHome` `DeskUserStore` `DeskUserOrders` `DeskMerchantDashboard` `DeskMerchantOrders` `DeskMerchantProducts` `DeskMerchantProductEdit` `DeskAdminDashboard` `DeskAdminMerchants` `DeskAdminAudit`
 
 硬性规则：
-- 业务代码里**不写死颜色、字号、圆角、阴影**：一律用 `var(--token)` 和 tokens.css 的样式类。缺 token 就记到 `docs/DECISIONS.md`，不要私自加颜色。
+- 业务代码里**不写死颜色、字号、圆角、阴影**：手机端一律用 `var(--token)` 和 tokens.css 的样式类；PC 端颜色只来自 `frontend/src/theme/schemeA.ts`（antd token 与同名 CSS 变量），页面用 antd 组件或 `var(--token)`。缺 token 就记到 `docs/DECISIONS.md`，不要私自加颜色。
 - 状态文字和颜色只用 README「状态色」表里的固定词（在售 / 已下架 / 审核中 / 审核驳回 / 已售罄；待审核 / 营业中 / 休息中 / 已冻结 / 已驳回；待接单 / 备餐中 / 配送中 / 待自提 / 已完成 / 已取消 / 退款中）。
 - 文案规则照 README：按钮 2–4 字动词、不用感叹号和 emoji、`¥28` / `¥28.5` 价格格式、手机号只显示尾号。
-- 不引入任何第三方 UI 组件库（Element Plus、Vant、Ant Design Vue 等）。图表用设计系统的 `TrendChart`（自己移植的 SVG），不引入 ECharts。
+- 可以使用 Ant Design Vue（ant-design-vue 4）及其图标库 `@ant-design/icons-vue`；PC 端已全面采用。图表沿用自绘 SVG 的 `TrendChart`。
 - `.xz-demo` `.xz-stage` `.xz-device` `.xz-desk-stage` `.xz-desk-frame` 是预览脚手架，产品代码不用（组件画廊页可以用）。
+
+### 1.1 PC 端：方案 A + ant-design-vue
+
+- 视觉来源：`design-demos/fresh.html`（方案 A 清爽橙）。主题值集中在 `frontend/src/theme/schemeA.ts`，由 `App.vue` 的 `a-config-provider` 注入，深浅色跟随 `useTheme()`。
+- 组件：页面直接使用 antd 组件；PC 专用封装放在 `frontend/src/components/`（壳层、表格、分页、卡片等）和 `frontend/src/components/biz/`（业务表单与结算组件的 PC 版本）。
+- `packages/ui`、`packages/tokens` 仍由手机端使用，PC 改动不得修改它们；PC 只保留其中的滚动基础设施（`ScrollArea`、`useGroupScroll`）、`Price` 和类型。
+- 滚动模型保持不变：文档不滚动；首页分页固定在底部居中；后台由 `BackofficePage` 提供固定页头、单一滚动区和右下分页；店铺页类目、菜品、购物车各自滚动；滚动条覆盖在内容上，不占宽度。
 
 ## 2. 技术栈
 
@@ -67,7 +74,7 @@ waimai/
 |---|---|
 | `packages/ui`（两端共用） | Icon Button Tag Price Thumb Input Switch Stepper SearchBar Checkbox Select Tabs CategoryNav ListCell Dialog StatCard StoreCard DishCard OrderCard |
 | `mobile/src/components`（仅手机） | MobilePage NavBar TabBar CartBar ProductRow MerchantRow |
-| `frontend/src/components`（仅 PC） | DesktopShell SideNav PageHeader SiteHeader DataTable Pagination FilterBar InfoList TrendChart CartPanel |
+| `frontend/src/components`（仅 PC，基于 ant-design-vue） | DesktopShell SideNav PageHeader SiteHeader DataTable Pagination FilterBar InfoList TrendChart CartPanel，以及 PC 卡片与 `biz/` 业务组件 |
 
 隔离规则（用 ESLint `no-restricted-imports` + tsconfig paths 强制）：
 - `frontend` 与 `mobile` **互相不得 import**；两者只能依赖 `packages/*`。
@@ -91,7 +98,7 @@ waimai/
 - `children` → 默认插槽；`right` `left` `actions` `footer` `overlay` `extra` `tag` 等节点 props → 同名具名插槽（同时允许简单字符串 prop）。
 - `NavBar.Icon`、`ListCell.Group`、`DataTable.Media` → 独立组件 `NavBarIcon`、`ListCellGroup`、`DataTableMedia`。
 - `Icon` 的 SVG 路径从 bundle.js 的 `ICONS` 原样复制。
-- 移植完成后，每个应用都要有组件画廊页（仅开发环境）：PC `/__ui`、手机 `/mobile/__ui`，用 preview.html 里的示例数据渲染每个组件，逐个和截图对照（浅色 + 深色）。
+- 移植完成后，每个应用都要有组件画廊页（仅开发环境）：手机 `/mobile/__ui` 用 preview.html 里的示例数据渲染每个组件，逐个和截图对照（浅色 + 深色）；PC `/__ui` 是方案 A 主题下的 antd 组件预览。
 - 主题：`useTheme()` 跟随系统 `prefers-color-scheme`，允许手动切换并记住。
 
 ## 6. 后端约定（详见 docs/SPEC.md）

@@ -113,3 +113,5 @@
 - 2026-11-13，商家回复允许修剪后 1–500 字并可修改，相同内容幂等，审计保存前后内容；仅本店、冻结只读，不允许修改用户评分或删除评价。满减为独立版本化整组配置，最多 10 档、不叠加取最大优惠，两种履约方式均适用，清空需确认，冲突保留草稿直到显式重读。
 - 2026-11-13，PC 本人资料控制逻辑从手机上提共享，PC 新公共路由按 activeRole 使用骨架和返回路径，手机界面不变。PC 位置改为本人默认地址摘要，无默认地址明确提示选择，账号变化清理；手机新申请不预填城市。新店营业时间 09:00–22:00、起送 20 元、配送 3 元仅为可编辑初始值，已有店铺始终读取保存值。
 - 2026-11-13，新增 design-demos 工作区包，按用户要求以 ant-design-vue 4 制作用户端 PC 首页与店铺页的三套风格 demo（清爽绿／活力橙／黑黄极简）；仅作设计探索，与 frontend、mobile、packages 隔离，不改变产品不引入 UI 库的规则。UMD 依赖由 vendor 脚本生成且不入库。
+- 2026-11-13，按用户要求取消“不引入第三方 UI 库”的限制：PC 端（frontend）采用设计方案 A（清爽橙）并全面改用 ant-design-vue 4，主题值集中在 frontend/src/theme/schemeA.ts，经 ConfigProvider 注入并同步为 PC 专用的 xz token 覆盖；packages/ui、packages/tokens 与手机端保持不变，两端共用的业务组件在 frontend/src/components/biz/ 另建 PC 版本。替代上一条“design-demos 仅作探索”的说法。
+- 2026-11-13，PC 页面经 `frontend/src/components/pc.ts` 按原名导入 antd 适配组件（Button、Input、Select、Tabs、Tag、Dialog 等与 `@waimai/ui` 同名 props），模板基本不变；`@waimai/ui` 在 PC 只保留 ScrollArea、useGroupScroll、Price 与类型。理由：一次替换全部页面控件、风险最小，业务脚本与原生表单校验原样保留。
