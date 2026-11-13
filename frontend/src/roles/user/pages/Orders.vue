@@ -12,6 +12,7 @@ const {
   tab,
   list,
   page,
+  changePage,
   total,
   pending,
   error,
@@ -52,7 +53,8 @@ const {
     <p v-else-if="!list.length && !error" class="app-empty body">暂无订单</p>
     <Pagination
       v-if="total > DEFAULT_PAGE_SIZE"
-      v-model="page"
+      :model-value="page"
+      @update:model-value="changePage"
       :total="total"
     />
     <Dialog

@@ -28,6 +28,7 @@ const {
   counts,
   selected,
   loading,
+  loaded,
   mutating,
   error,
   filters,
@@ -165,7 +166,9 @@ async function more() {
       <p v-if="loading && !list.length" class="app-empty body-sm" role="status">
         加载中
       </p>
-      <p v-else-if="!list.length && !error" class="app-empty body">暂无商品</p>
+      <p v-else-if="loaded && !list.length && !error" class="app-empty body">
+        暂无商品
+      </p>
       <Button
         v-if="list.length < total"
         variant="text"
@@ -260,6 +263,8 @@ async function more() {
     >
     <Dialog
       :open="stockOpen"
+      :close-disabled="mutating"
+      :confirm-discard="true"
       title="修改库存"
       variant="sheet"
       @close="!mutating && (stockOpen = false)"

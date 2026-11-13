@@ -77,7 +77,8 @@ export function useUserOrders(
     page = ref(1),
     total = ref(0),
     pending = ref(false),
-    error = ref("");
+    error = ref(""),
+    loaded = ref(false);
   const replacement = ref<Order>();
   const reordering = ref(false);
   let version = 0,
@@ -86,39 +87,65 @@ export function useUserOrders(
     active = false;
     ++version;
   });
-  async function load() {
+  let retryPage = 1,
+    committedPage = 1,
+    committedTab = "",
+    targetTab = "";
+  let inFlight: Promise<void> | undefined;
+  function readPage(target: number, force = false) {
+    const requestedTab = tab.value;
+    if (
+      !force &&
+      pending.value &&
+      retryPage === target &&
+      targetTab === requestedTab
+    )
+      return inFlight ?? Promise.resolve();
     const current = ++version;
+    retryPage = target;
+    targetTab = requestedTab;
     pending.value = true;
     error.value = "";
-    try {
-      const result = await request<Page<Order>>(
-        `/user/orders?tab=${tab.value}&page=${page.value}`,
-      );
-      if (current !== version) return;
-      list.value =
-        append && page.value > 1
-          ? [
-              ...list.value.filter(
-                (o) => !result.list.some((next) => next.id === o.id),
-              ),
-              ...result.list,
-            ]
-          : result.list;
-      total.value = result.total;
-    } catch (cause) {
-      if (current === version)
-        error.value = cause instanceof Error ? cause.message : "订单加载失败";
-    } finally {
-      if (current === version) pending.value = false;
-    }
+    inFlight = (async () => {
+      try {
+        const result = await request<Page<Order>>(
+          `/user/orders?tab=${requestedTab}&page=${target}`,
+        );
+        if (!active || current !== version) return;
+        list.value =
+          append && target > 1 && committedTab === requestedTab
+            ? [
+                ...list.value.filter(
+                  (o) => !result.list.some((n) => n.id === o.id),
+                ),
+                ...result.list,
+              ]
+            : result.list;
+        total.value = result.total;
+        page.value = committedPage = target;
+        committedTab = requestedTab;
+        loaded.value = true;
+      } catch (cause) {
+        if (active && current === version) {
+          page.value = committedPage;
+          error.value = cause instanceof Error ? cause.message : "订单加载失败";
+        }
+      } finally {
+        if (active && current === version) {
+          pending.value = false;
+          inFlight = undefined;
+        }
+      }
+    })();
+    return inFlight;
   }
+  const load = () => readPage(retryPage);
+  const changePage = (target: number) => readPage(target);
+  const more = () =>
+    pending.value ? Promise.resolve() : readPage(committedPage + 1);
   watch(tab, () => {
-    list.value = [];
-    total.value = 0;
-    if (page.value !== 1) page.value = 1;
-    else void load();
+    void readPage(1, true);
   });
-  watch(page, () => void load());
   onMounted(() => void load());
   async function reorder(order: Order) {
     if (reordering.value) return;
@@ -185,6 +212,9 @@ export function useUserOrders(
     replacement,
     reordering,
     load,
+    changePage,
+    more,
+    loaded,
     reorder,
     actions,
   };

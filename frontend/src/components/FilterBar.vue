@@ -11,7 +11,7 @@ const emit = defineEmits<{ search: []; reset: [] }>();
   >
     <slot />
     <a-form-item class="pc-filterbar__btns">
-      <a-space>
+      <a-space wrap>
         <a-button v-if="showReset" @click="emit('reset')">重置</a-button>
         <a-button type="primary" html-type="submit">查询</a-button>
         <slot name="actions" />
@@ -21,6 +21,7 @@ const emit = defineEmits<{ search: []; reset: [] }>();
 </template>
 <style scoped>
 .pc-filterbar {
+  flex-wrap: wrap;
   row-gap: var(--space-3);
   padding: var(--space-4);
   background: var(--surface-raised);

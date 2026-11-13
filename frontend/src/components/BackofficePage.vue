@@ -41,6 +41,7 @@ defineExpose({ scrollToTop: () => scroll.value?.scrollTo({ top: 0 }) });
 </template>
 <style scoped>
 .bo-page {
+  container: backoffice / inline-size;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -66,6 +67,7 @@ defineExpose({ scrollToTop: () => scroll.value?.scrollTo({ top: 0 }) });
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 .bo-page__body {
@@ -82,6 +84,7 @@ defineExpose({ scrollToTop: () => scroll.value?.scrollTo({ top: 0 }) });
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-3);
   padding: var(--space-3) 0 0;
   border-top: 1px solid var(--line);

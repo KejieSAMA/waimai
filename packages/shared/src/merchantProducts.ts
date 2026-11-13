@@ -15,12 +15,16 @@ export function useMerchantProducts(request: Request, initialStock = "") {
   const selected = ref<string[]>([]),
     loading = ref(true),
     mutating = ref(false),
-    error = ref("");
+    error = ref(""),
+    loaded = ref(false);
   const filters = reactive({ keyword: "", category: "", stock: initialStock });
   const applied = reactive({ ...filters });
   let version = 0,
     active = true;
-  async function load(append = false): Promise<boolean> {
+  let retryAppend: number | undefined,
+    committedPage = 1;
+  async function load(append = false, target = page.value): Promise<boolean> {
+    if (!append) retryAppend = undefined;
     const current = ++version;
     loading.value = true;
     error.value = "";
@@ -35,7 +39,7 @@ export function useMerchantProducts(request: Request, initialStock = "") {
         keyword: applied.keyword,
         categoryId: applied.category,
         stock: applied.stock,
-        page: String(page.value),
+        page: String(target),
       });
       const result = await request<Page<Product>>(
         "/merchant/products?" + query,
@@ -49,13 +53,19 @@ export function useMerchantProducts(request: Request, initialStock = "") {
             ...result.list,
           ]
         : result.list;
+      page.value = committedPage = target;
+      retryAppend = undefined;
+      loaded.value = true;
       total.value = result.total;
       counts.value = result.counts ?? {};
       if (!append) selected.value = [];
       return true;
     } catch (cause) {
-      if (active && current === version)
+      if (active && current === version) {
+        if (append) retryAppend = target;
+        page.value = committedPage;
         error.value = cause instanceof Error ? cause.message : "商品加载失败";
+      }
       return false;
     } finally {
       if (active && current === version) loading.value = false;
@@ -93,7 +103,12 @@ export function useMerchantProducts(request: Request, initialStock = "") {
     }
   }
   onMounted(initialize);
-  const retry = () => (store.value ? load() : initialize());
+  const retry = () =>
+    store.value
+      ? retryAppend
+        ? load(true, retryAppend)
+        : load()
+      : initialize();
   onScopeDispose(() => {
     active = false;
     ++version;
@@ -135,6 +150,7 @@ export function useMerchantProducts(request: Request, initialStock = "") {
     counts,
     selected,
     loading,
+    loaded,
     mutating,
     error,
     filters,

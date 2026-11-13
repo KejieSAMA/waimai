@@ -17,7 +17,8 @@ const cities = ref<string[]>([]),
   loading = ref(true),
   loadError = ref("");
 const applied = ref({ keyword: "", category: "", city: "" });
-let listVersion = 0;
+let listVersion = 0,
+  retryMorePage: number | undefined;
 onScopeDispose(() => {
   ++listVersion;
 });
@@ -41,13 +42,14 @@ const list = ref<Store[]>([]),
   total = ref(0),
   reason = ref(""),
   pending = ref<{ id: string; action: string } | null>(null);
-async function load(append = false) {
+async function load(append = false, target = page.value) {
+  if (!append) retryMorePage = undefined;
   const current = ++listVersion;
   loading.value = true;
   loadError.value = "";
   try {
     const result = await api<Page<Store>>(
-      `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(applied.value.keyword)}&categoryId=${applied.value.category}&city=${encodeURIComponent(applied.value.city)}&page=${page.value}`,
+      `/admin/merchants?status=${auditOnly.value ? "PENDING" : status.value}&keyword=${encodeURIComponent(applied.value.keyword)}&categoryId=${applied.value.category}&city=${encodeURIComponent(applied.value.city)}&page=${target}`,
       {},
       "ADMIN",
     );
@@ -60,18 +62,23 @@ async function load(append = false) {
           ...result.list,
         ]
       : result.list;
+    page.value = target;
+    retryMorePage = undefined;
     total.value = result.total;
     counts.value = result.counts ?? {};
     cities.value = result.filterOptions?.cities ?? [];
     return true;
   } catch (cause) {
-    if (current === listVersion)
+    if (current === listVersion) {
+      if (append) retryMorePage = target;
       loadError.value = cause instanceof Error ? cause.message : "商家加载失败";
+    }
     return false;
   } finally {
     if (current === listVersion) loading.value = false;
   }
 }
+const retry = () => (retryMorePage ? load(true, retryMorePage) : load());
 async function more() {
   if (loading.value) return;
   const requested = ++page.value;
@@ -198,7 +205,7 @@ async function send(id: string, action: string) {
     </Dialog>
     <div v-if="loadError" class="app-error body-sm" role="alert">
       {{ loadError
-      }}<Button variant="text" size="sm" :disabled="loading" @click="load()"
+      }}<Button variant="text" size="sm" :disabled="loading" @click="retry"
         >重试</Button
       >
     </div>
@@ -266,6 +273,9 @@ async function send(id: string, action: string) {
     </div>
     <Dialog
       :open="!!pending"
+      :close-disabled="busy"
+      :confirm-discard="true"
+      :dirty="!!reason.trim()"
       title="填写原因"
       variant="sheet"
       @close="pending = null"

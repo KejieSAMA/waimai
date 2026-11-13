@@ -9,7 +9,8 @@ const router = useRouter();
 const {
   tab,
   list,
-  page,
+  more,
+  loaded,
   total,
   pending,
   error,
@@ -45,12 +46,14 @@ const {
         :actions="actions(order)"
       />
       <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
-      <p v-else-if="!list.length && !error" class="app-empty body">暂无订单</p>
+      <p v-else-if="loaded && !list.length && !error" class="app-empty body">
+        暂无订单
+      </p>
       <Button
         v-if="list.length < total && !error"
         variant="text"
         :disabled="pending"
-        @click="page++"
+        @click="more"
         >加载更多</Button
       >
     </div>
@@ -60,9 +63,7 @@ const {
       @close="replacement = undefined"
     >
       再来一单将替换
-      {{
-        replacement?.store?.name || "该店铺"
-      }}
+      {{ replacement?.store?.name || "该店铺" }}
       的已选商品，其他店铺购物车不受影响。
       <p v-if="error" class="app-error body-sm" role="alert">{{ error }}</p>
       <template #actions

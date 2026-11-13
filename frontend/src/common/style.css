@@ -436,3 +436,28 @@ body,
   background: var(--promo-bg);
   color: var(--promo-text);
 }
+
+/* Layout follows the actual work area, independently of device routing. */
+@container backoffice (max-width: 959px) {
+  .ds-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ds-stats,
+  .ds-stats5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container backoffice (max-width: 559px) {
+  .ds-stats,
+  .ds-stats5 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ds-grid > *,
+.ds-section > * {
+  min-width: 0;
+}
+.ds-section,
+.app-table-actions {
+  flex-wrap: wrap;
+}

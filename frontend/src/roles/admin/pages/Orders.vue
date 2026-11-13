@@ -12,23 +12,20 @@ import {
 } from "../../../components/pc";
 import DataTable from "../../../components/DataTable.vue";
 import Pagination from "../../../components/Pagination.vue";
-import { onMounted, ref, watch } from "vue";
+import { onMounted, onScopeDispose, ref, watch } from "vue";
 import {
   type Order,
-  type Page,
+  usePagedList,
   orderStatuses,
   money,
   time,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
-import { run, busy } from "../../../common/feedback";
+
 const disputes = false;
-const list = ref<Order[]>([]),
-  keyword = ref(""),
+const keyword = ref(""),
   appliedKeyword = ref(""),
   status = ref(""),
-  page = ref(1),
-  total = ref(0),
   detail = ref<Order | null>(null),
   reason = ref("");
 const columns = [
@@ -39,33 +36,50 @@ const columns = [
   { key: "createdAt", title: "下单时间" },
   { key: "actions", title: "操作" },
 ];
-async function load() {
-  await run(async () => {
-    const result = await api<Page<Order>>(
-      `/admin/${disputes ? "disputes" : "orders"}?status=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${page.value}`,
-      {},
-      "ADMIN",
-    );
-    list.value = result.list;
-    total.value = result.total;
-  });
+const pages = usePagedList<Order>((target) =>
+  api(
+    `/admin/orders?status=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${target}`,
+    {},
+    "ADMIN",
+  ),
+);
+const { list, total, page, loading, loaded, error } = pages;
+const load = () => pages.refresh();
+function query() {
+  appliedKeyword.value = keyword.value;
+  void pages.query();
 }
-onMounted(load);
-watch(status, () => {
-  page.value = 1;
-  void load();
+function reset() {
+  keyword.value = appliedKeyword.value = "";
+  void pages.query();
+}
+onMounted(pages.load);
+watch(status, () => void pages.query());
+const busy = ref(false),
+  actionError = ref("");
+let alive = true;
+onScopeDispose(() => {
+  alive = false;
 });
 async function resolve(approve: boolean) {
   if (!detail.value) return;
-  await run(async () => {
+  if (busy.value) return;
+  busy.value = true;
+  actionError.value = "";
+  try {
     await api(
       "/admin/disputes/" + detail.value!.id + "/resolve",
       { method: "POST", body: { approve, reason: reason.value } },
       "ADMIN",
     );
+    if (!alive) return;
     detail.value = null;
     await load();
-  });
+  } catch (e) {
+    if (alive) actionError.value = e instanceof Error ? e.message : "处理失败";
+  } finally {
+    if (alive) busy.value = false;
+  }
 }
 </script>
 <template>
@@ -81,32 +95,36 @@ async function resolve(approve: boolean) {
             label: s.label,
           })),
         ]"
-      /><FilterBar
-        @search="
-          appliedKeyword = keyword;
-          page = 1;
-          load();
-        "
-        @reset="
-          keyword = appliedKeyword = '';
-          page = 1;
-          load();
-        "
-        ><SearchBar
-          v-model="keyword"
-          placeholder="搜索订单号"
-          @action="
-            appliedKeyword = keyword;
-            page = 1;
-            load();
-          "
+      /><FilterBar @search="query" @reset="reset"
+        ><SearchBar v-model="keyword" placeholder="搜索订单号" @action="query"
       /></FilterBar>
+      <p
+        v-if="error || (actionError && !detail)"
+        role="alert"
+        class="app-error body-sm"
+      >
+        {{ error || actionError
+        }}<Button v-if="error" variant="text" @click="pages.retry">重试</Button>
+      </p>
+      <p v-else-if="loading" role="status" class="body-sm app-muted">
+        {{ loaded ? "正在更新" : "正在加载" }}
+      </p>
     </template>
     <DataTable
       fill
       :reset-key="JSON.stringify([page, status, appliedKeyword])"
       :rows="list"
+      :aria-busy="loading"
       :columns="columns"
+      ><template #empty>{{
+        loading
+          ? "正在加载"
+          : error
+            ? "读取失败，请重试"
+            : loaded
+              ? "暂无数据"
+              : "正在加载"
+      }}</template
       ><template #store="{ row }">{{ row.store.name }}</template
       ><template #status="{ row }"
         ><Tag :tone="orderStatuses[row.status].tone">{{
@@ -129,6 +147,9 @@ async function resolve(approve: boolean) {
     <Dialog
       :open="!!detail"
       title="订单详情"
+      :close-disabled="busy"
+      :confirm-discard="disputes"
+      :dirty="!!reason.trim()"
       variant="drawer"
       @close="detail = null"
       ><div v-if="detail" class="app-stack">
@@ -148,7 +169,16 @@ async function resolve(approve: boolean) {
           :total="detail.payCents / 100"
         />
         <p class="body">{{ detail.refundReason }}</p>
-        <Input v-if="disputes" v-model="reason" label="裁定原因" multiline />
+        <Input
+          v-if="disputes"
+          v-model="reason"
+          label="裁定原因"
+          multiline
+          :disabled="busy"
+        />
+        <p v-if="actionError" role="alert" class="app-error body-sm">
+          {{ actionError }}
+        </p>
       </div>
       <template #actions
         ><template v-if="disputes"
@@ -166,7 +196,10 @@ async function resolve(approve: boolean) {
       ></Dialog
     >
     <template #footer
-      ><Pagination v-model="page" :total="total" @update:model-value="load"
+      ><Pagination
+        :model-value="page"
+        :total="total"
+        @update:model-value="pages.changePage"
     /></template>
   </BackofficePage>
 </template>

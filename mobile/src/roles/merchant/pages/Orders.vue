@@ -5,15 +5,19 @@ import { Button, Dialog, Input, OrderCard, Switch, Tabs } from "@waimai/ui";
 import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
 import { type Order, type Page, orderStatuses, time } from "@waimai/shared";
 import { api } from "../../../common/api";
-import { run, busy } from "../../../common/feedback";
+const busy = ref(false),
+  actionError = ref("");
 import { useOrderStream } from "../../../common/events";
 const toolsOpen = ref(false),
   keyword = ref(""),
   appliedKeyword = ref("");
 const loading = ref(true),
   loadError = ref("");
-let version = 0;
+let version = 0,
+  active = true,
+  retryPage: number | undefined;
 onScopeDispose(() => {
+  active = false;
   ++version;
 });
 async function search(reset = false) {
@@ -23,6 +27,7 @@ async function search(reset = false) {
   if (await load()) toolsOpen.value = false;
 }
 async function more() {
+  if (loading.value || busy.value) return;
   const requested = ++page.value;
   if (!(await load(true)) && page.value === requested)
     page.value = Math.max(1, requested - 1);
@@ -41,51 +46,55 @@ const list = ref<Order[]>([]),
   reason = ref(""),
   pending = ref<{ id: string; action: string } | null>(null);
 const filtered = computed(() => list.value);
-async function load(append = false) {
+async function load(append = false, target = page.value) {
+  if (!append) retryPage = undefined;
   const current = ++version;
   loading.value = true;
   loadError.value = "";
   try {
-    const result = await api<Page<Order>>(
-      `/merchant/orders?stage=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${page.value}`,
-      {},
-      "MERCHANT",
-    );
-    if (current !== version) return false;
-    list.value = append
-      ? [
-          ...list.value.filter(
-            (old) => !result.list.some((item) => item.id === old.id),
-          ),
-          ...result.list,
-        ]
-      : result.list;
-    total.value = result.total;
-    const groups = await Promise.all(
-      ["PENDING", "PREPARING", "DELIVERING", "REFUNDING"].map((stage) =>
+    const targets =
+      !append && target > 1
+        ? Array.from({ length: target }, (_, i) => i + 1)
+        : [target];
+    const results = await Promise.all(
+      targets.map((page) =>
         api<Page<Order>>(
-          `/merchant/orders?stage=${stage}&pageSize=1`,
+          `/merchant/orders?stage=${status.value}&keyword=${encodeURIComponent(appliedKeyword.value)}&page=${page}`,
           {},
           "MERCHANT",
         ),
       ),
     );
-    if (current !== version) return false;
-    counts.value = Object.fromEntries(
-      ["PENDING", "PREPARING", "DELIVERING", "REFUNDING"].map((stage, i) => [
-        stage,
-        groups[i].total,
-      ]),
-    );
+    if (!active || current !== version) return false;
+    const rows = results.flatMap((r) => r.list),
+      result = results[0];
+    list.value = append
+      ? [
+          ...list.value.filter(
+            (old) => !rows.some((next) => old.id === next.id),
+          ),
+          ...rows,
+        ]
+      : [...new Map(rows.map((row) => [row.id, row])).values()];
+    page.value = target;
+    total.value = result.total;
+    const all = result.counts ?? {};
+    counts.value = {
+      ...all,
+      DELIVERING: (all.DELIVERING ?? 0) + (all.PICKUP ?? 0),
+    };
     return true;
   } catch (cause) {
-    if (current === version)
+    if (current === version) {
+      if (append) retryPage = target;
       loadError.value = cause instanceof Error ? cause.message : "订单加载失败";
+    }
     return false;
   } finally {
     if (current === version) loading.value = false;
   }
 }
+const retry = () => (retryPage ? load(true, retryPage) : load());
 const stream = useOrderStream(load);
 onMounted(load);
 watch(status, () => {
@@ -93,6 +102,8 @@ watch(status, () => {
   void load();
 });
 async function act(id: string, action: string) {
+  if (busy.value) return;
+  actionError.value = "";
   if (["reject", "refund-reject"].includes(action)) {
     pending.value = { id, action };
     reason.value = "";
@@ -101,16 +112,23 @@ async function act(id: string, action: string) {
   await send(id, action);
 }
 async function send(id: string, action: string) {
-  await run(async () => {
+  if (busy.value) return;
+  busy.value = true;
+  actionError.value = "";
+  try {
     await api(
       `/merchant/orders/${id}/${action}`,
       { method: "POST", body: { reason: reason.value } },
       "MERCHANT",
     );
+    if (!active) return;
     pending.value = null;
-    page.value = 1;
     await load();
-  });
+  } catch (e) {
+    if (active) actionError.value = e instanceof Error ? e.message : "操作失败";
+  } finally {
+    if (active) busy.value = false;
+  }
 }
 </script>
 <template>
@@ -162,9 +180,12 @@ async function send(id: string, action: string) {
         },
       ]"
     />
+    <p v-if="actionError && !pending" role="alert" class="app-error body-sm">
+      {{ actionError }}
+    </p>
     <div v-if="loadError" class="app-error body-sm" role="alert">
       {{ loadError
-      }}<Button size="sm" variant="text" :disabled="loading" @click="load()"
+      }}<Button size="sm" variant="text" :disabled="loading" @click="retry"
         >重试</Button
       >
     </div>
@@ -252,10 +273,17 @@ async function send(id: string, action: string) {
     </div>
     <Dialog
       :open="!!pending"
+      :close-disabled="busy"
+      :confirm-discard="true"
+      :dirty="!!reason.trim()"
       title="填写原因"
       variant="sheet"
       @close="pending = null"
-      ><Input v-model="reason" label="处理原因" multiline /><template #actions
+      ><Input v-model="reason" label="处理原因" multiline :disabled="busy" />
+      <p v-if="actionError" class="app-error body-sm" role="alert">
+        {{ actionError }}
+      </p>
+      <template #actions
         ><Button
           :disabled="busy || !reason.trim()"
           @click="pending && send(pending.id, pending.action)"
