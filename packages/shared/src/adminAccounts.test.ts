@@ -52,7 +52,7 @@ describe("账号管理请求与失败隔离", () => {
     expect(m.state.detailReady).toBe(true);
     scope.stop();
   });
-  it("保存失败保留资料但清除临时密码，并防止并发重复提交", async () => {
+  it("保存失败保留内存草稿与临时密码，并防止并发重复提交", async () => {
     let reject!: (e: Error) => void;
     const request = vi.fn(
       () =>
@@ -75,7 +75,7 @@ describe("账号管理请求与失败隔离", () => {
     reject(new Error("服务失败"));
     await pending;
     expect(m.state.form.name).toBe("草稿");
-    expect(m.state.form.password).toBe("");
+    expect(m.state.form.password).toBe("Temporary-password");
     expect(m.state.open).toBe(true);
     scope.stop();
   });

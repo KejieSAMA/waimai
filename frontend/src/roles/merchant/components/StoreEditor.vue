@@ -1,13 +1,6 @@
 <script setup lang="ts">
-import {
-  computed,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
-} from "vue";
-import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { computed, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import {
   Button,
   Dialog,
@@ -25,6 +18,8 @@ import {
   qualificationDocuments as documents,
 } from "@waimai/shared";
 import { api, upload } from "../../../common/api";
+import { useFormFocus } from "../../../common/formFocus";
+import { useDraftLeave } from "../../../common/draftLeave";
 import { useAuth } from "../../../common/auth";
 import {
   loadMerchantStore,
@@ -46,13 +41,25 @@ const editor = reactive(
     updateMerchantStore,
   ),
 );
+const formElement = ref<HTMLElement>();
+useFormFocus(formElement, {
+  ...editor.feedback,
+  first: computed(() => editor.feedback.first),
+  focusVersion: computed(() => editor.feedback.focusVersion),
+});
+const draftLeave = useDraftLeave(
+  () => editor.dirty,
+  () => editor.saving || editor.uploading,
+);
 const current = computed(() => merchantStore.value ?? editor.store);
 const locked = computed(
   () =>
     merchantStoreBusy.value ||
     editor.loading ||
+    !editor.loaded ||
     editor.saving ||
     editor.uploading ||
+    editor.readonly ||
     current.value?.status === "FROZEN",
 );
 const statusPending = ref(false),
@@ -124,43 +131,14 @@ async function setOpen(open: boolean) {
     merchantStoreBusy.value = false;
   }
 }
-const discardOpen = ref(false),
-  leaving = ref(false);
-let resolveLeave: ((value: boolean) => void) | undefined;
+const discardOpen = ref(false);
 function confirmDiscard() {
   editor.reset();
   discardOpen.value = false;
-  resolveLeave?.(true);
-  resolveLeave = undefined;
-  leaving.value = false;
 }
 function keepEditing() {
   discardOpen.value = false;
-  resolveLeave?.(false);
-  resolveLeave = undefined;
-  leaving.value = false;
 }
-onBeforeRouteLeave(() => {
-  if (editor.saving || editor.uploading) return false;
-  if (!editor.dirty) return true;
-  if (resolveLeave) return false;
-  discardOpen.value = true;
-  leaving.value = true;
-  return new Promise<boolean>((resolve) => {
-    resolveLeave = resolve;
-  });
-});
-function beforeUnload(event: BeforeUnloadEvent) {
-  if (editor.dirty) {
-    event.preventDefault();
-    event.returnValue = "";
-  }
-}
-onMounted(() => window.addEventListener("beforeunload", beforeUnload));
-onBeforeUnmount(() => {
-  window.removeEventListener("beforeunload", beforeUnload);
-  resolveLeave?.(false);
-});
 </script>
 <template>
   <BackofficePage>
@@ -207,6 +185,7 @@ onBeforeUnmount(() => {
         "
       />
       <form
+        ref="formElement"
         id="store-editor"
         class="app-card store-editor__form"
         novalidate
@@ -232,11 +211,19 @@ onBeforeUnmount(() => {
             </div>
             <div class="store-editor__fields">
               <Input
+                name="name"
+                :error="editor.feedback.field('name')"
+                @blur="editor.feedback.blur('name')"
+                :disabled="locked"
                 v-model="editor.form.name"
                 label="店铺名称"
                 maxlength="60"
                 required
               /><Select
+                name="categoryId"
+                :error="editor.feedback.field('categoryId')"
+                @blur="editor.feedback.blur('categoryId')"
+                :disabled="locked"
                 v-model="editor.form.categoryId"
                 layout="vertical"
                 label="平台类目"
@@ -244,17 +231,29 @@ onBeforeUnmount(() => {
                   editor.categories.map((c) => ({ value: c.id, label: c.name }))
                 "
               /><Input
+                name="city"
+                :error="editor.feedback.field('city')"
+                @blur="editor.feedback.blur('city')"
+                :disabled="locked"
                 v-model="editor.form.city"
                 label="城市"
                 maxlength="30"
                 required
               /><Input
+                name="contactPhone"
+                :error="editor.feedback.field('contactPhone')"
+                @blur="editor.feedback.blur('contactPhone')"
+                :disabled="locked"
                 v-model="editor.form.contactPhone"
                 label="联系电话"
                 inputmode="tel"
                 maxlength="11"
                 required
               /><Input
+                name="address"
+                :error="editor.feedback.field('address')"
+                @blur="editor.feedback.blur('address')"
+                :disabled="locked"
                 v-model="editor.form.address"
                 class="store-editor__wide"
                 label="店铺地址"
@@ -282,6 +281,10 @@ onBeforeUnmount(() => {
               /><span class="body-sm app-muted">即时生效，不随表单保存</span>
             </div>
             <Input
+              name="openHours"
+              :error="editor.feedback.field('openHours')"
+              @blur="editor.feedback.blur('openHours')"
+              :disabled="locked"
               v-model="editor.form.openHours"
               label="营业时间"
               maxlength="100"
@@ -290,6 +293,10 @@ onBeforeUnmount(() => {
             />
             <div class="store-editor__fields">
               <Input
+                name="min"
+                :error="editor.feedback.field('min')"
+                @blur="editor.feedback.blur('min')"
+                :disabled="locked"
                 v-model="editor.form.min"
                 label="起送价"
                 prefix="¥"
@@ -298,6 +305,10 @@ onBeforeUnmount(() => {
                 max="10000"
                 step="0.01"
               /><Input
+                name="fee"
+                :error="editor.feedback.field('fee')"
+                @blur="editor.feedback.blur('fee')"
+                :disabled="locked"
                 v-model="editor.form.fee"
                 label="配送费"
                 prefix="¥"
@@ -308,6 +319,10 @@ onBeforeUnmount(() => {
               />
             </div>
             <Input
+              name="notice"
+              :error="editor.feedback.field('notice')"
+              @blur="editor.feedback.blur('notice')"
+              :disabled="locked"
               v-model="editor.form.notice"
               label="店铺公告"
               multiline
@@ -328,6 +343,8 @@ onBeforeUnmount(() => {
               <QualificationCard
                 v-for="doc in documents"
                 :key="doc.key"
+                :field-name="doc.date"
+                :field-error="editor.feedback.field(doc.date)"
                 v-model:expires="editor.form[doc.date]"
                 :title="doc.title"
                 :has-image="!!editor.form[doc.key]"
@@ -387,9 +404,7 @@ onBeforeUnmount(() => {
     </template>
     <template #overlay
       ><Dialog :open="discardOpen" title="放弃修改" @close="keepEditing"
-        ><p class="body-md">
-          {{ leaving ? "离开将丢失尚未保存的修改" : "将恢复到上次保存的资料" }}
-        </p>
+        ><p class="body-md">将恢复到上次保存的资料</p>
         <template #actions
           ><Button variant="outline" @click="keepEditing">保留编辑</Button
           ><Button @click="confirmDiscard">放弃修改</Button></template
@@ -397,6 +412,19 @@ onBeforeUnmount(() => {
       ></template
     >
   </BackofficePage>
+  <Dialog
+    :open="draftLeave.open.value"
+    title="放弃修改"
+    @close="draftLeave.choose(false)"
+    ><p>离开后将放弃尚未保存的设置。</p>
+    <template #actions
+      ><Button variant="outline" @click="draftLeave.choose(false)"
+        >继续编辑</Button
+      ><Button variant="danger" @click="draftLeave.choose(true)"
+        >放弃修改</Button
+      ></template
+    ></Dialog
+  >
 </template>
 <style scoped>
 .store-editor__identity {

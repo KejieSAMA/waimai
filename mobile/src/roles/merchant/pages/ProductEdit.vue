@@ -9,120 +9,104 @@ import {
   ListCellGroup,
   Switch,
 } from "@waimai/ui";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { type Product, type Category, type Store } from "@waimai/shared";
+import { type Category } from "@waimai/shared";
 import PageSlot from "../../../components/PageSlot.vue";
 import { api, upload } from "../../../common/api";
-import { run, busy } from "../../../common/feedback";
+import { success } from "../../../common/feedback";
+import { useProductEditor } from "@waimai/shared";
+import { useDraftLeave } from "../../../common/draftLeave";
+import { useFormFocus } from "../../../common/formFocus";
 const route = useRoute(),
-  router = useRouter(),
-  categories = ref<Category[]>([]),
-  store = ref<Store>(),
-  newCategory = ref("");
-const form = reactive({
-  name: "",
-  dishCategoryId: "",
-  description: "",
-  images: "[]",
-  price: "28",
-  original: "",
-  stock: "100",
-  lowStock: "5",
-  limit: "",
-  listed: true,
-});
-const editing = computed(() => typeof route.params.id === "string");
-onMounted(() =>
-  run(async () => {
-    categories.value = await api<Category[]>(
-      "/merchant/dish-categories",
-      {},
-      "MERCHANT",
-    );
-    store.value = await api<Store>("/merchant/store", {}, "MERCHANT");
-    form.dishCategoryId = categories.value[0]?.id ?? "";
-    if (editing.value) {
-      const p = await api<Product>(
-        "/merchant/products/" + route.params.id,
-        {},
-        "MERCHANT",
-      );
-      Object.assign(form, {
-        ...p,
-        price: String(p.priceCents / 100),
-        original:
-          p.originalPriceCents == null
-            ? ""
-            : String(p.originalPriceCents / 100),
-        stock: String(p.stock),
-        lowStock: String(p.lowStock),
-        limit: p.limitPerOrder ? String(p.limitPerOrder) : "",
-        listed: p.status === "ON",
-      });
-    }
-  }),
+  router = useRouter();
+const editor = useProductEditor(
+  (path, options) => api(path, options, "MERCHANT"),
+  (file) => upload(file, "MERCHANT"),
+  computed(() => (typeof route.params.id === "string" ? route.params.id : "")),
 );
-const categoryDialog = ref(false),
-  categoryPicker = ref(false),
-  settingsOpen = ref(false);
-const images = computed<string[]>(() => JSON.parse(form.images));
-const locked = computed(() => busy.value || store.value?.status === "FROZEN");
-async function image(files: File[]) {
-  await run(async () => {
-    if (files.length + images.value.length > 5)
-      throw new Error("最多上传 5 张图片");
-    const urls = await Promise.all(
-      files.map((file) => upload(file, "MERCHANT")),
-    );
-    form.images = JSON.stringify([...images.value, ...urls]);
-  });
+const { form, categories, locked, images, dirty, feedback } = editor;
+const formElement = ref<HTMLElement>();
+useFormFocus(formElement, feedback);
+const { open: leaveOpen, choose: chooseLeave } = useDraftLeave(
+  () => dirty.value || (categoryDialog.value && !!newCategory.value.trim()),
+  () => editor.saving.value || editor.uploading.value || categorySaving.value,
+);
+async function save(listed = form.listed) {
+  if (await editor.save(listed)) {
+    success("商品已保存");
+    await router.push("/merchant/products");
+  }
 }
+const image = (files: File[]) => editor.image(files);
 function removeImage(index: number) {
-  form.images = JSON.stringify(images.value.filter((_, i) => i !== index));
+  if (!locked.value)
+    form.images = JSON.stringify(images.value.filter((_, i) => i !== index));
+}
+const categoryDialog = ref(false),
+  categorySaving = ref(false),
+  categoryError = ref("");
+const categoryPanel = ref<InstanceType<typeof Dialog>>();
+let alive = true;
+onScopeDispose(() => {
+  alive = false;
+});
+const newCategory = ref("");
+function openCategory() {
+  if (!locked.value) {
+    categoryError.value = "";
+    categoryDialog.value = true;
+  }
 }
 async function addCategory() {
-  await run(async () => {
-    const c = await api<Category>(
+  if (locked.value || categorySaving.value) return;
+  if (!newCategory.value.trim() || newCategory.value.trim().length > 40) {
+    categoryError.value = "请输入 1–40 个字的分类名称";
+    return;
+  }
+  categorySaving.value = true;
+  categoryError.value = "";
+  try {
+    const row = await api<Category>(
       "/merchant/dish-categories",
-      { method: "POST", body: { name: newCategory.value } },
+      { method: "POST", body: { name: newCategory.value.trim() } },
       "MERCHANT",
     );
-    categories.value.push(c);
-    form.dishCategoryId = c.id;
-    newCategory.value = "";
+    if (!alive) return;
+    categories.value.push(row);
+    form.dishCategoryId = row.id;
     categoryDialog.value = false;
-  });
+    newCategory.value = "";
+  } catch (e) {
+    if (alive)
+      categoryError.value = e instanceof Error ? e.message : "分类保存失败";
+  } finally {
+    if (alive) categorySaving.value = false;
+  }
 }
-async function save(listed = form.listed) {
-  await run(async () => {
-    await api(
-      "/merchant/products" + (editing.value ? "/" + route.params.id : ""),
-      {
-        method: editing.value ? "PUT" : "POST",
-        body: {
-          name: form.name,
-          dishCategoryId: form.dishCategoryId,
-          description: form.description,
-          images: form.images,
-          priceCents: Math.round(Number(form.price) * 100),
-          originalPriceCents: form.original
-            ? Math.round(Number(form.original) * 100)
-            : null,
-          stock: Number(form.stock),
-          lowStock: Number(form.lowStock),
-          limitPerOrder: form.limit ? Number(form.limit) : null,
-          listed,
-        },
-      },
-      "MERCHANT",
-    );
-    await router.push("/merchant/products");
-  });
-}
+const categoryPicker = ref(false),
+  settingsOpen = ref(false);
+watch(feedback.focusVersion, () => {
+  if (["lowStock", "limit"].includes(feedback.first.value))
+    settingsOpen.value = true;
+});
 </script>
 <template>
+  <p v-if="editor.error.value" class="app-error body-sm" role="alert">
+    {{ editor.error.value }}
+    <Button v-if="!editor.loaded.value" variant="text" @click="editor.load"
+      >重试</Button
+    >
+  </p>
+  <p v-if="editor.store.value?.status === 'FROZEN'" class="body-sm app-muted">
+    店铺已冻结，商品仅可查看
+  </p>
+  <p v-if="editor.loading.value" class="app-muted body-sm" role="status">
+    正在读取商品
+  </p>
   <form
+    ref="formElement"
+    novalidate
     id="product-editor"
     class="sc-form-fields"
     @submit.prevent="save(form.listed)"
@@ -142,6 +126,10 @@ async function save(listed = form.listed) {
     <div class="sc-form">
       <Input
         layout="horizontal"
+        name="name"
+        :error="feedback.field('name')"
+        @blur="feedback.blur('name')"
+        :disabled="locked"
         v-model="form.name"
         label="商品名称"
         required
@@ -150,6 +138,9 @@ async function save(listed = form.listed) {
       />
       <Input
         layout="horizontal"
+        name="dishCategoryId"
+        :disabled="locked"
+        :error="feedback.field('dishCategoryId')"
         :model-value="
           categories.find((c) => c.id === form.dishCategoryId)?.name || ''
         "
@@ -161,6 +152,10 @@ async function save(listed = form.listed) {
       ></Input>
       <Input
         layout="horizontal"
+        name="price"
+        :error="feedback.field('price')"
+        @blur="feedback.blur('price')"
+        :disabled="locked"
         v-model="form.price"
         label="售价"
         prefix="¥"
@@ -171,6 +166,10 @@ async function save(listed = form.listed) {
       />
       <Input
         layout="horizontal"
+        name="original"
+        :error="feedback.field('original')"
+        @blur="feedback.blur('original')"
+        :disabled="locked"
         v-model="form.original"
         label="划线价"
         prefix="¥"
@@ -181,6 +180,10 @@ async function save(listed = form.listed) {
       />
       <Input
         layout="horizontal"
+        name="stock"
+        :error="feedback.field('stock')"
+        @blur="feedback.blur('stock')"
+        :disabled="locked"
         v-model="form.stock"
         label="库存"
         suffix="份"
@@ -193,6 +196,10 @@ async function save(listed = form.listed) {
     <div class="sc-form">
       <Input
         layout="horizontal"
+        name="description"
+        :error="feedback.field('description')"
+        @blur="feedback.blur('description')"
+        :disabled="locked"
         v-model="form.description"
         label="商品描述"
         multiline
@@ -218,6 +225,10 @@ async function save(listed = form.listed) {
       >
         <Input
           layout="horizontal"
+          name="lowStock"
+          :error="feedback.field('lowStock')"
+          @blur="feedback.blur('lowStock')"
+          :disabled="locked"
           v-model="form.lowStock"
           form="product-editor"
           label="预警库存"
@@ -225,15 +236,17 @@ async function save(listed = form.listed) {
           min="0"
         /><Input
           layout="horizontal"
+          name="limit"
+          :error="feedback.field('limit')"
+          @blur="feedback.blur('limit')"
+          :disabled="locked"
           v-model="form.limit"
           form="product-editor"
           label="每单限购"
           type="number"
           min="1"
           placeholder="不限"
-        /><Button variant="text" @click="categoryDialog = true"
-          >新增分类</Button
-        >
+        /><Button variant="text" @click="openCategory">新增分类</Button>
         <template #actions
           ><Button size="lg" @click="settingsOpen = false"
             >完成</Button
@@ -246,7 +259,7 @@ async function save(listed = form.listed) {
         <Button
           size="lg"
           variant="secondary"
-          :disabled="locked"
+          :disabled="locked || !dirty"
           @click="save(false)"
           >存为草稿</Button
         ><Button
@@ -277,14 +290,36 @@ async function save(listed = form.listed) {
       </div></Dialog
     >
     <Dialog
+      ref="categoryPanel"
       :open="categoryDialog"
+      :confirm-discard="true"
+      :dirty="!!newCategory.trim()"
+      :close-disabled="categorySaving"
       title="新增分类"
+      variant="sheet"
       @close="categoryDialog = false"
-      ><Input v-model="newCategory" label="分类名称" /><template #actions
-        ><Button :disabled="locked || !newCategory.trim()" @click="addCategory"
+      ><Input
+        v-model="newCategory"
+        label="分类名称"
+        :disabled="categorySaving"
+        :error="categoryError"
+        autofocus
+      /><template #actions
+        ><Button
+          :disabled="locked || categorySaving || !newCategory.trim()"
+          @click="addCategory"
           >新增分类</Button
         ></template
       ></Dialog
     >
   </form>
+  <Dialog :open="leaveOpen" title="放弃修改" @close="chooseLeave(false)"
+    ><p>离开后将放弃尚未保存的商品修改。</p>
+    <template #actions
+      ><Button variant="outline" @click="chooseLeave(false)">继续编辑</Button
+      ><Button variant="danger" @click="chooseLeave(true)"
+        >放弃修改</Button
+      ></template
+    ></Dialog
+  >
 </template>

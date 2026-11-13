@@ -50,6 +50,7 @@ export async function upload(
   purpose: "image" | "certificate" = "image",
 ): Promise<string> {
   const auth = useAuth();
+  const version = auth.revision;
   const form = new FormData();
   form.append("file", file);
   form.append("purpose", purpose);
@@ -60,6 +61,8 @@ export async function upload(
     body: form,
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.message);
+  if (auth.revision !== version) throw new Error("身份已变化，请重新操作");
+  if (!response.ok)
+    throw new ApiError(response.status, result.message, result.details);
   return result.data.url;
 }

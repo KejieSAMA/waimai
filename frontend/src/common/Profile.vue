@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AccountLayout from "./AccountLayout.vue";
 import { useRouter } from "vue-router";
 import { Button, Dialog, Input } from "../components/pc";
@@ -7,6 +7,7 @@ import { useProfileEditor } from "@waimai/shared";
 import BackofficePage from "../components/BackofficePage.vue";
 import { useAuth } from "./auth";
 import { useDraftLeave } from "./draftLeave";
+import { useFormFocus } from "./formFocus";
 const auth = useAuth(),
   router = useRouter();
 const shell = computed(() =>
@@ -21,8 +22,7 @@ const {
   error,
   dirty,
   canSave,
-  nameError,
-  phoneError,
+  feedback,
   load,
   save,
 } = useProfileEditor({
@@ -41,6 +41,8 @@ const back = () =>
         ? "/admin/me"
         : "/me",
   );
+const formElement = ref<HTMLElement>();
+useFormFocus(formElement, feedback);
 async function submit() {
   if (await save()) await back();
 }
@@ -56,6 +58,8 @@ async function submit() {
         </div></template
       >
       <form
+        ref="formElement"
+        novalidate
         id="pc-profile-form"
         class="app-card app-stack profile-form"
         @submit.prevent="submit"
@@ -81,7 +85,9 @@ async function submit() {
             maxlength="30"
             autocomplete="nickname"
             :disabled="saving || loading"
-            :error="nameError"
+            :error="feedback.field('name')"
+            name="name"
+            @blur="feedback.blur('name')"
           /><Input
             v-model="phone"
             label="联系手机"
@@ -89,7 +95,9 @@ async function submit() {
             maxlength="11"
             inputmode="tel"
             :disabled="saving || loading"
-            :error="phoneError"
+            :error="feedback.field('phone')"
+            name="phone"
+            @blur="feedback.blur('phone')"
             placeholder="选填，可留空"
           />
           <p class="body-sm app-muted">

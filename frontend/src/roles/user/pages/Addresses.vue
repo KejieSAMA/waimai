@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PageHeader from "../../../components/PageHeader.vue";
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, onScopeDispose, reactive, ref } from "vue";
 import {
   Button,
   Input,
@@ -9,9 +9,16 @@ import {
   ListCellGroup,
   Dialog,
 } from "../../../components/pc";
-import { type Address, phoneTail } from "@waimai/shared";
+import {
+  addressErrors,
+  useFormFeedback,
+  type Address,
+  phoneTail,
+} from "@waimai/shared";
 import { api } from "../../../common/api";
 
+import { useFormFocus } from "../../../common/formFocus";
+import { useDraftLeave } from "../../../common/draftLeave";
 const list = ref<Address[]>([]),
   editing = ref(""),
   editorOpen = ref(false),
@@ -22,15 +29,36 @@ const list = ref<Address[]>([]),
   error = ref(""),
   formError = ref("");
 const form = reactive({ contact: "", phone: "", detail: "", isDefault: false });
+const editorDialog = ref<InstanceType<typeof Dialog>>();
+const formElement = ref<HTMLElement>(),
+  baseline = ref("");
+const feedback = useFormFeedback(() => addressErrors(form));
+useFormFocus(formElement, feedback);
+const dirty = computed(
+  () => editorOpen.value && JSON.stringify(form) !== baseline.value,
+);
+const { open: leaveOpen, choose: chooseLeave } = useDraftLeave(
+  () => dirty.value,
+  () => saving.value || removing.value,
+);
+let active = true,
+  version = 0;
+onScopeDispose(() => {
+  active = false;
+  version++;
+});
 async function load() {
+  const current = ++version;
   loading.value = true;
   error.value = "";
   try {
-    list.value = await api<Address[]>("/user/addresses");
+    const rows = await api<Address[]>("/user/addresses");
+    if (active && current === version) list.value = rows;
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "地址加载失败";
+    if (active && current === version)
+      error.value = cause instanceof Error ? cause.message : "地址加载失败";
   } finally {
-    loading.value = false;
+    if (active && current === version) loading.value = false;
   }
 }
 onMounted(load);
@@ -42,11 +70,13 @@ function edit(address?: Address) {
     detail: address?.detail ?? "",
     isDefault: address?.isDefault ?? false,
   });
+  baseline.value = JSON.stringify(form);
+  feedback.reset();
   formError.value = "";
   editorOpen.value = true;
 }
 async function save() {
-  if (saving.value) return;
+  if (saving.value || !dirty.value || !feedback.check()) return;
   saving.value = true;
   formError.value = "";
   try {
@@ -54,10 +84,14 @@ async function save() {
       method: editing.value ? "PUT" : "POST",
       body: { ...form },
     });
+    if (!active) return;
     editorOpen.value = false;
     await load();
   } catch (cause) {
-    formError.value = cause instanceof Error ? cause.message : "地址保存失败";
+    if (active) {
+      feedback.reject(cause);
+      formError.value = cause instanceof Error ? cause.message : "地址保存失败";
+    }
   } finally {
     saving.value = false;
   }
@@ -132,17 +166,26 @@ async function remove() {
     </ListCellGroup>
     <Dialog
       variant="modal"
+      ref="editorDialog"
       :open="editorOpen"
+      :close-disabled="saving"
+      :confirm-discard="true"
+      :dirty="dirty"
       :title="editing ? '编辑地址' : '新增地址'"
       @close="!saving && (editorOpen = false)"
     >
       <form
+        ref="formElement"
+        novalidate
         id="address-form"
         class="app-form"
         :aria-busy="saving"
         @submit.prevent="save"
       >
         <Input
+          name="contact"
+          :error="feedback.field('contact')"
+          @blur="feedback.blur('contact')"
           v-model="form.contact"
           label="收货人"
           required
@@ -151,6 +194,9 @@ async function remove() {
           :disabled="saving"
         />
         <Input
+          name="phone"
+          :error="feedback.field('phone')"
+          @blur="feedback.blur('phone')"
           v-model="form.phone"
           label="手机号"
           required
@@ -163,6 +209,9 @@ async function remove() {
           :disabled="saving"
         />
         <Input
+          name="detail"
+          :error="feedback.field('detail')"
+          @blur="feedback.blur('detail')"
           v-model="form.detail"
           label="详细地址"
           required
@@ -177,7 +226,10 @@ async function remove() {
         </p>
       </form>
       <template #actions>
-        <Button variant="outline" :disabled="saving" @click="editorOpen = false"
+        <Button
+          variant="outline"
+          :disabled="saving"
+          @click="editorDialog?.close()"
           >取消</Button
         >
         <Button type="submit" form="address-form" :disabled="saving">{{
@@ -187,6 +239,7 @@ async function remove() {
     </Dialog>
     <Dialog
       variant="modal"
+      :close-disabled="removing"
       :open="!!deleting"
       title="删除地址"
       @close="!removing && (deleting = null)"
@@ -205,5 +258,14 @@ async function remove() {
         >
       </template>
     </Dialog>
+    <Dialog :open="leaveOpen" title="放弃修改" @close="chooseLeave(false)"
+      ><p>离开将放弃未保存的地址修改。</p>
+      <template #actions
+        ><Button variant="outline" @click="chooseLeave(false)">继续编辑</Button
+        ><Button variant="danger" @click="chooseLeave(true)"
+          >放弃修改</Button
+        ></template
+      ></Dialog
+    >
   </section>
 </template>

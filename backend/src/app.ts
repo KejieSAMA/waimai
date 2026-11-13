@@ -6,7 +6,7 @@ import express, {
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import multer from "multer";
-import { ZodError } from "zod";
+import { ZodError, type ZodIssue } from "zod";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { config, production } from "./config";
@@ -15,6 +15,13 @@ import { privateOwner } from "./modules/uploads/service";
 import { ownsStoreCertificate } from "./modules/stores/service";
 import { authenticate } from "./modules/auth/middleware";
 import { assert, type AuthRequest } from "./http";
+// Some default Zod messages interpolate the rejected enum/literal value.
+const validationMessage = (issue: ZodIssue) =>
+  ["invalid_enum_value", "invalid_literal"].includes(issue.code)
+    ? "字段值不在允许范围内"
+    : issue.code === "unrecognized_keys"
+      ? "包含不支持的字段"
+      : issue.message;
 export const app = express();
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: production ? undefined : false }));
@@ -137,7 +144,15 @@ app.use(
                   ? "数据正在更新，请重试"
                   : error.message,
       ...(error instanceof ZodError
-        ? { details: error.flatten() }
+        ? {
+            details: {
+              ...error.flatten(validationMessage),
+              issues: error.issues.map((issue) => ({
+                path: issue.path,
+                message: validationMessage(issue),
+              })),
+            },
+          }
         : error.details
           ? { details: error.details }
           : {}),

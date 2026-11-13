@@ -1,3 +1,4 @@
+import { useFormFeedback, type FieldErrors } from "./formFeedback";
 import { DEFAULT_PAGE_SIZE } from "./rules";
 import { computed, onScopeDispose, onMounted, ref, watch } from "vue";
 import type { Page, StoreStatus } from "./index";
@@ -12,6 +13,7 @@ export interface MerchantReview {
 export function useMerchantReviews(
   request: CheckoutRequest,
   initial: { rating?: string; reply?: string } = {},
+  onPageSuccess?: () => void,
 ) {
   const rating = ref(initial.rating === "bad" ? "bad" : "all"),
     reply = ref(initial.reply === "pending" ? "pending" : "all"),
@@ -30,7 +32,12 @@ export function useMerchantReviews(
   const readonly = computed(
     () => !status.value || !["OPEN", "CLOSED"].includes(status.value),
   );
-  async function load() {
+  let retryPage = 1,
+    committedPage = 1,
+    retryScroll = false;
+  async function readPage(target: number, scroll = false) {
+    retryPage = target;
+    retryScroll = scroll;
     const current = ++version;
     loading.value = true;
     error.value = "";
@@ -38,16 +45,16 @@ export function useMerchantReviews(
       const result = await request<
         Page<MerchantReview> & { storeStatus: StoreStatus }
       >(
-        `/merchant/reviews?rating=${rating.value}&reply=${reply.value}&page=${page.value}`,
+        `/merchant/reviews?rating=${rating.value}&reply=${reply.value}&page=${target}`,
       );
       if (!active || current !== version) return;
+      const last = Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE));
+      if (target > last) return readPage(last, scroll);
       list.value = result.list;
       total.value = result.total;
       status.value = result.storeStatus;
-      if (page.value > 1 && !result.list.length) {
-        page.value = Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE));
-        await load();
-      }
+      page.value = committedPage = target;
+      if (scroll) onPageSuccess?.();
     } catch (e) {
       if (active && current === version)
         error.value = e instanceof Error ? e.message : "评价读取失败";
@@ -55,6 +62,9 @@ export function useMerchantReviews(
       if (active && current === version) loading.value = false;
     }
   }
+  const load = () => readPage(committedPage);
+  const retry = () => readPage(retryPage, retryScroll);
+  const changePage = (target: number) => readPage(target, true);
   function edit(row: MerchantReview) {
     if (!saving.value && !readonly.value) {
       editing.value = row;
@@ -92,8 +102,7 @@ export function useMerchantReviews(
     }
   }
   watch([rating, reply], () => {
-    page.value = 1;
-    void load();
+    void readPage(1, true);
   });
   onMounted(load);
   onScopeDispose(() => {
@@ -115,6 +124,8 @@ export function useMerchantReviews(
     editing,
     content,
     load,
+    retry,
+    changePage,
     edit,
     save,
   };
@@ -174,10 +185,33 @@ export function usePromotionsEditor(request: CheckoutRequest) {
       ? "满减门槛不能重复"
       : "";
   });
+  const feedback = useFormFeedback(() => {
+    const errors: FieldErrors = {},
+      seen = new Set<number>();
+    payload.value.forEach((r, i) => {
+      if (
+        !Number.isSafeInteger(r.thresholdCents) ||
+        r.thresholdCents <= 0 ||
+        r.thresholdCents > 1000000
+      )
+        errors[`rules.${i}.threshold`] =
+          "门槛需大于 0 且不超过 10000 元，最多两位小数";
+      else if (seen.has(r.thresholdCents))
+        errors[`rules.${i}.threshold`] = "满减门槛不能重复";
+      seen.add(r.thresholdCents);
+      if (
+        !Number.isSafeInteger(r.discountCents) ||
+        r.discountCents <= 0 ||
+        r.discountCents > r.thresholdCents
+      )
+        errors[`rules.${i}.discount`] =
+          "优惠需大于 0 且不超过门槛，最多两位小数";
+    });
+    return errors;
+  });
   const canSave = computed(
     () =>
       dirty.value &&
-      !issue.value &&
       !readonly.value &&
       !loading.value &&
       !saving.value &&
@@ -193,6 +227,7 @@ export function usePromotionsEditor(request: CheckoutRequest) {
     baseline.value = JSON.stringify(rules.value);
     loaded.value = true;
     conflict.value = false;
+    feedback.reset();
   }
   async function load() {
     if (saving.value) return;
@@ -210,7 +245,7 @@ export function usePromotionsEditor(request: CheckoutRequest) {
     }
   }
   async function save() {
-    if (!canSave.value) return false;
+    if (!canSave.value || !feedback.check()) return false;
     saving.value = true;
     error.value = "";
     notice.value = "";
@@ -226,6 +261,15 @@ export function usePromotionsEditor(request: CheckoutRequest) {
       return true;
     } catch (e) {
       if (active && current === generation) {
+        feedback.reject(
+          e,
+          Object.fromEntries(
+            payload.value.flatMap((_, i) => [
+              [`rules.${i}.thresholdCents`, `rules.${i}.threshold`],
+              [`rules.${i}.discountCents`, `rules.${i}.discount`],
+            ]),
+          ),
+        );
         error.value = e instanceof Error ? e.message : "保存失败";
         if ((e as { code?: number })?.code === 409) conflict.value = true;
       }
@@ -239,6 +283,7 @@ export function usePromotionsEditor(request: CheckoutRequest) {
       rules.value = JSON.parse(baseline.value);
       if (!conflict.value) error.value = "";
       notice.value = "";
+      feedback.reset();
     }
   }
   function add() {
@@ -261,6 +306,7 @@ export function usePromotionsEditor(request: CheckoutRequest) {
   });
   return {
     rules,
+    feedback,
     status,
     loading,
     saving,

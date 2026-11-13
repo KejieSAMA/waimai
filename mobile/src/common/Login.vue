@@ -2,9 +2,17 @@
 import { Button, Input } from "@waimai/ui";
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { roleHome, type Role } from "@waimai/shared";
+import {
+  useFormFeedback,
+  passwordError,
+  type FieldErrors,
+  clearLoginPassword,
+  roleHome,
+  type Role,
+} from "@waimai/shared";
 import { readAccessTarget } from "./authNavigation";
 import { useAuth } from "./auth";
+import { useFormFocus } from "./formFocus";
 const route = useRoute(),
   router = useRouter(),
   auth = useAuth();
@@ -16,13 +24,32 @@ const username = ref(""),
   register = ref(false),
   pending = ref(false),
   error = ref("");
+const formElement = ref<HTMLElement>();
+const feedback = useFormFeedback(() => {
+  const e: FieldErrors = {};
+  if (!/^[a-z0-9_-]{3,32}$/.test(username.value.trim().toLowerCase()))
+    e.username = "账号须为 3–32 位英文、数字、下划线或连字符";
+  if (!password.value) e.password = "请填写密码";
+  if (register.value) {
+    const p = passwordError(password.value);
+    if (p) e.password = p;
+    if (!name.value.trim() || name.value.trim().length > 30)
+      e.name = "昵称需为 1–30 个字";
+    if (phone.value && !/^1[3-9]\d{9}$/.test(phone.value))
+      e.phone = "请填写有效手机号，或留空";
+  }
+  return e;
+});
+useFormFocus(formElement, feedback);
+watch(register, () => feedback.reset());
 watch(role, () => {
   password.value = "";
   register.value = false;
   error.value = "";
+  feedback.reset();
 });
 async function submit() {
-  if (pending.value) return;
+  if (pending.value || !feedback.check()) return;
   pending.value = true;
   error.value = "";
   try {
@@ -41,6 +68,7 @@ async function submit() {
           },
       register.value,
     );
+    password.value = "";
     const target = readAccessTarget(router, route.query.redirect);
     await router.replace(
       auth.account?.mustChangePassword
@@ -51,15 +79,21 @@ async function submit() {
         : (target?.fullPath ?? roleHome(auth.activeRole)),
     );
   } catch (e) {
+    feedback.reject(e);
     error.value = e instanceof Error ? e.message : "登录失败";
+    if (clearLoginPassword(e)) password.value = "";
   } finally {
     pending.value = false;
-    password.value = "";
   }
 }
 </script>
 <template>
-  <form class="app-login app-card app-stack" @submit.prevent="submit">
+  <form
+    ref="formElement"
+    novalidate
+    class="app-login app-card app-stack"
+    @submit.prevent="submit"
+  >
     <h1 class="title-lg">
       {{
         register
@@ -73,6 +107,9 @@ async function submit() {
     </h1>
     <Input
       v-model="username"
+      name="username"
+      :error="feedback.field('username')"
+      @blur="feedback.blur('username')"
       label="账号"
       autocomplete="username"
       required
@@ -82,6 +119,9 @@ async function submit() {
     />
     <Input
       v-model="password"
+      name="password"
+      :error="feedback.field('password')"
+      @blur="feedback.blur('password')"
       label="密码"
       type="password"
       :autocomplete="register ? 'new-password' : 'current-password'"
@@ -92,11 +132,17 @@ async function submit() {
     <template v-if="register"
       ><Input
         v-model="name"
+        name="name"
+        :error="feedback.field('name')"
+        @blur="feedback.blur('name')"
         label="昵称"
         required
         maxlength="30"
         :disabled="pending" /><Input
         v-model="phone"
+        name="phone"
+        :error="feedback.field('phone')"
+        @blur="feedback.blur('phone')"
         label="联系手机"
         inputmode="tel"
         maxlength="11"

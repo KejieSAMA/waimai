@@ -48,6 +48,46 @@ const update = (token: string, body: object) =>
     .auth(token, { type: "bearer" })
     .send(body);
 describe("本人资料接口", () => {
+  it("字段错误兼容旧结构并提供无输入值的路径消息", async () => {
+    const { session } = await identity();
+    const response = await update(session.accessToken, {
+      name: "",
+      phone: "private-invalid-phone",
+    });
+    expect(response.status).toBe(400);
+    expect(response.body.details.fieldErrors.name).toBeDefined();
+    expect(response.body.details.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["name"],
+          message: expect.any(String),
+        }),
+        expect.objectContaining({
+          path: ["phone"],
+          message: expect.any(String),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(response.body.details)).not.toContain(
+      "private-invalid-phone",
+    );
+    const admin = await identity("ADMIN");
+    const enumResponse = await request(app)
+      .post("/api/v1/admin/accounts")
+      .auth(admin.session.accessToken, { type: "bearer" })
+      .send({
+        username: "invalid_role_input",
+        name: "测试",
+        password: "12345678",
+        roles: ["private-enum-input"],
+      });
+    expect(enumResponse.status).toBe(400);
+    expect(JSON.stringify(enumResponse.body)).not.toContain(
+      "private-enum-input",
+    );
+    for (const issue of response.body.details.issues)
+      expect(Object.keys(issue).sort()).toEqual(["message", "path"]);
+  });
   it.each(["USER", "MERCHANT", "ADMIN"] as const)(
     "%s 可更新本人资料，不改变授权或撤销会话，审计不含手机正文",
     async (role) => {

@@ -369,3 +369,9 @@ body,
   width: 100%;
   object-fit: contain;
 }
+
+.app-success {
+  color: var(--success);
+  background: var(--success-soft);
+  padding: var(--space-3);
+}

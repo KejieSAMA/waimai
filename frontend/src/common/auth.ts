@@ -24,7 +24,11 @@ export const useAuth = defineStore("auth", () => {
     });
     const result = await response.json();
     if (!response.ok)
-      throw new ApiError(response.status, result.message || "请求失败");
+      throw new ApiError(
+        response.status,
+        result.message || "请求失败",
+        result.details,
+      );
     return result.data as T;
   };
   function request<T>(

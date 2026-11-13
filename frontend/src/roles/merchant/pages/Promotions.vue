@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { Button, Dialog, PromotionFields } from "../../../components/pc";
 import { usePromotionsEditor } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useDraftLeave } from "../../../common/draftLeave";
 import BackofficePage from "../../../components/BackofficePage.vue";
+import { useFormFocus } from "../../../common/formFocus";
+const formElement = ref<HTMLElement>();
 const router = useRouter();
 const state = reactive(
   usePromotionsEditor((path, options) => api(path, options, "MERCHANT")),
 );
+useFormFocus(formElement, {
+  ...state.feedback,
+  first: computed(() => state.feedback.first),
+  focusVersion: computed(() => state.feedback.focusVersion),
+});
 const { open, choose } = useDraftLeave(
   () => state.dirty,
   () => state.saving,
@@ -43,7 +50,7 @@ function reload() {
         ><span class="body-sm">满减配置</span>
       </div></template
     >
-    <div class="app-card app-stack promotion-editor">
+    <div ref="formElement" class="app-card app-stack promotion-editor">
       <p v-if="state.loading" class="body-sm app-muted" role="status">
         正在读取满减配置
       </p>
@@ -53,12 +60,18 @@ function reload() {
       <PromotionFields
         v-if="state.loaded"
         :rules="state.rules"
+        :field-error="state.feedback.field"
+        @blur="state.feedback.blur"
         :disabled="state.readonly || state.loading || state.saving"
         @update="update"
         @add="state.add"
         @remove="state.remove"
       />
-      <p v-if="state.issue" class="app-error body-sm" role="alert">
+      <p
+        v-if="state.issue && state.feedback.first"
+        class="app-error body-sm"
+        role="alert"
+      >
         {{ state.issue }}
       </p>
       <p v-if="state.error" class="app-error body-sm" role="alert">

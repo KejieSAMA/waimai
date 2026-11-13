@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { Button, Input, Select, Tag, Dialog, AccountForm } from "@waimai/ui";
 import { useAdminAccounts, time } from "@waimai/shared";
 import { api } from "../../../common/api";
-const manager = useAdminAccounts((path, options) =>
-  api(path, options, "ADMIN"),
+import { useListScroll } from "../../../common/pageScroll";
+const listStart = ref<HTMLElement>();
+const scroll = useListScroll(listStart);
+const manager = useAdminAccounts(
+  (path, options) => api(path, options, "ADMIN"),
+  scroll,
 );
+import { useDraftLeave } from "../../../common/draftLeave";
+import { useFormFocus } from "../../../common/formFocus";
+const formElement = ref<HTMLElement>(),
+  accountDialog = ref<InstanceType<typeof Dialog>>();
+useFormFocus(formElement, manager.feedback);
 const s = manager.state;
 const roles = { USER: "用户", MERCHANT: "商家", ADMIN: "管理员" };
 const roleLabels = (values: string[]) =>
@@ -22,6 +31,10 @@ const actions: Record<string, string> = {
   "account-recover": "恢复管理员",
 };
 onMounted(manager.load);
+const draftLeave = useDraftLeave(
+  () => s.open && manager.dirty.value,
+  () => s.saving,
+);
 </script>
 <template>
   <div class="app-stack">
@@ -55,11 +68,14 @@ onMounted(manager.load);
         >
       </div>
     </form>
+    <div ref="listStart" />
     <p v-if="s.error" class="app-error body-sm" role="alert">
-      {{ s.error }}<Button variant="text" @click="manager.load">重试</Button>
+      {{ s.error }}<Button variant="text" @click="manager.retry">重试</Button>
     </p>
     <p v-if="s.loading" class="body-sm" role="status">加载中</p>
-    <p v-else-if="!s.list.length && !s.error" class="body-sm">暂无账号</p>
+    <p v-else-if="s.loaded && !s.list.length && !s.error" class="body-sm">
+      暂无账号
+    </p>
     <section
       v-for="account in s.list"
       :key="account.id"
@@ -105,24 +121,20 @@ onMounted(manager.load);
       <Button
         variant="outline"
         :disabled="s.loading || s.page <= 1"
-        @click="
-          s.page--;
-          manager.load();
-        "
+        @click="manager.changePage(s.page - 1)"
         >上一页</Button
       ><span class="body-sm">{{ s.page }} / {{ manager.pages.value }}</span
       ><Button
         variant="outline"
         :disabled="s.loading || s.page >= manager.pages.value"
-        @click="
-          s.page++;
-          manager.load();
-        "
+        @click="manager.changePage(s.page + 1)"
         >下一页</Button
       >
     </div>
     <Dialog
+      ref="accountDialog"
       :open="s.open"
+      :dirty="manager.dirty.value"
       :title="
         s.kind === 'create'
           ? '创建账号'
@@ -134,12 +146,15 @@ onMounted(manager.load);
       "
       variant="sheet"
       :close-disabled="s.saving"
+      :confirm-discard="s.kind !== 'status'"
       @close="manager.close"
     >
       <p v-if="s.detailLoading" class="body-sm" role="status">加载账号中</p>
       <form
         v-else
         id="account-form"
+        ref="formElement"
+        novalidate
         class="app-stack"
         @submit.prevent="
           s.kind === 'status' ? manager.confirmStatus() : manager.save()
@@ -154,7 +169,9 @@ onMounted(manager.load);
           v-else
           v-model:form="s.form"
           :kind="s.kind"
-          :disabled="s.saving"
+          :field-error="manager.feedback.field"
+          @blur="manager.feedback.blur"
+          :disabled="s.saving || !s.detailReady"
         />
         <template v-if="s.kind === 'edit'"
           ><div class="app-row">
@@ -184,7 +201,10 @@ onMounted(manager.load);
         </p>
       </form>
       <template #actions
-        ><Button variant="outline" :disabled="s.saving" @click="manager.close"
+        ><Button
+          variant="outline"
+          :disabled="s.saving"
+          @click="accountDialog?.close()"
           >取消</Button
         ><Button
           type="submit"
@@ -197,4 +217,17 @@ onMounted(manager.load);
       ></Dialog
     >
   </div>
+  <Dialog
+    :open="draftLeave.open.value"
+    title="放弃修改"
+    @close="draftLeave.choose(false)"
+    ><p>离开将放弃尚未保存的修改。</p>
+    <template #actions
+      ><Button variant="outline" @click="draftLeave.choose(false)"
+        >继续编辑</Button
+      ><Button variant="danger" @click="draftLeave.choose(true)"
+        >放弃修改</Button
+      ></template
+    ></Dialog
+  >
 </template>

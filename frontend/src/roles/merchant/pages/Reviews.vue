@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Button, Dialog, Input, Select } from "../../../components/pc";
 import { useMerchantReviews, time } from "@waimai/shared";
@@ -7,6 +7,8 @@ import { api } from "../../../common/api";
 import BackofficePage from "../../../components/BackofficePage.vue";
 import DataTable from "../../../components/DataTable.vue";
 import Pagination from "../../../components/Pagination.vue";
+const replyDialog = ref<InstanceType<typeof Dialog>>();
+import { useDraftLeave } from "../../../common/draftLeave";
 const route = useRoute();
 const state = reactive(
   useMerchantReviews((path, options) => api(path, options, "MERCHANT"), {
@@ -21,6 +23,10 @@ const columns = [
   { key: "reply", title: "商家回复" },
   { key: "actions", title: "操作" },
 ];
+const draftLeave = useDraftLeave(
+  () => !!state.editing && state.content !== (state.editing.reply ?? ""),
+  () => state.saving,
+);
 </script>
 <template>
   <BackofficePage :body-scroll="false">
@@ -99,16 +105,19 @@ const columns = [
     </DataTable>
     <template #footer
       ><Pagination
-        v-model="state.page"
+        :model-value="state.page"
         :total="state.total"
-        @update:model-value="state.load"
+        @update:model-value="state.changePage"
     /></template>
     <template #overlay>
       <Dialog
+        ref="replyDialog"
         :open="!!state.editing"
         variant="modal"
         title="回复评价"
         :close-disabled="state.saving"
+        :confirm-discard="true"
+        :dirty="state.content !== (state.editing?.reply ?? '')"
         @close="state.editing = undefined"
       >
         <p class="body-md review-text">{{ state.editing?.content }}</p>
@@ -127,7 +136,7 @@ const columns = [
           ><Button
             variant="outline"
             :disabled="state.saving"
-            @click="state.editing = undefined"
+            @click="replyDialog?.close()"
             >取消</Button
           ><Button
             :disabled="state.saving || !state.content.trim()"
@@ -138,6 +147,19 @@ const columns = [
       </Dialog>
     </template>
   </BackofficePage>
+  <Dialog
+    :open="draftLeave.open.value"
+    title="放弃修改"
+    @close="draftLeave.choose(false)"
+    ><p>离开将放弃未保存的回复。</p>
+    <template #actions
+      ><Button variant="outline" @click="draftLeave.choose(false)"
+        >继续编辑</Button
+      ><Button variant="danger" @click="draftLeave.choose(true)"
+        >放弃修改</Button
+      ></template
+    ></Dialog
+  >
 </template>
 <style scoped>
 .review-text {

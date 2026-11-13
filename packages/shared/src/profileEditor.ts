@@ -1,4 +1,5 @@
 import { computed, onScopeDispose, ref } from "vue";
+import { useFormFeedback } from "./formFeedback";
 import type { Account } from "./index";
 
 export function profileLeaveDecision(
@@ -6,8 +7,9 @@ export function profileLeaveDecision(
   saving: boolean,
   sameIdentity: boolean,
 ) {
-  if (!sameIdentity || !dirty) return "allow";
-  return saving ? "block" : "confirm";
+  if (!sameIdentity) return "allow";
+  if (saving) return "block";
+  return dirty ? "confirm" : "allow";
 }
 
 export function useProfileEditor(port: {
@@ -41,15 +43,19 @@ export function useProfileEditor(port: {
       ? "请填写有效的 11 位手机号，或留空"
       : "",
   );
-  const valid = computed(() => !nameError.value && !phoneError.value);
+  const feedback = useFormFeedback(() => ({
+    ...(nameError.value ? { name: nameError.value } : {}),
+    ...(phoneError.value ? { phone: phoneError.value } : {}),
+  }));
   const canSave = computed(
-    () => dirty.value && valid.value && !loading.value && !saving.value,
+    () => dirty.value && loaded.value && !loading.value && !saving.value,
   );
   function accept(account: Account) {
     baseline.value = { name: account.name, phone: account.phone || "" };
     name.value = baseline.value.name;
     phone.value = baseline.value.phone;
     loaded.value = true;
+    feedback.reset();
   }
   async function load() {
     if (saving.value) return;
@@ -67,7 +73,7 @@ export function useProfileEditor(port: {
     }
   }
   async function save() {
-    if (!canSave.value) return false;
+    if (!canSave.value || !feedback.check()) return false;
     saving.value = true;
     error.value = "";
     const id = ++version;
@@ -80,8 +86,10 @@ export function useProfileEditor(port: {
       accept(account);
       return true;
     } catch (e) {
-      if (alive && version === id)
+      if (alive && version === id) {
+        feedback.reject(e);
         error.value = e instanceof Error ? e.message : "保存失败";
+      }
       return false;
     } finally {
       if (alive && version === id) saving.value = false;
@@ -95,6 +103,7 @@ export function useProfileEditor(port: {
   return {
     name,
     phone,
+    feedback,
     loading,
     saving,
     loaded,

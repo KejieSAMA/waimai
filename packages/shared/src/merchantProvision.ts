@@ -1,6 +1,12 @@
 import { computed, onScopeDispose, reactive, ref } from "vue";
 import { ApiError, type Category, type Store } from "./index";
-import { storeDraft, storeDraftIssue, storeDraftPayload } from "./storeEditor";
+import { useFormFeedback, type FieldErrors } from "./formFeedback";
+import {
+  storeDraftErrors,
+  storeDraft,
+  storeDraftIssue,
+  storeDraftPayload,
+} from "./storeEditor";
 import type { CheckoutRequest } from "./cart";
 export type ProvisionImage = "logo" | "licenseImage" | "foodPermitImage";
 export interface MerchantProvisionResult {
@@ -89,6 +95,42 @@ export function useMerchantProvision(port: {
       return { section: "base", message: "请选择有效的平台类目" };
     return storeDraftIssue(form, true);
   }
+  const feedback = useFormFeedback(() => {
+    const e: FieldErrors = {};
+    if (!/^[a-z0-9_-]{3,32}$/.test(account.username.trim().toLowerCase()))
+      e["account.username"] = "账号须为 3–32 位英文、数字、下划线或连字符";
+    const bytes = [...account.password].reduce(
+      (n, c) =>
+        n +
+        ((c.codePointAt(0) ?? 0) <= 127
+          ? 1
+          : (c.codePointAt(0) ?? 0) <= 2047
+            ? 2
+            : (c.codePointAt(0) ?? 0) <= 65535
+              ? 3
+              : 4),
+      0,
+    );
+    if ([...account.password].length < 8 || bytes > 72)
+      e["account.password"] = "临时密码至少 8 个字符，不超过 72 字节";
+    if (!account.name.trim() || account.name.trim().length > 30)
+      e["account.name"] = "负责人姓名需为 1–30 个字";
+    if (account.phone.trim() && !/^1[3-9]\d{9}$/.test(account.phone.trim()))
+      e["account.phone"] = "请填写有效的联系手机，或留空";
+    for (const [key, message] of Object.entries(storeDraftErrors(form, true)))
+      e["store." + key] = message;
+    return e;
+  });
+  function locate() {
+    const key = feedback.first.value;
+    section.value = key.startsWith("account.")
+      ? "account"
+      : /\.(openHours|notice|min|fee)$/.test(key)
+        ? "business"
+        : key.includes("ExpireAt")
+          ? "qualification"
+          : "base";
+  }
   async function load() {
     if (saving.value || uploading.value || !current()) return;
     const version = ++loadVersion;
@@ -129,6 +171,11 @@ export function useMerchantProvision(port: {
   }
   async function save() {
     if (!canSubmit.value || !current()) return;
+    if (!feedback.check()) {
+      locate();
+      error.value = "请检查标记的字段";
+      return;
+    }
     const invalid = issue();
     if (invalid) {
       section.value = invalid.section;
@@ -167,6 +214,11 @@ export function useMerchantProvision(port: {
       return result;
     } catch (e) {
       if (!current()) return;
+      feedback.reject(e, {
+        "store.minOrderCents": "store.min",
+        "store.deliveryFeeCents": "store.fee",
+      });
+      if (feedback.first.value) locate();
       error.value = e instanceof Error ? e.message : "创建失败";
       if (e instanceof ApiError && e.details?.reason === "USERNAME_TAKEN")
         section.value = "account";
@@ -198,6 +250,7 @@ export function useMerchantProvision(port: {
   void load();
   return {
     account,
+    feedback,
     form,
     categories,
     loading,

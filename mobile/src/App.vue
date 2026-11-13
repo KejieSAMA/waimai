@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTheme } from "@waimai/tokens";
-import { message } from "./common/feedback";
+import { message, messageTone } from "./common/feedback";
 import AppShell from "./common/AppShell.vue";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
@@ -29,7 +29,12 @@ useTheme();
 <template>
   <SessionScreen v-if="sessionBlocked" />
   <AppShell v-else />
-  <div v-if="message" class="app-error app-feedback body-sm" role="alert">
+  <div
+    v-if="message"
+    class="app-feedback body-sm"
+    :class="messageTone === 'error' ? 'app-error' : 'app-success'"
+    role="alert"
+  >
     {{ message }}
     <button type="button" aria-label="关闭提示" @click="message = ''">
       关闭

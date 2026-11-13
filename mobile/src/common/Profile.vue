@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from "vue";
-import { onBeforeRouteLeave, useRouter } from "vue-router";
+import { ref } from "vue";
+import { useRouter } from "vue-router";
 import { Button, Dialog, Input, ListCell, ListCellGroup } from "@waimai/ui";
 import { useAuth } from "./auth";
 import { usePageChrome } from "./pageChrome";
-import { profileLeaveDecision, useProfileEditor } from "./profileEditor";
+import { useProfileEditor } from "./profileEditor";
 import { accountMePath, identityLabels } from "./accountNavigation";
 import PageSlot from "../components/PageSlot.vue";
+import { useDraftLeave } from "./draftLeave";
+import { useFormFocus } from "./formFocus";
 const auth = useAuth(),
   router = useRouter();
 usePageChrome().actions = true;
-const revision = auth.revision;
+
 const {
   name,
   phone,
@@ -20,46 +22,19 @@ const {
   error,
   dirty,
   canSave,
-  nameError,
-  phoneError,
+  feedback,
   load,
   save,
 } = useProfileEditor({
   read: () => auth.readProfile(),
   save: (data) => auth.updateProfile(data),
 });
-const leaving = ref(false);
-let resolveLeave: ((value: boolean) => void) | undefined;
-onBeforeRouteLeave(() => {
-  const decision = profileLeaveDecision(
-    dirty.value,
-    saving.value,
-    auth.revision === revision && !!auth.account,
-  );
-  if (decision === "allow") return true;
-  if (decision === "block") return false;
-  leaving.value = true;
-  return new Promise<boolean>((resolve) => {
-    resolveLeave?.(false);
-    resolveLeave = resolve;
-  });
-});
-function leave(confirmed: boolean) {
-  leaving.value = false;
-  resolveLeave?.(confirmed);
-  resolveLeave = undefined;
-}
-function beforeUnload(event: BeforeUnloadEvent) {
-  if (dirty.value && auth.revision === revision && auth.account) {
-    event.preventDefault();
-    event.returnValue = "";
-  }
-}
-window.addEventListener("beforeunload", beforeUnload);
-onBeforeUnmount(() => {
-  window.removeEventListener("beforeunload", beforeUnload);
-  resolveLeave?.(true);
-});
+const { open: leaving, choose: leave } = useDraftLeave(
+  () => dirty.value,
+  () => saving.value,
+);
+const formElement = ref<HTMLElement>();
+useFormFocus(formElement, feedback);
 async function submit() {
   if (await save()) await router.replace(accountMePath(auth.activeRole));
 }
@@ -74,6 +49,8 @@ async function submit() {
         "
     /></ListCellGroup>
     <form
+      ref="formElement"
+      novalidate
       id="account-profile-form"
       class="app-card app-stack"
       :aria-busy="loading || saving"
@@ -88,7 +65,9 @@ async function submit() {
           maxlength="30"
           autocomplete="nickname"
           :disabled="saving || loading"
-          :error="nameError"
+          :error="feedback.field('name')"
+          name="name"
+          @blur="feedback.blur('name')"
         />
         <Input
           v-model="phone"
@@ -98,7 +77,9 @@ async function submit() {
           inputmode="tel"
           autocomplete="tel"
           :disabled="saving || loading"
-          :error="phoneError"
+          :error="feedback.field('phone')"
+          name="phone"
+          @blur="feedback.blur('phone')"
           placeholder="选填，可留空"
         />
         <p class="body-sm app-muted">

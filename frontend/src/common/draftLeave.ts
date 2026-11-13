@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
 import { profileLeaveDecision } from "@waimai/shared";
 import { useAuth } from "./auth";
 export function useDraftLeave(dirty: () => boolean, saving: () => boolean) {
@@ -12,7 +12,7 @@ export function useDraftLeave(dirty: () => boolean, saving: () => boolean) {
     resolve?.(value);
     resolve = undefined;
   }
-  onBeforeRouteLeave(() => {
+  function guard() {
     const decision = profileLeaveDecision(
       dirty(),
       saving(),
@@ -25,7 +25,9 @@ export function useDraftLeave(dirty: () => boolean, saving: () => boolean) {
       resolve?.(false);
       resolve = done;
     });
-  });
+  }
+  onBeforeRouteLeave(guard);
+  onBeforeRouteUpdate(guard);
   function unload(event: BeforeUnloadEvent) {
     if (dirty() && auth.revision === revision && auth.account) {
       event.preventDefault();

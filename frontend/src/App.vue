@@ -5,7 +5,7 @@ import zhCN from "ant-design-vue/es/locale/zh_CN";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import { useTheme } from "@waimai/tokens";
-import { message } from "./common/feedback";
+import { message, messageTone } from "./common/feedback";
 import AppShell from "./common/AppShell.vue";
 import ThemeBridge from "./theme/ThemeBridge.vue";
 import { schemeTheme } from "./theme/schemeA";
@@ -52,7 +52,7 @@ const themeConfig = computed(() =>
     <a-alert
       v-if="message"
       class="app-feedback"
-      type="error"
+      :type="messageTone"
       show-icon
       closable
       :message="message"

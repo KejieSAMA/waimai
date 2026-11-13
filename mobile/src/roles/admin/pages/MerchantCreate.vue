@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
   useMerchantProvision,
@@ -22,6 +22,8 @@ import { api, upload } from "../../../common/api";
 import { useAuth } from "../../../common/auth";
 import { useDraftLeave } from "../../../common/draftLeave";
 usePageChrome().actions = true;
+import { useFormFocus } from "../../../common/formFocus";
+const formElement = ref<HTMLElement>();
 const auth = useAuth(),
   router = useRouter();
 const editor = reactive(
@@ -32,6 +34,11 @@ const editor = reactive(
     identity: () => `${auth.account?.id}:${auth.activeRole}:${auth.revision}`,
   }),
 );
+useFormFocus(formElement, {
+  ...editor.feedback,
+  first: computed(() => editor.feedback.first),
+  focusVersion: computed(() => editor.feedback.focusVersion),
+});
 const leave = useDraftLeave(
   () => editor.dirty,
   () => editor.saving || !!editor.uploading,
@@ -77,6 +84,7 @@ async function submit() {
         variant="chip"
       />
       <form
+        ref="formElement"
         id="merchant-create"
         class="app-card merchant-create__form"
         novalidate
@@ -86,6 +94,9 @@ async function submit() {
           <h2 class="title">商家账号</h2>
           <div class="merchant-create__fields">
             <Input
+              name="account.username"
+              :error="editor.feedback.field('account.username')"
+              @blur="editor.feedback.blur('account.username')"
               v-model="editor.account.username"
               label="账号名"
               required
@@ -95,6 +106,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Input
+              name="account.password"
+              :error="editor.feedback.field('account.password')"
+              @blur="editor.feedback.blur('account.password')"
               v-model="editor.account.password"
               label="临时密码"
               type="password"
@@ -104,6 +118,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Input
+              name="account.name"
+              :error="editor.feedback.field('account.name')"
+              @blur="editor.feedback.blur('account.name')"
               v-model="editor.account.name"
               label="负责人姓名"
               required
@@ -111,6 +128,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Input
+              name="account.phone"
+              :error="editor.feedback.field('account.phone')"
+              @blur="editor.feedback.blur('account.phone')"
               v-model="editor.account.phone"
               label="账号联系手机"
               inputmode="tel"
@@ -154,6 +174,9 @@ async function submit() {
           </div>
           <div class="merchant-create__fields">
             <Input
+              name="store.name"
+              :error="editor.feedback.field('store.name')"
+              @blur="editor.feedback.blur('store.name')"
               v-model="editor.form.name"
               label="店铺名称"
               required
@@ -161,6 +184,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Select
+              name="store.categoryId"
+              :error="editor.feedback.field('store.categoryId')"
+              @blur="editor.feedback.blur('store.categoryId')"
               v-model="editor.form.categoryId"
               label="平台类目"
               required
@@ -171,6 +197,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Input
+              name="store.city"
+              :error="editor.feedback.field('store.city')"
+              @blur="editor.feedback.blur('store.city')"
               v-model="editor.form.city"
               label="城市"
               required
@@ -178,6 +207,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Input
+              name="store.contactPhone"
+              :error="editor.feedback.field('store.contactPhone')"
+              @blur="editor.feedback.blur('store.contactPhone')"
               v-model="editor.form.contactPhone"
               label="门店联系电话"
               required
@@ -186,6 +218,9 @@ async function submit() {
               :disabled="editor.locked"
             />
             <Input
+              name="store.address"
+              :error="editor.feedback.field('store.address')"
+              @blur="editor.feedback.blur('store.address')"
               v-model="editor.form.address"
               class="merchant-create__wide"
               label="门店地址"
@@ -198,6 +233,9 @@ async function submit() {
         <section v-else-if="editor.section === 'business'" class="app-stack">
           <h2 class="title">营业配送</h2>
           <Input
+            name="store.openHours"
+            :error="editor.feedback.field('store.openHours')"
+            @blur="editor.feedback.blur('store.openHours')"
             v-model="editor.form.openHours"
             label="营业时间"
             required
@@ -207,6 +245,9 @@ async function submit() {
           />
           <div class="merchant-create__fields">
             <Input
+              name="store.min"
+              :error="editor.feedback.field('store.min')"
+              @blur="editor.feedback.blur('store.min')"
               v-model="editor.form.min"
               label="起送价"
               prefix="¥"
@@ -216,6 +257,9 @@ async function submit() {
               step="0.01"
               :disabled="editor.locked"
             /><Input
+              name="store.fee"
+              :error="editor.feedback.field('store.fee')"
+              @blur="editor.feedback.blur('store.fee')"
               v-model="editor.form.fee"
               label="配送费"
               prefix="¥"
@@ -227,6 +271,9 @@ async function submit() {
             />
           </div>
           <Input
+            name="store.notice"
+            :error="editor.feedback.field('store.notice')"
+            @blur="editor.feedback.blur('store.notice')"
             v-model="editor.form.notice"
             label="店铺公告"
             multiline
@@ -243,6 +290,8 @@ async function submit() {
             <QualificationCard
               v-for="doc in documents"
               :key="doc.key"
+              :field-name="'store.' + doc.date"
+              :field-error="editor.feedback.field('store.' + doc.date)"
               v-model:expires="editor.form[doc.date]"
               :title="doc.title"
               :has-image="!!editor.form[doc.key]"

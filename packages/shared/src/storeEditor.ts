@@ -2,6 +2,42 @@ import { computed, onMounted, onScopeDispose, reactive, ref } from "vue";
 import type { Category, Store } from "./index";
 import type { CheckoutRequest } from "./cart";
 import { NEW_STORE_DEFAULTS } from "./rules";
+import { useFormFeedback, type FieldErrors } from "./formFeedback";
+export function storeDraftErrors(
+  f: StoreDraft,
+  application: boolean,
+): FieldErrors {
+  const e: FieldErrors = {};
+  if (f.name.trim().length < 2 || f.name.trim().length > 60)
+    e.name = "店铺名称需为 2–60 个字";
+  if (!f.categoryId) e.categoryId = "请选择平台类目";
+  if (!f.city.trim() || f.city.length > 30) e.city = "请填写不超过 30 字的城市";
+  if (f.address.trim().length < 2 || f.address.length > 200)
+    e.address = "店铺地址需为 2–200 个字";
+  if (!/^1[3-9]\d{9}$/.test(f.contactPhone))
+    e.contactPhone = "请填写有效的 11 位联系电话";
+  if (!f.openHours.trim() || f.openHours.length > 100)
+    e.openHours = "请填写不超过 100 字的营业时间";
+  if (f.notice.length > 300) e.notice = "公告最多 300 字";
+  for (const [key, max] of [
+    ["min", 10000],
+    ["fee", 1000],
+  ] as const)
+    if (!/^\d+(\.\d{1,2})?$/.test(f[key]) || Number(f[key]) > max)
+      e[key] = `请填写 0–${max} 元，最多两位小数`;
+  if (application)
+    for (const key of ["licenseExpireAt", "permitExpireAt"] as const) {
+      const v = f[key];
+      if (
+        v &&
+        (!/^\d{4}-\d{2}-\d{2}$/.test(v) ||
+          !Number.isFinite(Date.parse(v)) ||
+          new Date(v).toISOString().slice(0, 10) !== v)
+      )
+        e[key] = "请填写有效日期";
+    }
+  return e;
+}
 export const qualificationDocuments = [
   { key: "licenseImage", date: "licenseExpireAt", title: "营业执照" },
   { key: "foodPermitImage", date: "permitExpireAt", title: "食品经营许可证" },
@@ -141,6 +177,7 @@ export function useStoreEditor(
     categories = ref<Category[]>([]),
     section = ref("base"),
     loading = ref(true),
+    loaded = ref(false),
     saving = ref(false),
     uploading = ref(false),
     error = ref(""),
@@ -150,16 +187,25 @@ export function useStoreEditor(
   const dirty = computed(
     () => !!baseline.value && JSON.stringify(form) !== baseline.value,
   );
-  const readonly = computed(() => store.value?.status === "FROZEN");
+  const readonly = computed(
+    () =>
+      store.value?.status === "FROZEN" ||
+      (application &&
+        !!store.value &&
+        !["PENDING", "REJECTED"].includes(store.value.status)),
+  );
+  const feedback = useFormFeedback(() => storeDraftErrors(form, application));
   function reset() {
     if (!saving.value && !uploading.value && baseline.value) {
       Object.assign(form, JSON.parse(baseline.value));
       error.value = "";
+      feedback.reset();
     }
   }
   async function load() {
     const current = ++version;
     loading.value = true;
+    loaded.value = false;
     error.value = "";
     try {
       const [value, options] = await Promise.all([
@@ -173,6 +219,8 @@ export function useStoreEditor(
       Object.assign(form, storeDraft(value));
       if (!form.categoryId) form.categoryId = options[0]?.id ?? "";
       baseline.value = JSON.stringify(form);
+      loaded.value = true;
+      feedback.reset();
     } catch (cause) {
       if (active && current === version)
         error.value = cause instanceof Error ? cause.message : "资料加载失败";
@@ -181,8 +229,26 @@ export function useStoreEditor(
     }
   }
   async function save() {
-    if (loading.value || saving.value || uploading.value || readonly.value)
+    if (
+      !loaded.value ||
+      !dirty.value ||
+      loading.value ||
+      saving.value ||
+      uploading.value ||
+      readonly.value
+    )
       return false;
+    if (!feedback.check()) {
+      section.value = ["openHours", "notice", "min", "fee"].includes(
+        feedback.first.value,
+      )
+        ? "business"
+        : feedback.first.value.endsWith("ExpireAt")
+          ? "qualification"
+          : "base";
+      error.value = "请检查标记的字段";
+      return false;
+    }
     const issue = storeDraftIssue(form, application);
     if (issue) {
       section.value = issue.section;
@@ -201,11 +267,25 @@ export function useStoreEditor(
       store.value = value;
       Object.assign(form, storeDraft(value));
       baseline.value = JSON.stringify(form);
+      feedback.reset();
       return true;
     } catch (cause) {
-      if (active)
+      if (active) {
+        feedback.reject(cause, {
+          minOrderCents: "min",
+          deliveryFeeCents: "fee",
+        });
+        if (feedback.first.value)
+          section.value = ["openHours", "notice", "min", "fee"].includes(
+            feedback.first.value,
+          )
+            ? "business"
+            : feedback.first.value.endsWith("ExpireAt")
+              ? "qualification"
+              : "base";
         error.value =
           cause instanceof Error ? cause.message : "保存失败，请重试";
+      }
       return false;
     } finally {
       if (active) saving.value = false;
@@ -222,6 +302,8 @@ export function useStoreEditor(
     categories,
     section,
     loading,
+    loaded,
+    feedback,
     saving,
     uploading,
     error,

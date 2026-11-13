@@ -8,6 +8,8 @@ import { useAuth } from "./auth";
 import { accountLoginPath } from "./accountNavigation";
 import { usePageChrome } from "./pageChrome";
 usePageChrome();
+import { useFormFeedback, passwordError } from "@waimai/shared";
+import { useFormFocus } from "./formFocus";
 const auth = useAuth(),
   router = useRouter(),
   route = useRoute();
@@ -16,8 +18,17 @@ const oldPassword = ref(""),
   confirm = ref(""),
   error = ref(""),
   pending = ref(false);
+const formElement = ref<HTMLElement>();
+const feedback = useFormFeedback(() => ({
+  ...(!oldPassword.value ? { oldPassword: "请填写原密码" } : {}),
+  ...(passwordError(password.value)
+    ? { password: passwordError(password.value) }
+    : {}),
+  ...(password.value !== confirm.value ? { confirm: "两次新密码不一致" } : {}),
+}));
+useFormFocus(formElement, feedback);
 async function save() {
-  if (pending.value) return;
+  if (pending.value || !feedback.check()) return;
   if (password.value !== confirm.value) {
     error.value = "两次新密码不一致";
     return;
@@ -28,17 +39,16 @@ async function save() {
   try {
     const target = readAccessTarget(router, route.query.redirect);
     await auth.changePassword(oldPassword.value, password.value);
+    oldPassword.value = password.value = confirm.value = "";
     await router.replace({
       path: loginPath(role),
       ...(target ? { query: { redirect: target.fullPath } } : {}),
     });
   } catch (e) {
+    feedback.reject(e, { newPassword: "password" });
     error.value = e instanceof Error ? e.message : "修改失败";
   } finally {
     pending.value = false;
-    oldPassword.value = "";
-    password.value = "";
-    confirm.value = "";
   }
 }
 async function logout() {
@@ -57,13 +67,21 @@ async function logout() {
 }
 </script>
 <template>
-  <form class="app-login app-card app-stack" @submit.prevent="save">
+  <form
+    ref="formElement"
+    novalidate
+    class="app-login app-card app-stack"
+    @submit.prevent="save"
+  >
     <h1 class="title-lg">修改密码</h1>
     <p v-if="auth.account?.mustChangePassword" class="body-sm">
       首次登录或密码已重置，请先设置新密码。
     </p>
     <Input
       v-model="oldPassword"
+      name="oldPassword"
+      :error="feedback.field('oldPassword')"
+      @blur="feedback.blur('oldPassword')"
       label="原密码"
       type="password"
       autocomplete="current-password"
@@ -72,6 +90,9 @@ async function logout() {
     />
     <Input
       v-model="password"
+      name="password"
+      :error="feedback.field('password')"
+      @blur="feedback.blur('password')"
       label="新密码"
       type="password"
       autocomplete="new-password"
@@ -82,6 +103,9 @@ async function logout() {
     />
     <Input
       v-model="confirm"
+      name="confirm"
+      :error="feedback.field('confirm')"
+      @blur="feedback.blur('confirm')"
       label="再次输入"
       type="password"
       autocomplete="new-password"

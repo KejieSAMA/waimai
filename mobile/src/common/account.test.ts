@@ -128,7 +128,7 @@ describe("资料编辑草稿与请求隔离", () => {
     expect(profileLeaveDecision(true, false, false)).toBe("allow");
     expect(profileLeaveDecision(true, true, false)).toBe("allow");
   });
-  it("未修改或无效输入禁用保存，清空手机后成功采用服务端值", async () => {
+  it("未修改禁用，修改后可触发校验且无效输入不请求，清空手机后成功采用服务端值", async () => {
     const scope = effectScope();
     const save = vi
       .fn()
@@ -139,10 +139,16 @@ describe("资料编辑草稿与请求隔离", () => {
     await flush();
     expect(editor.canSave.value).toBe(false);
     editor.name.value = "";
-    expect(editor.canSave.value).toBe(false);
+    expect(editor.canSave.value).toBe(true);
+    expect(await editor.save()).toBe(false);
+    expect(save).not.toHaveBeenCalled();
+    expect(editor.feedback.first.value).toBe("name");
     editor.name.value = " 新昵称 ";
     editor.phone.value = "bad";
-    expect(editor.canSave.value).toBe(false);
+    expect(editor.canSave.value).toBe(true);
+    expect(await editor.save()).toBe(false);
+    expect(save).not.toHaveBeenCalled();
+    expect(editor.feedback.first.value).toBe("phone");
     editor.phone.value = "";
     expect(editor.canSave.value).toBe(true);
     expect(await editor.save()).toBe(true);

@@ -4,7 +4,7 @@ import BackofficePage from "../../../components/BackofficePage.vue";
 import DataTable from "../../../components/DataTable.vue";
 import FilterBar from "../../../components/FilterBar.vue";
 import Pagination from "../../../components/Pagination.vue";
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import {
   Button,
   Input,
@@ -18,6 +18,11 @@ import { api } from "../../../common/api";
 const manager = useAdminAccounts((path, options) =>
   api(path, options, "ADMIN"),
 );
+import { useDraftLeave } from "../../../common/draftLeave";
+import { useFormFocus } from "../../../common/formFocus";
+const formElement = ref<HTMLElement>(),
+  accountDialog = ref<InstanceType<typeof Dialog>>();
+useFormFocus(formElement, manager.feedback);
 const s = manager.state;
 const roles = { USER: "用户", MERCHANT: "商家", ADMIN: "管理员" };
 const roleLabels = (values: string[]) =>
@@ -34,6 +39,10 @@ const actions: Record<string, string> = {
   "account-recover": "恢复管理员",
 };
 onMounted(manager.load);
+const draftLeave = useDraftLeave(
+  () => s.open && manager.dirty.value,
+  () => s.saving,
+);
 </script>
 <template>
   <BackofficePage :body-scroll="false">
@@ -72,7 +81,7 @@ onMounted(manager.load);
         ></FilterBar
       >
       <p v-if="s.error" class="app-error body-sm" role="alert">
-        {{ s.error }}<Button variant="text" @click="manager.load">重试</Button>
+        {{ s.error }}<Button variant="text" @click="manager.retry">重试</Button>
       </p></template
     >
     <DataTable
@@ -91,6 +100,15 @@ onMounted(manager.load);
         { key: 'actions', title: '操作' },
       ]"
     >
+      <template #empty>{{
+        s.loading
+          ? "正在加载"
+          : s.error
+            ? "读取失败，请重试"
+            : s.loaded
+              ? "暂无账号"
+              : "正在加载"
+      }}</template>
       <template #roles="{ row }">{{ roleLabels(row.roles) }}</template>
       <template #status="{ row }"
         ><Tag :tone="row.status === 'ACTIVE' ? 'success' : 'neutral'">{{
@@ -130,14 +148,13 @@ onMounted(manager.load);
         :model-value="s.page"
         :total="s.total"
         :page-size="DEFAULT_PAGE_SIZE"
-        @update:model-value="
-          s.page = $event;
-          manager.load();
-        "
+        @update:model-value="manager.changePage"
     /></template>
     <template #overlay
       ><Dialog
+        ref="accountDialog"
         :open="s.open"
+        :dirty="manager.dirty.value"
         :title="
           s.kind === 'create'
             ? '创建账号'
@@ -149,12 +166,15 @@ onMounted(manager.load);
         "
         variant="modal"
         :close-disabled="s.saving"
+        :confirm-discard="true"
         @close="manager.close"
       >
         <p v-if="s.detailLoading" class="body-sm" role="status">加载账号中</p>
         <form
           v-else
           id="account-form"
+          ref="formElement"
+          novalidate
           class="app-stack"
           @submit.prevent="
             s.kind === 'status' ? manager.confirmStatus() : manager.save()
@@ -169,7 +189,9 @@ onMounted(manager.load);
             v-else
             v-model:form="s.form"
             :kind="s.kind"
-            :disabled="s.saving"
+            :field-error="manager.feedback.field"
+            @blur="manager.feedback.blur"
+            :disabled="s.saving || !s.detailReady"
           />
           <template v-if="s.kind === 'edit'"
             ><div class="app-row">
@@ -203,7 +225,10 @@ onMounted(manager.load);
           </p>
         </form>
         <template #actions
-          ><Button variant="outline" :disabled="s.saving" @click="manager.close"
+          ><Button
+            variant="outline"
+            :disabled="s.saving"
+            @click="accountDialog?.close()"
             >取消</Button
           ><Button
             type="submit"
@@ -217,4 +242,17 @@ onMounted(manager.load);
       ></template
     >
   </BackofficePage>
+  <Dialog
+    :open="draftLeave.open.value"
+    title="放弃修改"
+    @close="draftLeave.choose(false)"
+    ><p>离开将放弃尚未保存的修改。</p>
+    <template #actions
+      ><Button variant="outline" @click="draftLeave.choose(false)"
+        >继续编辑</Button
+      ><Button variant="danger" @click="draftLeave.choose(true)"
+        >放弃修改</Button
+      ></template
+    ></Dialog
+  >
 </template>

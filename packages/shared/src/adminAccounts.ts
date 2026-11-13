@@ -1,5 +1,6 @@
 import { DEFAULT_PAGE_SIZE } from "./rules";
 import { computed, onScopeDispose, reactive } from "vue";
+import { useFormFeedback, type FieldErrors } from "./formFeedback";
 import type { Role } from "./index";
 export interface ManagedAccount {
   id: string;
@@ -15,7 +16,7 @@ export interface ManagedAccount {
 interface Request {
   <T>(path: string, options?: { method?: string; body?: unknown }): Promise<T>;
 }
-export function useAdminAccounts(request: Request) {
+export function useAdminAccounts(request: Request, onPageSuccess?: () => void) {
   const state = reactive({
     list: [] as ManagedAccount[],
     total: 0,
@@ -23,7 +24,8 @@ export function useAdminAccounts(request: Request) {
     keyword: "",
     role: "",
     status: "",
-    loading: false,
+    loading: true,
+    loaded: false,
     error: "",
     open: false,
     kind: "create",
@@ -47,6 +49,43 @@ export function useAdminAccounts(request: Request) {
       roles: ["USER"] as Role[],
     },
   });
+  const feedback = useFormFeedback(() => {
+    const e: FieldErrors = {},
+      f = state.form;
+    if (
+      state.kind === "create" &&
+      !/^[a-z0-9_-]{3,32}$/.test(f.username.trim().toLowerCase())
+    )
+      e.username = "账号须为 3–32 位英文、数字、下划线或连字符";
+    if (["create", "edit"].includes(state.kind)) {
+      if (!f.name.trim() || f.name.trim().length > 30)
+        e.name = "昵称需为 1–30 个字";
+      if (f.phone && !/^1[3-9]\d{9}$/.test(f.phone))
+        e.phone = "请填写有效的 11 位手机号，或留空";
+      if (!f.roles.length) e.roles = "请至少保留一个授权身份";
+    }
+    if (["create", "password"].includes(state.kind)) {
+      const bytes = [...f.password].reduce(
+        (n, c) =>
+          n +
+          ((c.codePointAt(0) ?? 0) <= 127
+            ? 1
+            : (c.codePointAt(0) ?? 0) <= 2047
+              ? 2
+              : (c.codePointAt(0) ?? 0) <= 65535
+                ? 3
+                : 4),
+        0,
+      );
+      if ([...f.password].length < 8 || bytes > 72)
+        e.password = "临时密码至少 8 个字符，不超过 72 字节";
+    }
+    return e;
+  });
+  let baseline = "";
+  const dirty = computed(
+    () => state.detailReady && JSON.stringify(state.form) !== baseline,
+  );
   let sequence = 0,
     detailSequence = 0;
   let applied = { keyword: "", role: "", status: "" };
@@ -54,35 +93,44 @@ export function useAdminAccounts(request: Request) {
     sequence++;
     detailSequence++;
   });
-  async function load() {
+  let committedPage = 1,
+    retryPage = 1,
+    retryScroll = false;
+  async function readPage(target: number, scroll = false) {
+    retryPage = target;
+    retryScroll = scroll;
     const version = ++sequence;
     state.loading = true;
     state.error = "";
     try {
       const q = new URLSearchParams({
         ...applied,
-        page: String(state.page),
+        page: String(target),
         pageSize: String(DEFAULT_PAGE_SIZE),
       });
       const result = await request<{ list: ManagedAccount[]; total: number }>(
         "/admin/accounts?" + q,
       );
       if (version !== sequence) return;
+      const last = Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE));
+      if (target > last) return readPage(last, scroll);
+      state.loaded = true;
       state.list = result.list;
       state.total = result.total;
-      if (
-        state.page > Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE))
-      ) {
-        state.page = Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE));
-        await load();
-      }
+      state.page = committedPage = target;
+      if (scroll) onPageSuccess?.();
     } catch (e) {
-      if (version === sequence)
+      if (version === sequence) {
+        state.page = committedPage;
         state.error = e instanceof Error ? e.message : "加载失败";
+      }
     } finally {
       if (version === sequence) state.loading = false;
     }
   }
+  const load = () => readPage(committedPage);
+  const retry = () => readPage(retryPage, retryScroll);
+  const changePage = (page: number) => readPage(page, true);
   function query(reset = false) {
     if (reset) state.keyword = state.role = state.status = "";
     applied = {
@@ -90,12 +138,12 @@ export function useAdminAccounts(request: Request) {
       role: state.role,
       status: state.status,
     };
-    state.page = 1;
-    return load();
+    return readPage(1, true);
   }
   async function open(kind: string, account?: Pick<ManagedAccount, "id">) {
     if (state.saving) return;
     const version = ++detailSequence;
+    feedback.reset();
     state.kind = kind;
     state.selected = account?.id ?? "";
     state.dialogError = "";
@@ -110,7 +158,10 @@ export function useAdminAccounts(request: Request) {
     state.open = true;
     state.detailReady = !account;
     state.detailLoading = !!account;
-    if (!account) return;
+    if (!account) {
+      baseline = JSON.stringify(state.form);
+      return;
+    }
     try {
       const detail = await request<ManagedAccount>(
         "/admin/accounts/" + account.id,
@@ -124,6 +175,7 @@ export function useAdminAccounts(request: Request) {
           roles: detail.roles,
         };
         state.detailReady = true;
+        baseline = JSON.stringify(state.form);
       }
     } catch (e) {
       if (version === detailSequence)
@@ -140,6 +192,8 @@ export function useAdminAccounts(request: Request) {
   }
   async function save(action = state.kind) {
     if (state.saving || state.detailLoading || !state.detailReady) return;
+    if (!feedback.check()) return;
+    const version = detailSequence;
     state.saving = true;
     state.dialogError = "";
     try {
@@ -170,12 +224,14 @@ export function useAdminAccounts(request: Request) {
                   : { name: form.name, phone: form.phone },
           },
         );
+      if (version !== detailSequence) return;
       state.open = false;
       state.form.password = "";
       await load();
     } catch (e) {
+      if (version !== detailSequence) return;
+      feedback.reject(e);
       state.dialogError = e instanceof Error ? e.message : "保存失败";
-      state.form.password = "";
     } finally {
       state.saving = false;
     }
@@ -219,11 +275,15 @@ export function useAdminAccounts(request: Request) {
     open(state.kind, state.selected ? { id: state.selected } : undefined);
   return {
     retryDetail,
+    feedback,
+    dirty,
     state,
     pages: computed(() =>
       Math.max(1, Math.ceil(state.total / DEFAULT_PAGE_SIZE)),
     ),
     load,
+    retry,
+    changePage,
     query,
     open,
     close,

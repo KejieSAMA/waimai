@@ -43,7 +43,11 @@ describe("经营配置控制", () => {
     await s.load();
     expect(s.dirty.value).toBe(false);
     s.rules.value[0].discount = "30";
-    expect(s.canSave.value).toBe(false);
+    expect(s.canSave.value).toBe(true);
+    const before = request.mock.calls.length;
+    expect(await s.save()).toBe(false);
+    expect(request).toHaveBeenCalledTimes(before);
+    expect(s.feedback.first.value).toBe("rules.0.discount");
     s.reset();
     s.rules.value[0].discount = "6";
     expect(s.canSave.value).toBe(true);

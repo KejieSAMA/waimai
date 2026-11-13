@@ -218,3 +218,7 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 - [ ] `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build` 全部通过
 - [ ] `pnpm build && pnpm start` 后 http://localhost:3000 同时提供 PC、手机两个应用和 API
 - [ ] `README.md` 写清启动、账号、目录说明；`docs/DECISIONS.md`、`docs/DEPLOY.md` 完整
+
+## 2026-11-13 UI 错误反馈兼容补充
+
+统一错误响应保留既有 code、message、details.reason、details.fieldErrors 和 details.formErrors；Zod 校验错误可附加 details.issues，每项为 `{ path: (string | number)[], message: string }`。嵌套账号、店铺和满减数组以完整路径定位，不附带输入值；客户端透传并兼容只包含旧 fieldErrors 的响应。UI 状态、关闭保护和人工验收规则见 UI_CONSISTENCY.md。本补充不新增业务接口或数据库迁移。
