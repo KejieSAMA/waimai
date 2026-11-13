@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
 import { computed, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Price } from "@waimai/ui";
@@ -121,7 +122,7 @@ const detailAddress = computed(() => {
       :aria-busy="orders.loading"
     >
       <template #index="{ row }">{{
-        (query.page - 1) * 20 + orders.list.indexOf(row) + 1
+        (query.page - 1) * DEFAULT_PAGE_SIZE + orders.list.indexOf(row) + 1
       }}</template>
       <template #goods="{ row }"
         ><div class="order-row__goods">

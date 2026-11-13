@@ -16,28 +16,14 @@ import {
   storeStatuses,
   qualificationDocuments,
 } from "@waimai/shared";
+import { storeDraft } from "@waimai/shared";
 import { api, upload } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const application = true;
 const uploadingKey = ref("");
 const store = ref<Store | null>(null),
   categories = ref<Category[]>([]);
-const form = reactive({
-  name: "",
-  categoryId: "",
-  city: "",
-  address: "",
-  contactPhone: "",
-  notice: "",
-  openHours: "09:00-22:00",
-  min: "20",
-  fee: "3",
-  logo: "",
-  licenseImage: "",
-  foodPermitImage: "",
-  licenseExpireAt: "",
-  permitExpireAt: "",
-});
+const form = reactive(storeDraft());
 onMounted(() =>
   run(async () => {
     categories.value = await api<Category[]>("/public/categories");

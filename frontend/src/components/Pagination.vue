@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
 withDefaults(
   defineProps<{ total: number; pageSize?: number; modelValue?: number }>(),
-  { pageSize: 20, modelValue: 1 },
+  { pageSize: DEFAULT_PAGE_SIZE, modelValue: 1 },
 );
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 </script>

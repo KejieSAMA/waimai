@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
 import { Button, Dialog, OrderCard, Tabs } from "../../../components/pc";
 import { useRouter } from "vue-router";
 import { orderTime, userOrderTabs, useUserOrders } from "@waimai/shared";
@@ -49,7 +50,11 @@ const {
     </div>
     <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
     <p v-else-if="!list.length && !error" class="app-empty body">暂无订单</p>
-    <Pagination v-if="total > 20" v-model="page" :total="total" />
+    <Pagination
+      v-if="total > DEFAULT_PAGE_SIZE"
+      v-model="page"
+      :total="total"
+    />
     <Dialog
       variant="modal"
       :open="!!replacement"

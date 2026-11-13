@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
 import BackofficePage from "../../../components/BackofficePage.vue";
 import DataTable from "../../../components/DataTable.vue";
 import FilterBar from "../../../components/FilterBar.vue";
@@ -128,7 +129,7 @@ onMounted(manager.load);
       ><Pagination
         :model-value="s.page"
         :total="s.total"
-        :page-size="20"
+        :page-size="DEFAULT_PAGE_SIZE"
         @update:model-value="
           s.page = $event;
           manager.load();

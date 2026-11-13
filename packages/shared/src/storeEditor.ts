@@ -1,6 +1,7 @@
 import { computed, onMounted, onScopeDispose, reactive, ref } from "vue";
 import type { Category, Store } from "./index";
 import type { CheckoutRequest } from "./cart";
+import { NEW_STORE_DEFAULTS } from "./rules";
 export const qualificationDocuments = [
   { key: "licenseImage", date: "licenseExpireAt", title: "营业执照" },
   { key: "foodPermitImage", date: "permitExpireAt", title: "食品经营许可证" },
@@ -39,13 +40,17 @@ export function storeDraft(store?: Store | null): StoreDraft {
   return {
     name: store?.name ?? "",
     categoryId: store?.categoryId ?? "",
-    city: store?.city ?? "",
+    city: store?.city ?? NEW_STORE_DEFAULTS.city,
     address: store?.address ?? "",
     contactPhone: store?.contactPhone ?? "",
     notice: store?.notice ?? "",
-    openHours: store?.openHours ?? "09:00-22:00",
-    min: String((store?.minOrderCents ?? 2000) / 100),
-    fee: String((store?.deliveryFeeCents ?? 300) / 100),
+    openHours: store?.openHours ?? NEW_STORE_DEFAULTS.openHours,
+    min: String(
+      (store?.minOrderCents ?? NEW_STORE_DEFAULTS.minOrderCents) / 100,
+    ),
+    fee: String(
+      (store?.deliveryFeeCents ?? NEW_STORE_DEFAULTS.deliveryFeeCents) / 100,
+    ),
     logo: store?.logo ?? "",
     licenseImage: store?.licenseImage ?? "",
     foodPermitImage: store?.foodPermitImage ?? "",

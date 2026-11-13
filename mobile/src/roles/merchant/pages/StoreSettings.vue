@@ -5,28 +5,14 @@ import ProtectedImage from "../../../common/ProtectedImage.vue";
 import { Button, Input, Select, Tag, Thumb } from "@waimai/ui";
 import { onMounted, reactive, ref } from "vue";
 import { type Store, type Category, storeStatuses } from "@waimai/shared";
+import { storeDraft } from "@waimai/shared";
 import { api, upload } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const application = false;
 const router = useRouter();
 const store = ref<Store | null>(null),
   categories = ref<Category[]>([]);
-const form = reactive({
-  name: "",
-  categoryId: "",
-  city: "",
-  address: "",
-  contactPhone: "",
-  notice: "",
-  openHours: "09:00-22:00",
-  min: "20",
-  fee: "3",
-  logo: "",
-  licenseImage: "",
-  foodPermitImage: "",
-  licenseExpireAt: "",
-  permitExpireAt: "",
-});
+const form = reactive(storeDraft());
 onMounted(() =>
   run(async () => {
     categories.value = await api<Category[]>("/public/categories");

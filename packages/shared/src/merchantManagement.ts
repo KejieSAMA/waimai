@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from "./rules";
 import { computed, onScopeDispose, onMounted, ref, watch } from "vue";
 import type { Page, StoreStatus } from "./index";
 import type { CheckoutRequest } from "./cart";
@@ -44,7 +45,7 @@ export function useMerchantReviews(
       total.value = result.total;
       status.value = result.storeStatus;
       if (page.value > 1 && !result.list.length) {
-        page.value = Math.max(1, Math.ceil(result.total / 20));
+        page.value = Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE));
         await load();
       }
     } catch (e) {

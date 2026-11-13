@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from "./rules";
 import { computed, onScopeDispose, reactive } from "vue";
 import type { Role } from "./index";
 export interface ManagedAccount {
@@ -61,7 +62,7 @@ export function useAdminAccounts(request: Request) {
       const q = new URLSearchParams({
         ...applied,
         page: String(state.page),
-        pageSize: "20",
+        pageSize: String(DEFAULT_PAGE_SIZE),
       });
       const result = await request<{ list: ManagedAccount[]; total: number }>(
         "/admin/accounts?" + q,
@@ -69,8 +70,10 @@ export function useAdminAccounts(request: Request) {
       if (version !== sequence) return;
       state.list = result.list;
       state.total = result.total;
-      if (state.page > Math.max(1, Math.ceil(result.total / 20))) {
-        state.page = Math.max(1, Math.ceil(result.total / 20));
+      if (
+        state.page > Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE))
+      ) {
+        state.page = Math.max(1, Math.ceil(result.total / DEFAULT_PAGE_SIZE));
         await load();
       }
     } catch (e) {
@@ -217,7 +220,9 @@ export function useAdminAccounts(request: Request) {
   return {
     retryDetail,
     state,
-    pages: computed(() => Math.max(1, Math.ceil(state.total / 20))),
+    pages: computed(() =>
+      Math.max(1, Math.ceil(state.total / DEFAULT_PAGE_SIZE)),
+    ),
     load,
     query,
     open,

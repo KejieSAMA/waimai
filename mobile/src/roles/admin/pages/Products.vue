@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
 import { Button, Dialog, Input, SearchBar, Tabs, Tag, Thumb } from "@waimai/ui";
 import { onMounted, ref, watch } from "vue";
 import {
@@ -106,7 +107,7 @@ async function send(id: string, action: string) {
         "
         >上一页</Button
       ><Button
-        :disabled="page * 20 >= total"
+        :disabled="page * DEFAULT_PAGE_SIZE >= total"
         @click="
           page++;
           load();

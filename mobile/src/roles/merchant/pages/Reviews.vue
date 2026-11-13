@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
 import { reactive } from "vue";
 import { useRoute } from "vue-router";
 import { Button, Dialog, Input, Select } from "@waimai/ui";
@@ -75,10 +76,13 @@ const state = reactive(
         "
         >上一页</Button
       ><span class="body-sm"
-        >{{ state.page }} / {{ Math.max(1, Math.ceil(state.total / 20)) }}</span
+        >{{ state.page }} /
+        {{ Math.max(1, Math.ceil(state.total / DEFAULT_PAGE_SIZE)) }}</span
       ><Button
         variant="outline"
-        :disabled="state.page * 20 >= state.total || state.loading"
+        :disabled="
+          state.page * DEFAULT_PAGE_SIZE >= state.total || state.loading
+        "
         @click="
           state.page++;
           state.load();

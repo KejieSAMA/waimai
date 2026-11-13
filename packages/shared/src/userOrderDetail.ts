@@ -1,5 +1,6 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
 import type { Order } from "./index";
+import { ORDER_DETAIL_POLL_MS } from "./rules";
 
 type Request = <T>(
   path: string,
@@ -138,7 +139,7 @@ export function useUserOrderDetail(
       stopInterval = activity!.every(() => {
         clock.value = activity!.now();
         void load();
-      }, 15000);
+      }, ORDER_DETAIL_POLL_MS);
       if (
         order.value.status === "PENDING_PAY" &&
         order.value.paymentExpiresAt
