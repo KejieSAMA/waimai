@@ -114,6 +114,8 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - 商家不开放独立注册；统一登录及管理员角色授权见认证接口。
 - `GET|PUT /merchant/application`（入驻资料、证照图片）：营业执照、食品经营许可证分别选填，均不上传或只上传一张也能提交待审核；有图片时仍校验本人私有证照归属。有效期选填，null 可清空，移除图片同步清除对应历史有效期；不改变人工审核、冻结和通过后资质只读规则。
 - `GET|PUT /merchant/store`、`PUT /merchant/store/open`（营业 / 休息）
+- `GET /merchant/reviews?rating=all|bad&reply=all|pending|replied&page&pageSize`：仅本店评价，差评为 2 星及以下，包含安全订单摘要及店铺状态。`PUT /merchant/reviews/:id/reply` 严格接受 `{ content }`（修剪后 1–500 字），可修改、同内容幂等、保留前后审计；跨店 404，冻结只读。
+- `GET /merchant/promotions` 返回 `{ version, storeStatus, rules }`；`PUT /merchant/promotions` 接受 `{ version, rules: [{ thresholdCents, discountCents }] }`，最多 10 档、正整数分、门槛不重复且不超过 1000000 分、优惠不超过门槛。整组事务替换，空数组取消全部；版本冲突 409，冻结只读，记录审计。配送与自提均按达到门槛的最大优惠计算，不叠加。
 - `GET|POST|PUT|DELETE /merchant/dish-categories`
 - `GET /merchant/products?status&keyword&categoryId&stock=low|soldout&page`
 - 商品列表可选 `group=on|off|review`，review 包含 REVIEW 与 REJECTED；原 status 条件保留并取交集。
@@ -157,6 +159,11 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - `Order`：orderNo（唯一，时间 + 随机）、serialOfDay（店铺当日流水号）、userId、storeId、type（DELIVERY / PICKUP）、status（PENDING_PAY / PENDING / PREPARING / DELIVERING / PICKUP / DONE / CANCELLED / REFUNDING）、itemsCents、deliveryFeeCents、discountCents、payCents、note、addressSnapshot（JSON）、paidAt、acceptedAt、readyAt、doneAt、cancelReason、refundReason
 - `OrderItem`：orderId、productId、nameSnapshot、priceCentsSnapshot、qty、spec?
 - `Order.requestId?`：与 userId 组成唯一约束，旧订单为空，不影响历史订单关联。
+- 报价响应增加不透明 `quoteFingerprint`，服务端以独立用途 HMAC 绑定账号、店铺、配送方式、地址 ID、规范化商品及费用；创建必须带最后确认的指纹，事务内重算比较，缺失返回 `409`＋`details.reason=QUOTE_REQUIRED`，变化／伪造／跨账号返回 `QUOTE_CHANGED`。前端刷新报价等待再次确认，不能自动创建重试；幂等原订单恢复先于新报价核验，不锁价或新增报价表。此规则替代此前旧客户端无指纹仍可创建的兼容规则。
+- 订单响应派生 `paymentExpiresAt=createdAt+15分钟`，无需数据库列。到期边界为当前时间大于等于截止时间；支付接口自身核验，过期时先提交取消与库存回补再返回 `409 PAYMENT_EXPIRED`。后台启动及每分钟专用扫描，仅 CAS 取消仍未支付的到期订单，分批清理且不重叠。
+- SSE `order` 数据增加 `kind=new_order|updated`，仅成功支付的新订单发新单事件，其他状态／评价变动静默刷新；成功提交后发送，失败与幂等重放不重复。用户订单详情可见且非终态时 15 秒刷新、恢复焦点立即检查，到期禁用支付；隐藏、终态和卸载停止。
+- `Store.rating` 可空：无评价为 null，新增 `reviewCount`，按真实评价平均分四舍五入一位小数。月售按上海时间今日及前 29 日的已完成订单统计，以 doneAt 为准，店铺计订单、商品计件数；旧 monthlySales 累加值不参与展示或销量排序，今日经营统计不变。
+- PC 公共 `/account/profile` 复用本人资料接口，按当前身份展示及返回；两端商家新增 `/merchant/reviews`、`/merchant/promotions`（手机带 `/mobile` 前缀）。满减从营业配送进入，独立草稿及固定保存区。
 - `Review`：orderId、userId、storeId、rating、content、reply?
 - `AuditLog`：actorId、actorRole、action、targetType、targetId、reason?、createdAt（审核、冻结、强制下架、退款介入都要记）
 

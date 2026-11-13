@@ -47,15 +47,7 @@ beforeAll(async () => {
     const category = await db.category.create({
       data: { id: "legacy-category", name: "旧类目" },
     });
-    await db.store.create({
-      data: {
-        id: "legacy-store",
-        ownerId: "legacy",
-        categoryId: category.id,
-        name: "旧店铺",
-        status: "OPEN",
-      },
-    });
+    await db.$executeRaw`INSERT INTO "Store" (id,ownerId,categoryId,name,status) VALUES ('legacy-store','legacy',${category.id},'旧店铺','OPEN')`;
     await db.$executeRawUnsafe(
       `INSERT INTO "RefreshSession" (id,userId,digest,expiresAt) VALUES ('legacy-session','legacy','old-refresh',9999999999999)`,
     );

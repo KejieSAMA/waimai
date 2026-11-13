@@ -89,6 +89,17 @@ const put = (token: string, storeId: string, body: object) =>
     .send(body);
 const get = (token: string) =>
   request(app).get("/api/v1/user/cart").auth(token, { type: "bearer" });
+async function signed(userId: string, body: object) {
+  try {
+    const { previewOrder } = await import("../orders/service");
+    return {
+      ...body,
+      quoteFingerprint: (await previewOrder(userId, body)).quoteFingerprint,
+    };
+  } catch {
+    return body;
+  }
+}
 describe("账号服务端购物车", () => {
   it("已删除的地址不留在返回资料中，也不阻止自提快照结算", async () => {
     const a = await fixture();
@@ -110,12 +121,14 @@ describe("账号服务端购物车", () => {
     const order = await request(app)
       .post("/api/v1/user/orders")
       .auth(a.token, { type: "bearer" })
-      .send({
-        ...draft(a.product.id),
-        storeId: a.store.id,
-        cartRevision: cart.revision,
-        requestId: "deleted_address_pickup_001",
-      });
+      .send(
+        await signed(a.account.id, {
+          ...draft(a.product.id),
+          storeId: a.store.id,
+          cartRevision: cart.revision,
+          requestId: "deleted_address_pickup_001",
+        }),
+      );
     expect(order.status).toBe(200);
   });
   it("两设备同时修改同店版本时最多一份新内容生效", async () => {
@@ -334,13 +347,13 @@ describe("账号服务端购物车", () => {
         await request(app)
           .post("/api/v1/user/orders")
           .auth(a.token, { type: "bearer" })
-          .send({ ...body, cartRevision: 9 })
+          .send(await signed(a.account.id, { ...body, cartRevision: 9 }))
       ).status,
     ).toBe(409);
     const order = await request(app)
       .post("/api/v1/user/orders")
       .auth(a.token, { type: "bearer" })
-      .send(body);
+      .send(await signed(a.account.id, body));
     expect(order.status).toBe(200);
     expect(
       (await get(a.token)).body.data.carts.find(
@@ -356,7 +369,7 @@ describe("账号服务端购物车", () => {
     const repeated = await request(app)
       .post("/api/v1/user/orders")
       .auth(a.token, { type: "bearer" })
-      .send(body);
+      .send(await signed(a.account.id, body));
     expect(repeated.body.data.id).toBe(order.body.data.id);
     expect(
       (await db.product.findUniqueOrThrow({ where: { id: a.product.id } }))
@@ -389,14 +402,16 @@ describe("账号服务端购物车", () => {
     const result = await request(app)
       .post("/api/v1/user/orders")
       .auth(a.token, { type: "bearer" })
-      .send({
-        storeId: a.store.id,
-        type: "PICKUP",
-        note: "少辣",
-        items: [{ productId: a.product.id, qty: 2 }],
-        cartRevision: 1,
-        requestId: "order_failed_123456789",
-      });
+      .send(
+        await signed(a.account.id, {
+          storeId: a.store.id,
+          type: "PICKUP",
+          note: "少辣",
+          items: [{ productId: a.product.id, qty: 2 }],
+          cartRevision: 1,
+          requestId: "order_failed_123456789",
+        }),
+      );
     expect(result.status).toBe(409);
     expect((await get(a.token)).body.data.carts[0].revision).toBe(1);
     expect(await db.order.count({ where: { userId: a.account.id } })).toBe(0);

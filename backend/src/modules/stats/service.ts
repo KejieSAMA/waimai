@@ -62,7 +62,11 @@ export async function todos(storeId?: string) {
   const data = await overview(storeId);
   return storeId
     ? [
-        { label: "新订单", count: data.pending, path: "/merchant/orders" },
+        {
+          label: "新订单",
+          count: data.pending,
+          path: "/merchant/orders?status=PENDING",
+        },
         {
           label: "退款申请",
           count: data.refundPending,
@@ -73,7 +77,11 @@ export async function todos(storeId?: string) {
           count: data.lowStock,
           path: "/merchant/products?stock=low",
         },
-        { label: "差评待回复", count: data.badReviews, path: "/merchant/me" },
+        {
+          label: "差评待回复",
+          count: data.badReviews,
+          path: "/merchant/reviews?rating=bad&reply=pending",
+        },
       ]
     : [
         { label: "商家入驻待审核", count: data.pending, path: "/admin/audit" },

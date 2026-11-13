@@ -9,7 +9,7 @@ import { orderEvents } from "./events";
 export function registerUserOrders(user: Router) {
   user.post(
     "/orders/preview",
-    handler(async (req) => orders.quoteOrder(req.body)),
+    handler(async (req) => orders.previewOrder(req.actor!.id, req.body)),
   );
   user.post(
     "/orders",

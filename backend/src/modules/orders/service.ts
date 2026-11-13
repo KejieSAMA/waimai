@@ -1,19 +1,25 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHmac } from "node:crypto";
+import { config } from "../../config";
 import type { Prisma, OrderItem } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../../db";
-import { assert, pagination, pageResult, shanghaiDay } from "../../http";
+import {
+  assert,
+  HttpError,
+  pagination,
+  pageResult,
+  shanghaiDay,
+} from "../../http";
 import { orderTransition } from "../../domain/orderMachine";
 import {
   requireOpenStore,
   safeStore,
-  recordStoreSale,
+  updateStoreRating,
 } from "../stores/service";
 import {
   findProduct,
   reserveProduct,
   restoreProduct,
-  recordProductSale,
 } from "../products/service";
 import { ownedAddress } from "../users/service";
 import { recordAudit } from "../audit/service";
@@ -29,6 +35,36 @@ const include = {
   store: true,
   review: { select: { id: true } },
 } satisfies Prisma.OrderInclude;
+export const PAYMENT_TTL_MS = 15 * 60 * 1000;
+function fingerprint(
+  userId: string,
+  body: unknown,
+  quote: Awaited<ReturnType<typeof quoteOrder>>,
+) {
+  const input = orderSchema.parse(body);
+  return createHmac("sha256", config.jwtSecret)
+    .update(
+      JSON.stringify([
+        "checkout-quote-v1",
+        userId,
+        input.storeId,
+        input.type,
+        input.addressId ?? "",
+        [...quote.items].sort((a, b) => a.productId.localeCompare(b.productId)),
+        quote.itemsCents,
+        quote.deliveryFeeCents,
+        quote.discountCents,
+        quote.payCents,
+        quote.minOrderCents,
+        quote.checkoutAllowed,
+      ]),
+    )
+    .digest("hex");
+}
+export async function previewOrder(userId: string, body: unknown) {
+  const quote = await quoteOrder(body);
+  return { ...quote, quoteFingerprint: fingerprint(userId, body, quote) };
+}
 export async function quoteOrder(
   body: unknown,
   tx: Prisma.TransactionClient = db,
@@ -121,6 +157,14 @@ export async function createOrder(userId: string, body: unknown) {
     assert(input.type !== "DELIVERY" || address, 400, "请选择收货地址");
     await checkOrderCart(userId, input, tx);
     const quote = await quoteOrder(input, tx);
+    if (!input.quoteFingerprint)
+      throw new HttpError(409, "请刷新页面并重新确认金额", {
+        reason: "QUOTE_REQUIRED",
+      });
+    if (input.quoteFingerprint !== fingerprint(userId, input, quote))
+      throw new HttpError(409, "金额已更新，请核对后再次提交", {
+        reason: "QUOTE_CHANGED",
+      });
     assert(quote.checkoutAllowed, 409, "未达到起送金额");
     for (const it of quote.items) {
       await reserveProduct(tx, input.storeId, it.productId, it.qty);
@@ -183,10 +227,14 @@ function serializeOrder<
     store: Parameters<typeof safeStore>[0];
     addressSnapshot: string;
     items: OrderItem[];
+    createdAt: Date;
   },
 >(order: T, role: string) {
   const safe = {
     ...order,
+    paymentExpiresAt: new Date(
+      order.createdAt.getTime() + PAYMENT_TTL_MS,
+    ).toISOString(),
     store: safeStore(order.store),
     items: order.items.map((item) => ({
       ...item,
@@ -315,12 +363,25 @@ export async function actOnOrder(
   storeId?: string,
   reason?: string,
 ) {
-  const result = await db.$transaction(async (tx) => {
+  let changedState = false,
+    expired = false;
+  const result = await cartTransaction(async (tx) => {
+    changedState = false;
+    expired = false;
     const old = await tx.order.findFirst({
       where: { id, ...scopedWhere(actor, storeId) },
       include,
     });
     assert(old, 404, "订单不存在");
+    if (
+      action === "pay" &&
+      old.status === "PENDING_PAY" &&
+      Date.now() >= old.createdAt.getTime() + PAYMENT_TTL_MS
+    ) {
+      changedState = await cancelExpired(tx, old.id, new Date());
+      expired = true;
+      return tx.order.findUniqueOrThrow({ where: { id }, include });
+    }
     const targets: Record<string, string> = {
       pay: "PENDING",
       accept: "PREPARING",
@@ -336,6 +397,7 @@ export async function actOnOrder(
       assert(old.status === "REFUNDING", 409, "订单当前无法处理退款");
       assert(!old.disputed, 409, "纠纷已由平台处理");
       if (old.refundRejected) return old;
+      changedState = true;
       return tx.order.update({
         where: { id },
         data: { refundRejected: true },
@@ -348,6 +410,8 @@ export async function actOnOrder(
         409,
         "商家拒绝退款后可申诉",
       );
+      if (old.disputed) return old;
+      changedState = true;
       return tx.order.update({
         where: { id },
         data: { disputed: true },
@@ -381,16 +445,18 @@ export async function actOnOrder(
       },
     });
     assert(changed.count === 1, 409, "订单状态已更新，请重试");
+    changedState = true;
     if (status === "CANCELLED") await restoreStock(tx, old);
-    if (status === "DONE") {
-      for (const it of old.items)
-        await recordProductSale(tx, it.productId, it.qty);
-      await recordStoreSale(tx, old.storeId);
-    }
     return tx.order.findUniqueOrThrow({ where: { id }, include });
   });
-  if (action === "pay" || actor.role === "MERCHANT")
-    notifyOrder(result.storeId, result.id);
+  if (changedState)
+    notifyOrder(
+      result.storeId,
+      result.id,
+      action === "pay" && !expired ? "new_order" : "updated",
+    );
+  if (expired)
+    throw new HttpError(409, "订单已超时取消", { reason: "PAYMENT_EXPIRED" });
   return serializeOrder(result, actor.role);
 }
 export async function resolveDispute(
@@ -399,7 +465,7 @@ export async function resolveDispute(
   approve: boolean,
   reason: string,
 ) {
-  return db.$transaction(async (tx) => {
+  const result = await cartTransaction(async (tx) => {
     const old = await tx.order.findUnique({ where: { id }, include });
     assert(old?.status === "REFUNDING" && old.disputed, 409, "退款纠纷不存在");
     const status = approve ? "CANCELLED" : (old.refundFromStatus ?? "DONE");
@@ -417,8 +483,10 @@ export async function resolveDispute(
       id,
       reason,
     );
-    return tx.order.findUnique({ where: { id }, include });
+    return tx.order.findUniqueOrThrow({ where: { id }, include });
   });
+  notifyOrder(result.storeId, result.id);
+  return serializeOrder(result, actor.role);
 }
 export async function reviewOrder(id: string, userId: string, body: unknown) {
   const data = z
@@ -427,7 +495,7 @@ export async function reviewOrder(id: string, userId: string, body: unknown) {
       content: z.string().min(1).max(1000),
     })
     .parse(body);
-  return db.$transaction(async (tx) => {
+  const result = await cartTransaction(async (tx) => {
     const order = await tx.order.findFirst({
       where: { id, userId },
       include: { review: true },
@@ -435,30 +503,63 @@ export async function reviewOrder(id: string, userId: string, body: unknown) {
     assert(order, 404, "订单不存在");
     assert(order.status === "DONE", 409, "完成订单后可评价");
     assert(!order.review, 409, "订单已评价");
-    return tx.review.create({
+    const review = await tx.review.create({
       data: { ...data, orderId: id, userId, storeId: order.storeId },
     });
+    const aggregate = await tx.review.aggregate({
+      where: { storeId: order.storeId },
+      _avg: { rating: true },
+    });
+    await updateStoreRating(
+      tx,
+      order.storeId,
+      Math.round(aggregate._avg.rating! * 10) / 10,
+    );
+    return review;
   });
+  notifyOrder(result.storeId, id);
+  return result;
+}
+async function cancelExpired(
+  tx: Prisma.TransactionClient,
+  id: string,
+  now: Date,
+) {
+  const changed = await tx.order.updateMany({
+    where: {
+      id,
+      status: "PENDING_PAY",
+      paidAt: null,
+      createdAt: { lte: new Date(now.getTime() - PAYMENT_TTL_MS) },
+    },
+    data: { status: "CANCELLED", cancelReason: "支付超时" },
+  });
+  if (!changed.count) return false;
+  const order = await tx.order.findUniqueOrThrow({
+    where: { id },
+    include: { items: true },
+  });
+  await restoreStock(tx, order);
+  return true;
 }
 export async function expireUnpaid() {
-  const orders = await db.order.findMany({
-    where: {
-      status: "PENDING_PAY",
-      createdAt: { lt: new Date(Date.now() - 900000) },
-    },
-    take: 100,
-  });
-  for (const order of orders) {
-    try {
-      await actOnOrder(
-        order.id,
-        { id: order.userId, role: "USER" },
-        "cancel",
-        undefined,
-        "支付超时",
+  const now = new Date();
+  for (;;) {
+    const batch = await db.order.findMany({
+      where: {
+        status: "PENDING_PAY",
+        paidAt: null,
+        createdAt: { lte: new Date(now.getTime() - PAYMENT_TTL_MS) },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 100,
+    });
+    if (!batch.length) return;
+    for (const row of batch) {
+      const changed = await cartTransaction((tx) =>
+        cancelExpired(tx, row.id, now),
       );
-    } catch (e) {
-      if (!(e instanceof Error && "status" in e && e.status === 409)) throw e;
+      if (changed) notifyOrder(row.storeId, row.id);
     }
   }
 }

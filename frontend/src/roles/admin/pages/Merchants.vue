@@ -233,6 +233,9 @@ async function send(id: string, action: string) {
       ><template #createdAt="{ row }">{{
         row.createdAt ? time(row.createdAt) : "未提供"
       }}</template
+      ><template #rating="{ row }">{{
+        row.rating == null ? "暂无评分" : row.rating.toFixed(1)
+      }}</template
       ><template #category="{ row }">{{ row.category?.name }}</template
       ><template #status="{ row }"
         ><Tag :tone="storeStatuses[row.status].tone">{{

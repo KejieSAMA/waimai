@@ -93,7 +93,8 @@ export interface Store {
   status: StoreStatus;
   rejectReason: string | null;
   frozenReason: string | null;
-  rating: number;
+  rating: number | null;
+  reviewCount?: number;
   monthlySales: number;
   licenseImage?: string;
   foodPermitImage?: string;
@@ -120,6 +121,7 @@ export interface OrderItem {
   spec?: string | null;
 }
 export interface Order {
+  paymentExpiresAt?: string;
   review?: { id: string } | null;
   id: string;
   orderNo: string;
@@ -149,6 +151,7 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface Quote {
+  quoteFingerprint?: string;
   minOrderCents: number;
   shortfallCents: number;
   checkoutAllowed: boolean;
@@ -214,6 +217,8 @@ export function auditActionLabel(action: string): string {
         "force-off": "强制下架",
         "refund-approve": "同意退款",
         "refund-reject": "拒绝退款",
+        "review-reply": "回复评价",
+        "promotion-update": "修改满减",
       } as Record<string, string>
     )[action] ?? "处理记录"
   );
@@ -241,6 +246,7 @@ export class ApiError extends Error {
   constructor(
     public code: number,
     message: string,
+    public details?: { reason?: string },
   ) {
     super(message);
   }
@@ -279,9 +285,10 @@ export function createApi(transport: Transport, getToken: () => string | null) {
       code: number;
       message: string;
       data: T;
+      details?: { reason?: string };
     };
     if (!response.ok || result.code !== 0)
-      throw new ApiError(result.code, result.message);
+      throw new ApiError(result.code, result.message, result.details);
     return result.data;
   };
 }
@@ -289,3 +296,6 @@ export * from "./dishGroups";
 export * from "./publicStores";
 export * from "./storeEditor";
 export * from "./merchantOrders";
+
+export * from "./profileEditor";
+export * from "./merchantManagement";

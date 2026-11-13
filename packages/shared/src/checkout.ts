@@ -315,6 +315,7 @@ export function useCheckout(
         method: "POST",
         body: {
           ...body,
+          quoteFingerprint: fresh.quoteFingerprint,
           ...(revision
             ? {
                 cartRevision: revision,
@@ -332,6 +333,17 @@ export function useCheckout(
       }
       if (active) await viewOrder();
     } catch (cause) {
+      const reason = (cause as { details?: { reason?: string } })?.details
+        ?.reason;
+      if (
+        active &&
+        cart.ownerVersion === submittedOwner &&
+        (reason === "QUOTE_CHANGED" || reason === "QUOTE_REQUIRED")
+      ) {
+        await cart.refresh();
+        if (active) notice.value = "金额已更新，请核对后再次提交";
+        return;
+      }
       if (requestId && cart.ownerVersion === submittedOwner) {
         try {
           const found = await request<Page<Order>>(

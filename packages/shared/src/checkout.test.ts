@@ -44,6 +44,7 @@ const otherAddress: Address = {
   isDefault: false,
 };
 const initialQuote: Quote = {
+  quoteFingerprint: "server-quote-fingerprint",
   minOrderCents: 2000,
   shortfallCents: 0,
   checkoutAllowed: true,
@@ -294,6 +295,25 @@ describe("服务端购物车结算", () => {
   });
 });
 describe("可编辑清单与提交", () => {
+  it("创建阶段发现报价变化时只更新金额，不重建、不清车，携带服务端指纹", async () => {
+    const { state, cart, server, orderCalls } = setup();
+    await state.initialize();
+    server.orderError = Object.assign(new Error("变化"), {
+      details: { reason: "QUOTE_CHANGED" },
+    });
+    await state.submit();
+    expect(orderCalls()).toHaveLength(1);
+    expect(orderCalls()[0][1]?.body).toMatchObject({
+      quoteFingerprint: "server-quote-fingerprint",
+    });
+    expect(cart.count).toBe(1);
+    expect(state.notice.value).toContain("金额已更新");
+    server.orderError = null;
+    await state.submit();
+    expect(orderCalls()).toHaveLength(2);
+    expect(cart.count).toBe(0);
+  });
+
   it("调整数量和移除保留备注及店铺入口，空车取消提交", async () => {
     const { state, cart } = setup();
     await state.initialize();

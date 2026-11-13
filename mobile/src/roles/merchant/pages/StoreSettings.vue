@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRouter } from "vue-router";
 import PageSlot from "../../../components/PageSlot.vue";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import { Button, Input, Select, Tag, Thumb } from "@waimai/ui";
@@ -7,12 +8,13 @@ import { type Store, type Category, storeStatuses } from "@waimai/shared";
 import { api, upload } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const application = false;
+const router = useRouter();
 const store = ref<Store | null>(null),
   categories = ref<Category[]>([]);
 const form = reactive({
   name: "",
   categoryId: "",
-  city: "北京",
+  city: "",
   address: "",
   contactPhone: "",
   notice: "",
@@ -99,6 +101,9 @@ async function save() {
         store.rejectReason || store.frozenReason
       }}</span>
     </div>
+    <Button variant="outline" @click="router.push('/merchant/promotions')"
+      >满减配置</Button
+    >
     <div class="app-card app-form">
       <Input v-model="form.name" label="店铺名称" required /><Select
         v-model="form.categoryId"

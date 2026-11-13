@@ -1,3 +1,4 @@
+import { withProductMetrics } from "../orders/metrics";
 import type { Prisma, Product } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../../db";
@@ -20,7 +21,10 @@ export const cartProducts = (
   storeId: string,
   ids: string[],
   tx: Prisma.TransactionClient = db,
-) => tx.product.findMany({ where: { storeId, id: { in: ids } } });
+) =>
+  tx.product
+    .findMany({ where: { storeId, id: { in: ids } } })
+    .then((rows) => withProductMetrics(rows, tx));
 export async function listProducts(
   query: Record<string, unknown>,
   storeId?: string,
@@ -80,7 +84,11 @@ export async function listProducts(
       .filter((g) => states.includes(g.status))
       .reduce((sum, g) => sum + g._count.id, 0);
   return {
-    ...pageResult(list.map(displayProduct), total, p),
+    ...pageResult(
+      (await withProductMetrics(list)).map(displayProduct),
+      total,
+      p,
+    ),
     counts: {
       ON: count(["ON"]),
       OFF: count(["OFF"]),
@@ -233,13 +241,4 @@ export const restoreProduct = (
   tx.product.update({
     where: { id: productId },
     data: { stock: { increment: qty } },
-  });
-export const recordProductSale = (
-  tx: Prisma.TransactionClient,
-  productId: string,
-  qty: number,
-) =>
-  tx.product.update({
-    where: { id: productId },
-    data: { monthlySales: { increment: qty } },
   });

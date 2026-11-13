@@ -6,7 +6,7 @@ const server = app.listen(config.port, config.host, () =>
   process.stdout.write(`API http://${config.host}:${config.port}\n`),
 );
 let expiring = false;
-const cleanup = setInterval(async () => {
+async function sweep() {
   if (expiring) return;
   expiring = true;
   try {
@@ -16,7 +16,9 @@ const cleanup = setInterval(async () => {
   } finally {
     expiring = false;
   }
-}, 60000);
+}
+void sweep();
+const cleanup = setInterval(() => void sweep(), 60000);
 function shutdown() {
   clearInterval(cleanup);
   server.close(() => {

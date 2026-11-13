@@ -15,6 +15,7 @@ export const orderSchema = z.object({
     .max(100),
 });
 export const createOrderSchema = orderSchema.extend({
+  quoteFingerprint: z.string().max(128).optional(),
   cartRevision: z.number().int().min(1).optional(),
   requestId: z
     .string()

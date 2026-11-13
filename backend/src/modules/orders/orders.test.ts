@@ -114,6 +114,13 @@ afterAll(async () => {
   }
 });
 
+async function createConfirmed(userId: string, body: unknown) {
+  const quote = await orderService.previewOrder(userId, body);
+  return orderService.createOrder(userId, {
+    ...(body as object),
+    quoteFingerprint: quote.quoteFingerprint,
+  });
+}
 describe("订单金额、库存和权限", () => {
   it("忽略前端金额，合并重复商品并计算满减", async () => {
     const quote = await orderService.quoteOrder({
@@ -163,7 +170,7 @@ describe("订单金额、库存和权限", () => {
         checkoutAllowed: false,
         itemsCents: 2850,
       });
-      await expect(orderService.createOrder(userId, body)).rejects.toThrow(
+      await expect(createConfirmed(userId, body)).rejects.toThrow(
         "未达到起送金额",
       );
       expect(
@@ -174,7 +181,7 @@ describe("订单金额、库存和权限", () => {
           })
         ).checkoutAllowed,
       ).toBe(true);
-      const pickup = await orderService.createOrder(userId, {
+      const pickup = await createConfirmed(userId, {
         ...body,
         type: "PICKUP",
       });
@@ -190,7 +197,7 @@ describe("订单金额、库存和权限", () => {
         data: { minOrderCents: 2850 },
       });
       expect((await orderService.quoteOrder(body)).shortfallCents).toBe(0);
-      const delivery = await orderService.createOrder(userId, body);
+      const delivery = await createConfirmed(userId, body);
       expect(delivery.itemsCents).toBe(2850);
       await orderService.actOnOrder(
         delivery.id,
@@ -213,13 +220,13 @@ describe("订单金额、库存和权限", () => {
         detail: "测试街道",
       },
     });
-    const own = await orderService.createOrder(userId, {
+    const own = await createConfirmed(userId, {
       storeId,
       type: "DELIVERY",
       addressId: address.id,
       items: [{ productId, qty: 1 }],
     });
-    const other = await orderService.createOrder(userId, {
+    const other = await createConfirmed(userId, {
       storeId: otherStoreId,
       type: "PICKUP",
       items: [{ productId: otherProductId, qty: 1 }],
@@ -303,7 +310,7 @@ describe("订单金额、库存和权限", () => {
     ).toBe(404);
   });
   it("跨店订单操作返回 404", async () => {
-    const other = await orderService.createOrder(userId, {
+    const other = await createConfirmed(userId, {
       storeId: otherStoreId,
       type: "PICKUP",
       items: [{ productId: otherProductId, qty: 1 }],
@@ -326,7 +333,7 @@ describe("订单金额、库存和权限", () => {
     const before = (
       await db.product.findUniqueOrThrow({ where: { id: productId } })
     ).stock;
-    const order = await orderService.createOrder(userId, input);
+    const order = await createConfirmed(userId, input);
     expect(order.payCents).toBe(5200);
     expect(
       (await db.product.findUniqueOrThrow({ where: { id: productId } })).stock,
@@ -346,7 +353,7 @@ describe("订单金额、库存和权限", () => {
     ).toBe(before);
   });
   it("完整自提流转与接单幂等", async () => {
-    const order = await orderService.createOrder(userId, input);
+    const order = await createConfirmed(userId, input);
     const merchant = await db.user.findUniqueOrThrow({
       where: { username: "13811111111" },
     });
@@ -376,7 +383,7 @@ describe("订单金额、库存和权限", () => {
   });
   it("库存不足时整笔事务回滚", async () => {
     await expect(
-      orderService.createOrder(userId, {
+      createConfirmed(userId, {
         storeId,
         type: "PICKUP",
         items: [{ productId, qty: 999 }],
@@ -517,7 +524,7 @@ describe("订单金额、库存和权限", () => {
     const before = await db.product.findUniqueOrThrow({
       where: { id: productId },
     });
-    const order = await orderService.createOrder(userId, input);
+    const order = await createConfirmed(userId, input);
     const owner = await db.user.findUniqueOrThrow({
       where: { username: "13811111111" },
     });
@@ -558,7 +565,7 @@ describe("订单金额、库存和权限", () => {
     ).toBe(1);
   });
   it("支付超时取消并回补库存", async () => {
-    const order = await orderService.createOrder(userId, input);
+    const order = await createConfirmed(userId, input);
     await db.order.update({
       where: { id: order.id },
       data: { createdAt: new Date(Date.now() - 16 * 60000) },
@@ -636,7 +643,7 @@ describe("订单金额、库存和权限", () => {
     expect(images.status).toBe(400);
   });
   it("商品行金额在后端按价格快照计算", async () => {
-    const order = await orderService.createOrder(userId, {
+    const order = await createConfirmed(userId, {
       storeId,
       type: "PICKUP",
       items: [{ productId, qty: 2 }],
@@ -811,7 +818,7 @@ describe("订单金额、库存和权限", () => {
     const count = await db.order.count();
     const results = await Promise.allSettled(
       [1, 2].map(() =>
-        orderService.createOrder(userId, {
+        createConfirmed(userId, {
           storeId,
           type: "PICKUP",
           items: [{ productId, qty: 1 }],
