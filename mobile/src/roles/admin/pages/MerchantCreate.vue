@@ -82,9 +82,6 @@ async function submit() {
         novalidate
         @submit.prevent="submit"
       >
-        <p class="body-sm app-muted merchant-create__notice">
-          创建后无需审核，店铺为休息中；新商家首次登录需修改密码。
-        </p>
         <section v-if="editor.section === 'account'" class="app-stack">
           <h2 class="title">商家账号</h2>
           <div class="merchant-create__fields">
@@ -316,9 +313,6 @@ async function submit() {
 <style scoped>
 .merchant-create__form {
   min-width: 0;
-}
-.merchant-create__notice {
-  margin-bottom: var(--space-4);
 }
 .merchant-create__fields,
 .merchant-create__documents {
