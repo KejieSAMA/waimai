@@ -293,3 +293,9 @@ export async function freezeForAccount(
     "账号停用或商家身份已撤销",
   );
 }
+
+export const updateStoreRating = (
+  tx: Prisma.TransactionClient,
+  id: string,
+  rating: number,
+) => tx.store.update({ where: { id }, data: { rating } });

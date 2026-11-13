@@ -50,7 +50,12 @@ export function useOrderStream(reload: () => Promise<unknown>) {
           const event = buffer.slice(0, boundary);
           buffer = buffer.slice(boundary + 2);
           if (event.startsWith("event: order")) {
-            sound();
+            try {
+              const data = JSON.parse(event.split("data:")[1] ?? "{}");
+              if (data.kind === "new_order") sound();
+            } catch {
+              /* Unknown event payloads still trigger a refresh. */
+            }
             await reload();
             invalidateRoleData("MERCHANT");
           }

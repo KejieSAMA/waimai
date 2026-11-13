@@ -10,6 +10,7 @@ import {
   useUserOrderDetail,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
+import { orderActivity } from "../../../common/orderActivity";
 import PageHeader from "../../../components/PageHeader.vue";
 import InfoList from "../../../components/InfoList.vue";
 import DataTable from "../../../components/DataTable.vue";
@@ -25,12 +26,14 @@ const {
   rating,
   content,
   reviewed,
+  paymentExpired,
   load,
   act,
   review,
 } = useUserOrderDetail(
   api,
   computed(() => String(route.params.id)),
+  orderActivity,
 );
 const refundOpen = ref(false),
   confirmation = ref<"cancel" | "complete">();
@@ -88,7 +91,7 @@ async function refund() {
       <template v-if="order" #actions>
         <Button
           v-if="order.status === 'PENDING_PAY'"
-          :disabled="disabled"
+          :disabled="disabled || paymentExpired"
           @click="act('pay')"
           >模拟支付</Button
         >

@@ -87,7 +87,11 @@ if (production) {
 }
 app.use(
   (
-    error: Error & { status?: number; code?: string },
+    error: Error & {
+      status?: number;
+      code?: string;
+      details?: { reason: string };
+    },
     _req: Request,
     res: Response,
     _next: NextFunction,
@@ -127,7 +131,11 @@ app.use(
                 : conflict
                   ? "数据正在更新，请重试"
                   : error.message,
-      ...(error instanceof ZodError ? { details: error.flatten() } : {}),
+      ...(error instanceof ZodError
+        ? { details: error.flatten() }
+        : error.details
+          ? { details: error.details }
+          : {}),
     });
   },
 );

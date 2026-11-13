@@ -24,6 +24,67 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("订单静默实时更新", () => {
+  it("仅新订单事件发声，状态更新只刷新", async () => {
+    const oscillator = {
+      connect: vi.fn(),
+      frequency: { value: 0 },
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+    const createOscillator = vi.fn(() => oscillator);
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = "running";
+        currentTime = 0;
+        destination = {};
+        resume = vi.fn();
+        close = vi.fn();
+        createOscillator = createOscillator;
+        createGain() {
+          return {
+            connect: vi.fn(),
+            gain: {
+              setValueAtTime: vi.fn(),
+              exponentialRampToValueAtTime: vi.fn(),
+            },
+          };
+        }
+      },
+    );
+    let finish!: (value: { done: boolean }) => void;
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce({
+        done: false,
+        value: new TextEncoder().encode(
+          'event: order\ndata: {"id":"a","kind":"new_order"}\n\nevent: order\ndata: {"id":"a","kind":"updated"}\n\n',
+        ),
+      })
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        body: { getReader: () => ({ read }) },
+      }),
+    );
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const stream = useOrderStream(reload);
+    await stream.toggle(true);
+    await flush();
+    expect(createOscillator).toHaveBeenCalledOnce();
+    expect(reload).toHaveBeenCalledTimes(3);
+    hooks.unmount.splice(0).forEach((stop) => stop());
+    finish({ done: true });
+    await flush();
+  });
   it("移除提醒控件后仍可自动连接并刷新，不请求音频权限，离开后停止", async () => {
     let finish!: (value: { done: boolean }) => void;
     const read = vi.fn(

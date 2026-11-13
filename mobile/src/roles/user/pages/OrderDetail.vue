@@ -4,6 +4,7 @@ import { computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { orderStatuses, money, time, useUserOrderDetail } from "@waimai/shared";
 import { api } from "../../../common/api";
+import { orderActivity } from "../../../common/orderActivity";
 const route = useRoute();
 const {
   order,
@@ -14,12 +15,14 @@ const {
   rating,
   content,
   reviewed,
+  paymentExpired,
   load,
   act,
   review,
 } = useUserOrderDetail(
   api,
   computed(() => String(route.params.id)),
+  orderActivity,
 );
 watch(
   [() => order.value?.id, () => route.hash],
@@ -73,7 +76,7 @@ watch(
       <div class="app-row">
         <Button
           v-if="order.status === 'PENDING_PAY'"
-          :disabled="busy"
+          :disabled="busy || paymentExpired"
           @click="act('pay')"
           >模拟支付</Button
         ><Button

@@ -120,6 +120,7 @@ export interface OrderItem {
   spec?: string | null;
 }
 export interface Order {
+  paymentExpiresAt?: string;
   review?: { id: string } | null;
   id: string;
   orderNo: string;
@@ -149,6 +150,7 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface Quote {
+  quoteFingerprint?: string;
   minOrderCents: number;
   shortfallCents: number;
   checkoutAllowed: boolean;
@@ -241,6 +243,7 @@ export class ApiError extends Error {
   constructor(
     public code: number,
     message: string,
+    public details?: { reason?: string },
   ) {
     super(message);
   }
@@ -279,9 +282,10 @@ export function createApi(transport: Transport, getToken: () => string | null) {
       code: number;
       message: string;
       data: T;
+      details?: { reason?: string };
     };
     if (!response.ok || result.code !== 0)
-      throw new ApiError(result.code, result.message);
+      throw new ApiError(result.code, result.message, result.details);
     return result.data;
   };
 }
