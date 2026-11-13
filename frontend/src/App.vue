@@ -9,6 +9,27 @@ import { message } from "./common/feedback";
 import AppShell from "./common/AppShell.vue";
 import ThemeBridge from "./theme/ThemeBridge.vue";
 import { schemeTheme } from "./theme/schemeA";
+import { useAuth } from "./common/auth";
+import { accountRouteDecision, type Role } from "@waimai/shared";
+import { useRoute } from "vue-router";
+import SessionScreen from "./common/SessionScreen.vue";
+const auth = useAuth(),
+  route = useRoute();
+const sessionBlocked = computed(
+  () =>
+    !route.matched.length ||
+    ["unknown", "checking", "error"].includes(auth.status) ||
+    accountRouteDecision(
+      {
+        path: route.path,
+        fullPath: route.fullPath,
+        protected: route.meta.protected === true,
+        role: route.meta.role as Role | undefined,
+      },
+      auth.account,
+      auth.activeRole,
+    ) !== true,
+);
 
 dayjs.locale("zh-cn");
 const { theme: mode } = useTheme();
@@ -26,7 +47,8 @@ const themeConfig = computed(() =>
     :auto-insert-space-in-button="false"
   >
     <ThemeBridge />
-    <AppShell />
+    <SessionScreen v-if="sessionBlocked" />
+    <AppShell v-else />
     <a-alert
       v-if="message"
       class="app-feedback"

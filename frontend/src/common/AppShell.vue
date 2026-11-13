@@ -11,6 +11,7 @@ import {
   useRoleNotices,
   merchantStoreEntry,
   onRoleDataInvalidated,
+  accountMePath,
 } from "@waimai/shared";
 import { api } from "./api";
 import {
@@ -200,15 +201,16 @@ onBeforeUnmount(() => window.removeEventListener("focus", reloadMerchant));
 const go = (path: string) => router.push(path);
 </script>
 <template>
+  <RouterView v-if="route.meta.accessArea" />
   <div
-    v-if="
+    v-else-if="
       role === 'user' || route.path.endsWith('/login') || route.path === '/__ui'
     "
     class="xz-site-page xz-desk"
     :class="{ 'app-contained-store': containedScroll }"
   >
     <SiteHeader
-      :user="account"
+      :user="auth.account"
       :location="headerAddress"
       @address="go('/addresses')"
       :cart-count="carts.totalCount"
@@ -216,7 +218,7 @@ const go = (path: string) => router.push(path);
       @update:model-value="go"
       @login="go('/login')"
       @cart="go('/checkout')"
-      @account="go('/me')"
+      @account="go(accountMePath(auth.activeRole))"
     />
     <ScrollArea
       ref="pageBody"

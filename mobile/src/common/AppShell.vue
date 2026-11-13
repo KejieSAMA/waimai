@@ -186,7 +186,9 @@ const tabs = computed(() =>
 );
 </script>
 <template>
+  <RouterView v-if="route.meta.accessArea" />
   <MobilePage
+    v-else
     ref="pageBody"
     :bottom-tone="isStore ? 'clear' : 'raised'"
     :class="{ 'app-mobile-store': isStore }"

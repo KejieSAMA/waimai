@@ -115,3 +115,5 @@
 - 2026-11-13，新增 design-demos 工作区包，按用户要求以 ant-design-vue 4 制作用户端 PC 首页与店铺页的三套风格 demo（清爽绿／活力橙／黑黄极简）；仅作设计探索，与 frontend、mobile、packages 隔离，不改变产品不引入 UI 库的规则。UMD 依赖由 vendor 脚本生成且不入库。
 - 2026-11-13，按用户要求取消“不引入第三方 UI 库”的限制：PC 端（frontend）采用设计方案 A（清爽橙）并全面改用 ant-design-vue 4，主题值集中在 frontend/src/theme/schemeA.ts，经 ConfigProvider 注入并同步为 PC 专用的 xz token 覆盖；packages/ui、packages/tokens 与手机端保持不变，两端共用的业务组件在 frontend/src/components/biz/ 另建 PC 版本。替代上一条“design-demos 仅作探索”的说法。
 - 2026-11-13，PC 页面经 `frontend/src/components/pc.ts` 按原名导入 antd 适配组件（Button、Input、Select、Tabs、Tag、Dialog 等与 `@waimai/ui` 同名 props），模板基本不变；`@waimai/ui` 在 PC 只保留 ScrollArea、useGroupScroll、Price 与类型。理由：一次替换全部页面控件、风险最小，业务脚本与原生表单校验原样保留。
+
+- 2026-11-13：PC／手机权限恢复区分首次核验、游客、需显式切换、无授权及网络失败；回跳从实际路由解析，认证响应 no-store，清理失效刷新 Cookie；不新增默认账号或权限申请能力。核验失败不展示旧身份，裸 /access 不作为登录回跳；见 ACCESS_RECOVERY.md。

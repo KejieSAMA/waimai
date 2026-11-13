@@ -217,7 +217,10 @@ describe("账号角色路由约束", () => {
           session().user,
           "USER",
         ),
-      ).toBe("/access");
+      ).toEqual({
+        path: "/access",
+        query: { redirect: "/" + role.toLowerCase() },
+      });
     },
   );
   it("已授权但非当前身份也必须显式切换", () => {
@@ -232,7 +235,7 @@ describe("账号角色路由约束", () => {
         session().user,
         "USER",
       ),
-    ).toBe("/access");
+    ).toEqual({ path: "/access", query: { redirect: "/admin/accounts" } });
   });
   it("当前管理员可访问管理页", () => {
     expect(
@@ -273,7 +276,7 @@ describe("账号角色路由约束", () => {
         account,
         "USER",
       ),
-    ).toBe("/password");
+    ).toEqual({ path: "/password", query: { redirect: "/orders" } });
     expect(
       accountRouteDecision(
         { path: "/password", fullPath: "/password", protected: true },

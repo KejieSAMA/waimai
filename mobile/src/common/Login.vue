@@ -3,6 +3,7 @@ import { Button, Input } from "@waimai/ui";
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { roleHome, type Role } from "@waimai/shared";
+import { readAccessTarget } from "./authNavigation";
 import { useAuth } from "./auth";
 const route = useRoute(),
   router = useRouter(),
@@ -40,21 +41,14 @@ async function submit() {
           },
       register.value,
     );
-    const target = route.query.redirect;
-    const valid =
-      typeof target === "string" &&
-      target.startsWith("/") &&
-      !target.startsWith("//") &&
-      !target.includes("\\") &&
-      (auth.activeRole === "USER"
-        ? !/^\/(admin|merchant)(\/|$)/.test(target)
-        : target.startsWith("/" + auth.activeRole?.toLowerCase() + "/"));
-    await router.push(
+    const target = readAccessTarget(router, route.query.redirect);
+    await router.replace(
       auth.account?.mustChangePassword
-        ? "/password"
-        : valid
-          ? target
-          : roleHome(auth.activeRole),
+        ? {
+            path: "/password",
+            ...(target ? { query: { redirect: target.fullPath } } : {}),
+          }
+        : (target?.fullPath ?? roleHome(auth.activeRole)),
     );
   } catch (e) {
     error.value = e instanceof Error ? e.message : "登录失败";

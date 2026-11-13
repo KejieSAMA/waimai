@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { Button, Input } from "../components/pc";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { readAccessTarget } from "./authNavigation";
+import { accountLoginPath as loginPath } from "@waimai/shared";
 import { useAuth } from "./auth";
 const auth = useAuth(),
-  router = useRouter();
+  router = useRouter(),
+  route = useRoute();
 const oldPassword = ref(""),
   password = ref(""),
   confirm = ref(""),
@@ -20,10 +23,12 @@ async function save() {
   error.value = "";
   const role = auth.activeRole;
   try {
+    const target = readAccessTarget(router, route.query.redirect);
     await auth.changePassword(oldPassword.value, password.value);
-    await router.replace(
-      role === "USER" ? "/login" : `/${role?.toLowerCase()}/login`,
-    );
+    await router.replace({
+      path: loginPath(role),
+      ...(target ? { query: { redirect: target.fullPath } } : {}),
+    });
   } catch (e) {
     error.value = e instanceof Error ? e.message : "修改失败";
   } finally {

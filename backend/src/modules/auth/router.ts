@@ -1,12 +1,16 @@
 import { Router, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
-import { handler } from "../../http";
+import { handler, HttpError } from "../../http";
 import { production } from "../../config";
 import { authenticate } from "./middleware";
 import { roleSchema, passwordSchema } from "./schema";
 import * as service from "./service";
 const router = Router();
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
 router.use(
   ["/login", "/register", "/password"],
   rateLimit({
@@ -63,13 +67,21 @@ router.post(
 );
 router.post(
   "/refresh",
-  handler(async (req) => {
-    const session = await service.refreshSession(req.cookies.xz_refresh ?? "");
-    return {
-      accessToken: session.accessToken,
-      activeRole: session.activeRole,
-      user: session.user,
-    };
+  handler(async (req, res) => {
+    try {
+      const session = await service.refreshSession(
+        req.cookies.xz_refresh ?? "",
+      );
+      return {
+        accessToken: session.accessToken,
+        activeRole: session.activeRole,
+        user: session.user,
+      };
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 401)
+        res.clearCookie("xz_refresh", options);
+      throw error;
+    }
   }),
 );
 router.post(

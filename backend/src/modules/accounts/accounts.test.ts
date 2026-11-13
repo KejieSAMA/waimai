@@ -63,6 +63,43 @@ afterAll(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 describe("正式账号、授权与会话", () => {
+  it("无 Cookie、无效 Cookie 和已撤销会话均不能恢复账号；认证响应不缓存并清理失效 Cookie", async () => {
+    for (const cookie of [undefined, "xz_refresh=invalid-refresh"]) {
+      const pending = request(app).post("/api/v1/auth/refresh").send({});
+      if (cookie) pending.set("Cookie", cookie);
+      const result = await pending;
+      expect(result.status).toBe(401);
+      expect(result.body.data).toBeUndefined();
+      expect(result.headers["cache-control"]).toBe("no-store");
+      expect(result.headers["set-cookie"]).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/^xz_refresh=;.*Expires=/),
+        ]),
+      );
+    }
+    const created = await user();
+    const session = await auth.issueSession(created, "USER");
+    const cookie = "xz_refresh=" + session.refreshToken;
+    const restored = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", cookie)
+      .send({});
+    expect(restored.status).toBe(200);
+    expect(restored.body.data.user.id).toBe(created.id);
+    expect(restored.headers["cache-control"]).toBe("no-store");
+    const exited = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Cookie", cookie)
+      .send({});
+    expect(exited.status).toBe(200);
+    expect(exited.headers["cache-control"]).toBe("no-store");
+    const stale = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", cookie)
+      .send({});
+    expect(stale.status).toBe(401);
+    expect(stale.body.data).toBeUndefined();
+  });
   it("完整迁移保留身份归属但禁用旧账号、删除旧密码和会话、冻结店铺", async () => {
     const old = await db.user.findUniqueOrThrow({
       where: { id: "legacy" },

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { createAuthState, type AuthRequest } from "@waimai/shared";
+import { createAuthState, ApiError, type AuthRequest } from "@waimai/shared";
 export const useAuth = defineStore("auth", () => {
   const key = "xz-auth-change";
   const state = createAuthState(request, () =>
@@ -13,6 +13,7 @@ export const useAuth = defineStore("auth", () => {
     const response = await fetch("/api/v1" + path, {
       method,
       credentials: "include",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         ...(state.accessToken.value
@@ -22,7 +23,8 @@ export const useAuth = defineStore("auth", () => {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.message || "请求失败");
+    if (!response.ok)
+      throw new ApiError(response.status, result.message || "请求失败");
     return result.data as T;
   };
   function request<T>(

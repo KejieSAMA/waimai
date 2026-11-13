@@ -1,5 +1,8 @@
 import { computed, ref } from "vue";
 import type { Account, Role } from "./index";
+import { ApiError } from "./index";
+export type SessionStatus =
+  "unknown" | "checking" | "authenticated" | "guest" | "error";
 export interface Session {
   accessToken: string;
   activeRole: Role;
@@ -15,9 +18,12 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
   const activeRole = ref<Role>();
   const accessToken = ref("");
   const revision = ref(0);
+  const status = ref<SessionStatus>("unknown");
+  const verificationError = ref("");
   let generation = 0;
   let profileSequence = 0;
-  let refreshing: Promise<boolean> | undefined;
+  let refreshing: { version: number; promise: Promise<boolean> } | undefined;
+  let identityPending = 0;
   const accounts = computed<Partial<Record<Role, Account>>>(() =>
     account.value && activeRole.value
       ? { [activeRole.value]: account.value }
@@ -28,13 +34,15 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
       ? { [activeRole.value]: accessToken.value }
       : {},
   );
-  function clear() {
+  function clear(nextStatus: SessionStatus = "guest") {
     generation++;
     if (account.value || activeRole.value || accessToken.value)
       revision.value++;
     account.value = undefined;
     activeRole.value = undefined;
     accessToken.value = "";
+    status.value = nextStatus;
+    verificationError.value = "";
   }
   function save(_role: Role, session: Session) {
     if (
@@ -59,59 +67,118 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
     account.value = session.user;
     activeRole.value = session.activeRole;
     accessToken.value = session.accessToken;
+    status.value = "authenticated";
+    verificationError.value = "";
     if (old !== next) {
       generation++;
       revision.value++;
     }
   }
   async function refresh(role?: Role): Promise<boolean> {
-    if (!refreshing) {
+    if (identityPending)
+      return !!account.value && (!role || activeRole.value === role);
+    if (!refreshing || refreshing.version !== generation) {
       const version = generation;
-      refreshing = (async () => {
+      if (status.value !== "authenticated") status.value = "checking";
+      verificationError.value = "";
+      const entry = { version, promise: Promise.resolve(false) };
+      entry.promise = (async () => {
         try {
           const session = await request<Session>("/auth/refresh", {});
           if (version !== generation) return false;
+          if (
+            !session.user.roles?.includes(session.activeRole) ||
+            session.user.role !== session.activeRole
+          )
+            throw new Error("登录身份无效");
           save(session.activeRole, session);
           return true;
-        } catch {
-          if (version === generation) clear();
+        } catch (error) {
+          if (version === generation) {
+            if (error instanceof ApiError && [401, 403].includes(error.code))
+              clear();
+            else {
+              clear("error");
+              verificationError.value = "无法核验登录状态，请检查网络后重试";
+            }
+          }
           return false;
         }
       })().finally(() => {
-        refreshing = undefined;
+        if (refreshing === entry) refreshing = undefined;
       });
+      refreshing = entry;
     }
-    const ok = await refreshing;
+    const ok = await refreshing.promise;
     return ok && (!role || activeRole.value === role);
   }
   async function login(body: unknown, register = false) {
     const version = ++generation;
-    const session = await request<Session>(
-      register ? "/auth/register" : "/auth/login",
-      body,
-    );
-    if (generation !== version) throw new Error("身份已变化，请重试");
-    save(session.activeRole, session);
-    broadcast();
+    identityPending++;
+    try {
+      // A previous refresh can clear its invalid Cookie. Let it finish before issuing a new one.
+      await refreshing?.promise;
+      if (generation !== version) throw new Error("身份已变化，请重试");
+      const session = await request<Session>(
+        register ? "/auth/register" : "/auth/login",
+        body,
+      );
+      if (generation !== version) throw new Error("身份已变化，请重试");
+      save(session.activeRole, session);
+      broadcast();
+    } finally {
+      finishIdentity();
+    }
+  }
+  function finishIdentity() {
+    identityPending--;
+    if (!identityPending && status.value === "checking") void refresh();
   }
   async function switchRole(role: Role) {
     const version = ++generation;
-    const session = await request<Session>("/auth/switch-role", { role });
-    if (generation !== version) throw new Error("身份已变化，请重试");
-    save(role, session);
-    broadcast();
+    identityPending++;
+    try {
+      await refreshing?.promise;
+      if (generation !== version) throw new Error("身份已变化，请重试");
+      const session = await request<Session>("/auth/switch-role", { role });
+      if (generation !== version) throw new Error("身份已变化，请重试");
+      save(role, session);
+      broadcast();
+    } catch (error) {
+      if (
+        version === generation &&
+        error instanceof ApiError &&
+        error.code === 401
+      )
+        clear();
+      throw error;
+    } finally {
+      finishIdentity();
+    }
   }
   async function logout(_role?: Role) {
     const version = generation;
-    await request("/auth/logout", {});
-    if (version !== generation) throw new Error("身份已变化，请重新操作");
-    clear();
-    broadcast();
+    identityPending++;
+    try {
+      await request("/auth/logout", {});
+      if (version !== generation) throw new Error("身份已变化，请重新操作");
+      clear();
+      broadcast();
+    } finally {
+      finishIdentity();
+    }
   }
   async function changePassword(oldPassword: string, password: string) {
-    await request("/auth/password", { oldPassword, password });
-    clear();
-    broadcast();
+    const version = generation;
+    identityPending++;
+    try {
+      await request("/auth/password", { oldPassword, password });
+      if (version !== generation) throw new Error("身份已变化，请重新操作");
+      clear();
+      broadcast();
+    } finally {
+      finishIdentity();
+    }
   }
   async function profileRequest(body?: { name: string; phone: string }) {
     const sequence = ++profileSequence;
@@ -140,7 +207,7 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
   const updateProfile = (body: { name: string; phone: string }) =>
     profileRequest(body);
   function externalChange() {
-    clear();
+    clear("checking");
     void refresh();
   }
   return {
@@ -150,6 +217,8 @@ export function createAuthState(request: AuthRequest, broadcast: () => void) {
     accounts,
     tokens,
     revision,
+    status,
+    verificationError,
     save,
     clear,
     refresh,
@@ -187,12 +256,12 @@ export function accountRouteDecision(
     to.path !== "/password" &&
     !to.path.endsWith("/login")
   )
-    return "/password";
+    return { path: "/password", query: { redirect: to.fullPath } };
   if (
     to.protected &&
     to.role &&
     (activeRole !== to.role || !account?.roles?.includes(to.role))
   )
-    return "/access";
+    return { path: "/access", query: { redirect: to.fullPath } };
   return true;
 }
