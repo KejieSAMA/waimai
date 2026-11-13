@@ -2,6 +2,7 @@
 // a-table 渲染表格；外层仍是覆盖式 ScrollArea，fill 模式表头吸顶，滚动条不占宽度。
 import { ScrollArea } from "@waimai/ui";
 import { computed, ref, watch } from "vue";
+import { rowActivation } from "@waimai/shared";
 import type { Action } from "@waimai/shared";
 import ActionButton from "./antd/ActionButton.vue";
 
@@ -18,6 +19,7 @@ const props = withDefaults(
     rows: R[];
     rowKey?: string;
     selectable?: boolean;
+    rowInteractive?: boolean;
     selected?: string[];
     batchActions?: Action[];
     activeKey?: string;
@@ -56,7 +58,31 @@ const rowSelection = computed(() =>
       }
     : undefined,
 );
-const customRow = (row: R) => ({ onClick: () => emit("rowClick", row) });
+const customRow = (row: R) =>
+  props.rowInteractive
+    ? {
+        tabindex: 0,
+        onClick: (event: MouseEvent) => {
+          if (
+            rowActivation(
+              true,
+              !!(event.target as HTMLElement).closest(
+                "button,a,input,select,textarea,[role=checkbox],[role=button],[role=link],[contenteditable]",
+              ),
+            )
+          )
+            emit("rowClick", row);
+        },
+        onKeydown: (event: KeyboardEvent) => {
+          if (
+            rowActivation(true, event.target !== event.currentTarget, event.key)
+          ) {
+            event.preventDefault();
+            emit("rowClick", row);
+          }
+        },
+      }
+    : {};
 const rowClassName = (row: R) =>
   props.activeKey !== undefined && keyOf(row) === String(props.activeKey)
     ? "is-active"
@@ -64,7 +90,10 @@ const rowClassName = (row: R) =>
 const record = (r: unknown) => r as R;
 </script>
 <template>
-  <div class="pc-table" :class="{ 'pc-table--fill': fill }">
+  <div
+    class="pc-table"
+    :class="{ 'pc-table--fill': fill, 'pc-table--interactive': rowInteractive }"
+  >
     <div v-if="$slots.toolbar" class="pc-table__toolbar">
       <slot name="toolbar" />
     </div>
@@ -174,7 +203,7 @@ const record = (r: unknown) => r as R;
   top: 0;
   z-index: 2;
 }
-.pc-table :deep(.ant-table-tbody > tr) {
+.pc-table--interactive :deep(.ant-table-tbody > tr) {
   cursor: pointer;
 }
 .pc-table :deep(.ant-table-tbody > tr.is-active > td) {

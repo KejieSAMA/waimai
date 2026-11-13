@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 与 @waimai/ui Input 同名 props 的 antd 输入框：label/hint/error 走 a-form-item，
 // 其余原生属性（required、maxlength、pattern、type…）透传到输入元素，原生表单校验不变。
-import { computed, ref, useAttrs, watch } from "vue";
+import { computed, ref, useAttrs, useId, watch } from "vue";
 defineOptions({ inheritAttrs: false });
 const props = withDefaults(
   defineProps<{
@@ -20,6 +20,11 @@ const props = withDefaults(
 );
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 const attrs = useAttrs();
+const generatedId = useId();
+const id = computed(() => String(attrs.id ?? `pc-input-${generatedId}`));
+const helpId = computed(() => id.value + "-help");
+const control = ref<{ focus(): void }>();
+defineExpose({ focus: () => control.value?.focus() });
 const inner = ref(String(props.modelValue ?? props.defaultValue ?? ""));
 watch(
   () => props.modelValue,
@@ -42,6 +47,11 @@ const inputAttrs = computed(() => {
   const rest: Record<string, unknown> = { ...attrs };
   delete rest.class;
   delete rest.style;
+  rest.id = id.value;
+  rest["aria-describedby"] =
+    [attrs["aria-describedby"], props.error || props.hint ? helpId.value : ""]
+      .filter(Boolean)
+      .join(" ") || undefined;
   return rest;
 });
 const password = computed(() => attrs.type === "password");
@@ -52,6 +62,7 @@ const horizontal = computed(() => props.layout === "horizontal");
     v-bind="rootAttrs"
     :class="['pc-input', { 'pc-input--h': horizontal }]"
     :label="label"
+    :html-for="id"
     :required="required"
     :validate-status="error ? 'error' : undefined"
     :help="error || hint"
@@ -59,8 +70,12 @@ const horizontal = computed(() => props.layout === "horizontal");
     :wrapper-col="horizontal ? { flex: '1 1 0' } : { span: 24 }"
     :colon="false"
   >
+    <template v-if="error || hint" #help
+      ><span :id="helpId">{{ error || hint }}</span></template
+    >
     <a-textarea
       v-if="multiline"
+      ref="control"
       v-bind="inputAttrs"
       v-model:value="value"
       :required="required"
@@ -69,6 +84,7 @@ const horizontal = computed(() => props.layout === "horizontal");
     />
     <a-input-password
       v-else-if="password"
+      ref="control"
       v-bind="inputAttrs"
       v-model:value="value"
       :required="required"
@@ -79,6 +95,7 @@ const horizontal = computed(() => props.layout === "horizontal");
     >
     <a-input
       v-else
+      ref="control"
       v-bind="inputAttrs"
       v-model:value="value"
       :required="required"

@@ -4,8 +4,10 @@ import AppIcon from "../antd/AppIcon.vue";
 defineProps<{
   rules: { threshold: string; discount: string }[];
   disabled?: boolean;
+  fieldError?: (name: string) => string;
 }>();
 defineEmits<{
+  blur: [name: string];
   add: [];
   remove: [index: number];
   update: [index: number, field: "threshold" | "discount", value: string];
@@ -22,8 +24,21 @@ defineEmits<{
       未设置满减，保存空列表将取消全部满减。
     </p>
     <div v-for="(row, index) in rules" :key="index" class="pc-promotions__row">
-      <PcField :label="'第 ' + (index + 1) + ' 档门槛'">
+      <PcField
+        :html-for="`promotion-${index}-threshold`"
+        :label="'第 ' + (index + 1) + ' 档门槛'"
+        :error="fieldError?.(`rules.${index}.threshold`)"
+      >
         <a-input
+          :id="`promotion-${index}-threshold`"
+          :name="`rules.${index}.threshold`"
+          :aria-invalid="!!fieldError?.(`rules.${index}.threshold`)"
+          :aria-describedby="
+            fieldError?.(`rules.${index}.threshold`)
+              ? `promotion-${index}-threshold-help`
+              : undefined
+          "
+          @blur="$emit('blur', `rules.${index}.threshold`)"
           :value="row.threshold"
           prefix="¥"
           inputmode="decimal"
@@ -31,8 +46,21 @@ defineEmits<{
           @update:value="$emit('update', index, 'threshold', $event)"
         />
       </PcField>
-      <PcField label="优惠金额">
+      <PcField
+        :html-for="`promotion-${index}-discount`"
+        label="优惠金额"
+        :error="fieldError?.(`rules.${index}.discount`)"
+      >
         <a-input
+          :id="`promotion-${index}-discount`"
+          :name="`rules.${index}.discount`"
+          :aria-invalid="!!fieldError?.(`rules.${index}.discount`)"
+          :aria-describedby="
+            fieldError?.(`rules.${index}.discount`)
+              ? `promotion-${index}-discount-help`
+              : undefined
+          "
+          @blur="$emit('blur', `rules.${index}.discount`)"
           :value="row.discount"
           prefix="¥"
           inputmode="decimal"

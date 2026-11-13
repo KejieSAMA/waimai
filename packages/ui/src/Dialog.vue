@@ -3,6 +3,7 @@ import Button from "./Button.vue";
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { dialogPresentationKey } from "./dialogContext";
 import { dialogStack } from "./overlayStack";
+import { dialogCloseDecision } from "@waimai/shared";
 import type { Action } from "@waimai/shared";
 import ScrollArea from "./ScrollArea.vue";
 import { useOverlayScrollbars } from "./scrollbarContext";
@@ -14,6 +15,8 @@ const props = withDefaults(
     actions?: Action[];
     variant?: "center" | "sheet" | "modal" | "drawer";
     closeDisabled?: boolean;
+    confirmDiscard?: boolean;
+    dirty?: boolean;
   }>(),
   { open: false },
 );
@@ -55,8 +58,22 @@ function keydown(event: KeyboardEvent) {
     first.focus();
   }
 }
+const edited = ref(false),
+  discardOpen = ref(false);
 function close() {
-  if (!props.closeDisabled && dialogStack.isTop(key)) emit("close");
+  if (!dialogStack.isTop(key)) return;
+  const decision = dialogCloseDecision(
+    !!props.closeDisabled,
+    !!props.confirmDiscard && (props.dirty ?? edited.value),
+  );
+  if (decision === "confirm") discardOpen.value = true;
+  else if (decision === "close") emit("close");
+}
+defineExpose({ close });
+function discard() {
+  discardOpen.value = false;
+  edited.value = false;
+  emit("close");
 }
 function containFocus(event: FocusEvent) {
   if (!dialogStack.isTop(key) || !props.open || !panel.value) return;
@@ -79,6 +96,8 @@ watch(
   () => props.open,
   async (open) => {
     if (open) {
+      edited.value = false;
+      discardOpen.value = false;
       previous = document.activeElement as HTMLElement;
       depth.value = dialogStack.size;
       dialogStack.push(key);
@@ -118,6 +137,8 @@ onBeforeUnmount(cleanup);
         role="dialog"
         aria-modal="true"
         :aria-label="title"
+        @input.capture="edited = true"
+        @change.capture="edited = true"
       >
         <div
           v-if="variant === 'drawer' || variant === 'modal'"
@@ -159,6 +180,17 @@ onBeforeUnmount(cleanup);
         </div>
       </div>
     </div></Teleport
+  >
+  <Dialog
+    v-if="discardOpen && open"
+    :open="true"
+    title="放弃修改"
+    @close="discardOpen = false"
+    ><p class="body-md">尚有未保存的修改，是否放弃？</p>
+    <template #actions
+      ><Button variant="outline" @click="discardOpen = false">继续编辑</Button
+      ><Button variant="danger" @click="discard">放弃修改</Button></template
+    ></Dialog
   >
 </template>
 <style scoped>

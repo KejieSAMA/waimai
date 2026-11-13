@@ -11,6 +11,8 @@ const props = defineProps<{
   editable?: boolean;
   disabled?: boolean;
   uploading?: boolean;
+  fieldName?: string;
+  fieldError?: string;
 }>();
 const emit = defineEmits<{
   select: [file: File];
@@ -120,6 +122,8 @@ function remove() {
     </p>
     <Input
       v-if="editable"
+      :name="fieldName"
+      :error="fieldError"
       :model-value="expires"
       :disabled="disabled || uploading || !hasImage"
       type="date"

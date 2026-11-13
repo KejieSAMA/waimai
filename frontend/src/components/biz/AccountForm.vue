@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // PC 版账号表单：逻辑与 @waimai/ui AccountForm 一致，控件换成 antd。
 import type { Role } from "@waimai/shared";
+import Input from "../antd/PcInput.vue";
 import PcField from "../antd/PcField.vue";
 const props = defineProps<{
   form: {
@@ -12,8 +13,12 @@ const props = defineProps<{
   };
   kind: string;
   disabled?: boolean;
+  fieldError?: (name: string) => string;
 }>();
-const emit = defineEmits<{ "update:form": [value: typeof props.form] }>();
+const emit = defineEmits<{
+  blur: [name: string];
+  "update:form": [value: typeof props.form];
+}>();
 function field(
   key: "username" | "name" | "phone" | "password",
   value: string | number,
@@ -37,54 +42,64 @@ const roleOptions = [
 <template>
   <fieldset class="pc-account-form" :disabled="disabled">
     <template v-if="kind === 'create' || kind === 'edit'">
-      <PcField v-if="kind === 'create'" label="账号" required>
-        <a-input
-          :value="form.username"
-          required
-          :maxlength="32"
-          autocomplete="off"
-          :disabled="disabled"
-          @update:value="field('username', $event)"
-        />
-      </PcField>
+      <Input
+        v-if="kind === 'create'"
+        :model-value="form.username"
+        @update:model-value="field('username', $event)"
+        name="username"
+        label="账号"
+        required
+        maxlength="32"
+        :disabled="disabled"
+        :error="fieldError?.('username')"
+        @blur="$emit('blur', 'username')"
+      />
       <p v-else class="pc-account-form__name">账号 {{ form.username }}</p>
-      <PcField label="昵称" required>
-        <a-input
-          :value="form.name"
-          required
-          :maxlength="30"
-          :disabled="disabled"
-          @update:value="field('name', $event)"
-        />
-      </PcField>
-      <PcField label="联系手机">
-        <a-input
-          :value="form.phone"
-          :maxlength="11"
-          inputmode="tel"
-          placeholder="选填"
-          :disabled="disabled"
-          @update:value="field('phone', $event)"
-        />
-      </PcField>
+      <Input
+        :model-value="form.name"
+        @update:model-value="field('name', $event)"
+        name="name"
+        label="昵称"
+        required
+        maxlength="30"
+        :disabled="disabled"
+        :error="fieldError?.('name')"
+        @blur="$emit('blur', 'name')"
+      />
+      <Input
+        :model-value="form.phone"
+        @update:model-value="field('phone', $event)"
+        name="phone"
+        label="联系手机"
+        maxlength="11"
+        inputmode="tel"
+        :disabled="disabled"
+        :error="fieldError?.('phone')"
+        @blur="$emit('blur', 'phone')"
+      />
     </template>
-    <PcField
+    <Input
       v-if="kind === 'create' || kind === 'password'"
+      :model-value="form.password"
+      @update:model-value="field('password', $event)"
+      name="password"
       label="临时密码"
       required
+      type="password"
+      autocomplete="new-password"
       hint="至少 8 个字符；账号首次登录必须改密"
-    >
-      <a-input-password
-        :value="form.password"
-        required
-        minlength="8"
-        autocomplete="new-password"
-        :disabled="disabled"
-        @update:value="field('password', $event)"
-      />
-    </PcField>
+      :disabled="disabled"
+      :error="fieldError?.('password')"
+      @blur="$emit('blur', 'password')"
+    />
     <PcField v-if="kind === 'create' || kind === 'edit'" label="授权身份">
-      <div class="pc-account-form__roles" role="group" aria-label="授权身份">
+      <div
+        class="pc-account-form__roles"
+        role="group"
+        aria-label="授权身份"
+        data-field="roles"
+        tabindex="-1"
+      >
         <a-checkbox
           v-for="entry in roleOptions"
           :key="entry[0]"
@@ -95,6 +110,14 @@ const roleOptions = [
         >
       </div>
     </PcField>
+    <p
+      v-if="fieldError?.('roles')"
+      class="body-sm"
+      style="color: var(--danger)"
+      role="alert"
+    >
+      {{ fieldError?.("roles") }}
+    </p>
   </fieldset>
 </template>
 <style scoped>

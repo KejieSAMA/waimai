@@ -1,5 +1,7 @@
 export * from "./device";
 export * from "./rules";
+export * from "./formFeedback";
+export * from "./productEditor";
 export * from "./traffic";
 export * from "./merchantDashboard";
 export * from "./userOrders";
@@ -258,11 +260,17 @@ export function firstImage(images: string): string | undefined {
     return undefined;
   }
 }
+export interface ApiErrorDetails {
+  reason?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  formErrors?: string[];
+  issues?: { path: (string | number)[]; message: string }[];
+}
 export class ApiError extends Error {
   constructor(
     public code: number,
     message: string,
-    public details?: { reason?: string },
+    public details?: ApiErrorDetails,
   ) {
     super(message);
   }
@@ -301,7 +309,7 @@ export function createApi(transport: Transport, getToken: () => string | null) {
       code: number;
       message: string;
       data: T;
-      details?: { reason?: string };
+      details?: ApiErrorDetails;
     };
     if (!response.ok || result.code !== 0)
       throw new ApiError(result.code, result.message, result.details);
@@ -317,3 +325,10 @@ export * from "./profileEditor";
 export * from "./merchantManagement";
 export * from "./accessNavigation";
 export * from "./merchantProvision";
+
+export * from "./pagedList";
+
+export * from "./categoryEditor";
+export * from "./uiInteraction";
+
+export * from "./formValidation";

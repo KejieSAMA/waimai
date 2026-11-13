@@ -6,6 +6,7 @@ import {
   onBeforeUnmount,
   ref,
   useId,
+  useAttrs,
   watch,
 } from "vue";
 import Icon from "./Icon.vue";
@@ -24,11 +25,29 @@ const props = defineProps<{
   defaultValue?: string;
   options: (string | { value: string; label: string })[];
   label?: string;
+  error?: string;
   placeholder?: string;
   width?: number | string;
   disabled?: boolean;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: string] }>();
+const emit = defineEmits<{
+  blur: [event: FocusEvent];
+  "update:modelValue": [value: string];
+}>();
+const attrs = useAttrs();
+const generatedId = useId();
+const id = computed(() => String(attrs.id ?? `xz-field-select-${generatedId}`));
+const rootAttrs = computed(() => ({
+  class: attrs.class,
+  style: attrs.style as string | undefined,
+}));
+const controlAttrs = computed(() =>
+  Object.fromEntries(
+    Object.entries(attrs).filter(([key]) => !["class", "style"].includes(key)),
+  ),
+);
+const native = ref<HTMLSelectElement>();
+defineExpose({ focus: () => (trigger.value ?? native.value)?.focus() });
 const dropdown = inject(selectPresentationKey, "native") === "dropdown";
 const optionsList = computed(() =>
   selectOptions(props.options, props.placeholder),
@@ -235,14 +254,22 @@ onBeforeUnmount(removeListeners);
 
 <template>
   <button
+    @blur="emit('blur', $event)"
     v-if="dropdown"
     ref="trigger"
     v-bind="$attrs"
+    :id="id"
     type="button"
     class="xz-select xz-select--dropdown body-md"
     :style="widthStyle"
     :disabled="disabled"
     :title="selectedLabel"
+    :aria-invalid="!!error"
+    :aria-describedby="
+      [attrs['aria-describedby'], error ? id + '-error' : '']
+        .filter(Boolean)
+        .join(' ') || undefined
+    "
     role="combobox"
     :aria-label="label || placeholder || '选择选项'"
     aria-haspopup="listbox"
@@ -258,9 +285,26 @@ onBeforeUnmount(removeListeners);
     <span class="xz-select__value">{{ selectedLabel }}</span>
     <Icon name="chevron-down" :size="16" class="xz-select__chev" />
   </button>
-  <label v-else v-bind="$attrs" class="xz-select" :style="widthStyle">
+  <label
+    v-else
+    v-bind="rootAttrs"
+    class="xz-select"
+    :for="id"
+    :style="widthStyle"
+  >
     <span v-if="label" class="xz-select__label body-md">{{ label }}</span>
     <select
+      @blur="emit('blur', $event)"
+      ref="native"
+      v-bind="controlAttrs"
+      :id="id"
+      :name="String(attrs.name ?? '')"
+      :aria-invalid="!!error"
+      :aria-describedby="
+        [attrs['aria-describedby'], error ? id + '-error' : '']
+          .filter(Boolean)
+          .join(' ') || undefined
+      "
       v-model="value"
       class="xz-select__native body-md"
       :aria-label="label || placeholder"
@@ -276,6 +320,13 @@ onBeforeUnmount(removeListeners);
     </select>
     <Icon name="chevron-down" :size="16" class="xz-select__chev" />
   </label>
+  <span
+    v-if="error"
+    :id="id + '-error'"
+    class="xz-select-error body-sm"
+    role="alert"
+    >{{ error }}</span
+  >
   <Teleport v-if="dropdown" to="body">
     <div v-if="opened" ref="popup" class="xz-select__menu" :style="menuStyle">
       <div
@@ -320,6 +371,9 @@ onBeforeUnmount(removeListeners);
 </template>
 
 <style scoped>
+.xz-select-error {
+  color: var(--danger);
+}
 .xz-select--dropdown {
   border: 0;
   text-align: left;

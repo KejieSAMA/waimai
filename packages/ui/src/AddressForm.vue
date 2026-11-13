@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { reactive, watch } from "vue";
-import type { AddressDraft } from "@waimai/shared";
+import { computed, nextTick, reactive, ref, watch } from "vue";
+import {
+  addressErrors,
+  useFormFeedback,
+  type AddressDraft,
+} from "@waimai/shared";
 import Input from "./Input.vue";
 import Switch from "./Switch.vue";
 const props = defineProps<{
@@ -9,13 +13,35 @@ const props = defineProps<{
   disabled?: boolean;
   error?: string;
 }>();
-const emit = defineEmits<{ submit: [value: AddressDraft] }>();
+const emit = defineEmits<{
+  dirty: [value: boolean];
+  submit: [value: AddressDraft];
+}>();
 const form = reactive<AddressDraft>({
   contact: "",
   phone: "",
   detail: "",
   isDefault: false,
 });
+const root = ref<HTMLFormElement>();
+const feedback = useFormFeedback(() => addressErrors(form));
+watch(feedback.focusVersion, async () => {
+  await nextTick();
+  root.value
+    ?.querySelector<HTMLElement>(`[name="${feedback.first.value}"]`)
+    ?.focus();
+});
+const dirty = computed(
+  () =>
+    JSON.stringify(form) !==
+    JSON.stringify({
+      contact: props.value?.contact ?? "",
+      phone: props.value?.phone ?? "",
+      detail: props.value?.detail ?? "",
+      isDefault: props.value?.isDefault ?? false,
+    }),
+);
+watch(dirty, (value) => emit("dirty", value), { immediate: true });
 watch(
   () => props.value,
   (value) =>
@@ -30,13 +56,20 @@ watch(
 </script>
 <template>
   <form
+    ref="root"
+    novalidate
     :id="formId"
     class="xz-address-form"
     :aria-busy="disabled"
-    @submit.prevent="!disabled && emit('submit', { ...form })"
+    @submit.prevent="
+      !disabled && feedback.check() && emit('submit', { ...form })
+    "
   >
     <Input
       v-model="form.contact"
+      name="contact"
+      :error="feedback.field('contact')"
+      @blur="feedback.blur('contact')"
       label="收货人"
       required
       maxlength="30"
@@ -45,6 +78,9 @@ watch(
     />
     <Input
       v-model="form.phone"
+      name="phone"
+      :error="feedback.field('phone')"
+      @blur="feedback.blur('phone')"
       label="手机号"
       type="tel"
       inputmode="tel"
@@ -57,6 +93,9 @@ watch(
     />
     <Input
       v-model="form.detail"
+      name="detail"
+      :error="feedback.field('detail')"
+      @blur="feedback.blur('detail')"
       label="详细地址"
       multiline
       required

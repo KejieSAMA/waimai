@@ -38,7 +38,7 @@ const emit = defineEmits<{ "update:modelValue": [value: number] }>();
         :size="32"
     /></span>
     <div class="xz-dish__main">
-      <div class="xz-dish__name title-sm">{{ name }}</div>
+      <div class="xz-dish__name title-sm" :title="name">{{ name }}</div>
       <div v-if="desc && layout !== 'grid'" class="xz-dish__desc body-sm">
         {{ desc }}
       </div>

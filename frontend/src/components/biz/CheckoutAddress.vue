@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // PC 版：逻辑与 @waimai/ui 同名组件一致，控件换成 antd 适配组件。
-import { useId } from "vue";
+import { ref, useId } from "vue";
 import { phoneTail, type Address, type AddressDraft } from "@waimai/shared";
 import AddressForm from "./AddressForm.vue";
 import Button from "../antd/PcButton.vue";
@@ -30,6 +30,8 @@ const emit = defineEmits<{
   closeEditor: [];
   save: [draft: AddressDraft];
 }>();
+const addressDirty = ref(false),
+  editor = ref<InstanceType<typeof Dialog>>();
 const formId = `checkout-address-${useId()}`;
 </script>
 <template>
@@ -91,6 +93,7 @@ const formId = `checkout-address-${useId()}`;
       >
     </div>
     <Dialog
+      :close-disabled="saving"
       :open="selectorOpen"
       title="选择收货地址"
       :variant="variant"
@@ -142,13 +145,18 @@ const formId = `checkout-address-${useId()}`;
       >
     </Dialog>
     <Dialog
+      ref="editor"
+      :close-disabled="saving"
       :open="editorOpen"
+      :confirm-discard="true"
+      :dirty="addressDirty"
       :title="editing ? '编辑地址' : '新增地址'"
       :variant="variant"
       @close="!saving && emit('closeEditor')"
     >
       <AddressForm
         :form-id="formId"
+        @dirty="addressDirty = $event"
         :value="editing"
         :disabled="saving"
         :error="saveError"
@@ -159,7 +167,7 @@ const formId = `checkout-address-${useId()}`;
           :size="variant === 'sheet' ? 'lg' : 'md'"
           variant="outline"
           :disabled="saving"
-          @click="emit('closeEditor')"
+          @click="editor?.close()"
           >取消</Button
         >
         <Button

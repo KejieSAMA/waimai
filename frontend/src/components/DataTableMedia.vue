@@ -18,8 +18,8 @@ const initial = computed(() => props.name.slice(0, 1));
       >{{ initial }}</a-avatar
     >
     <span class="pc-media__text">
-      <span class="pc-media__name">{{ name }}</span>
-      <span v-if="sub" class="pc-media__sub">{{ sub }}</span>
+      <span class="pc-media__name" :title="name">{{ name }}</span>
+      <span v-if="sub" class="pc-media__sub" :title="sub">{{ sub }}</span>
     </span>
   </span>
 </template>

@@ -1,20 +1,47 @@
 <script setup lang="ts">
-import { reactive, watch } from "vue";
-import type { AddressDraft } from "@waimai/shared";
-import PcField from "../antd/PcField.vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
+import {
+  addressErrors,
+  useFormFeedback,
+  type AddressDraft,
+} from "@waimai/shared";
+import Input from "../antd/PcInput.vue";
+import Switch from "../antd/PcSwitch.vue";
 const props = defineProps<{
   formId: string;
   value?: AddressDraft;
   disabled?: boolean;
   error?: string;
 }>();
-const emit = defineEmits<{ submit: [value: AddressDraft] }>();
+const emit = defineEmits<{
+  dirty: [value: boolean];
+  submit: [value: AddressDraft];
+}>();
 const form = reactive<AddressDraft>({
   contact: "",
   phone: "",
   detail: "",
   isDefault: false,
 });
+const root = ref<HTMLFormElement>();
+const feedback = useFormFeedback(() => addressErrors(form));
+watch(feedback.focusVersion, async () => {
+  await nextTick();
+  root.value
+    ?.querySelector<HTMLElement>(`[name="${feedback.first.value}"]`)
+    ?.focus();
+});
+const dirty = computed(
+  () =>
+    JSON.stringify(form) !==
+    JSON.stringify({
+      contact: props.value?.contact ?? "",
+      phone: props.value?.phone ?? "",
+      detail: props.value?.detail ?? "",
+      isDefault: props.value?.isDefault ?? false,
+    }),
+);
+watch(dirty, (value) => emit("dirty", value), { immediate: true });
 watch(
   () => props.value,
   (value) =>
@@ -29,48 +56,56 @@ watch(
 </script>
 <template>
   <form
+    ref="root"
+    novalidate
     :id="formId"
     class="pc-address-form"
     :aria-busy="disabled"
-    @submit.prevent="!disabled && emit('submit', { ...form })"
+    @submit.prevent="
+      !disabled && feedback.check() && emit('submit', { ...form })
+    "
   >
-    <PcField label="收货人" required>
-      <a-input
-        v-model:value="form.contact"
-        required
-        :maxlength="30"
-        autocomplete="name"
-        :disabled="disabled"
-      />
-    </PcField>
-    <PcField label="手机号" required hint="请输入 11 位手机号">
-      <a-input
-        v-model:value="form.phone"
-        type="tel"
-        inputmode="tel"
-        autocomplete="tel"
-        required
-        pattern="1[3-9][0-9]{9}"
-        :maxlength="11"
-        :disabled="disabled"
-      />
-    </PcField>
-    <PcField label="详细地址" required>
-      <a-textarea
-        v-model:value="form.detail"
-        required
-        minlength="2"
-        :maxlength="200"
-        :auto-size="{ minRows: 2, maxRows: 4 }"
-        autocomplete="street-address"
-        placeholder="街道、楼栋及门牌号"
-        :disabled="disabled"
-      />
-    </PcField>
-    <label class="pc-address-form__switch">
-      <a-switch v-model:checked="form.isDefault" :disabled="disabled" />
-      设为默认地址
-    </label>
+    <Input
+      v-model="form.contact"
+      name="contact"
+      label="收货人"
+      required
+      maxlength="30"
+      autocomplete="name"
+      :disabled="disabled"
+      :error="feedback.field('contact')"
+      @blur="feedback.blur('contact')"
+    />
+    <Input
+      v-model="form.phone"
+      name="phone"
+      label="手机号"
+      required
+      maxlength="11"
+      type="tel"
+      inputmode="tel"
+      autocomplete="tel"
+      :disabled="disabled"
+      :error="feedback.field('phone')"
+      @blur="feedback.blur('phone')"
+    />
+    <Input
+      v-model="form.detail"
+      name="detail"
+      label="详细地址"
+      required
+      maxlength="200"
+      multiline
+      autocomplete="street-address"
+      :disabled="disabled"
+      :error="feedback.field('detail')"
+      @blur="feedback.blur('detail')"
+    />
+    <Switch
+      v-model="form.isDefault"
+      label="设为默认地址"
+      :disabled="disabled"
+    />
     <a-alert v-if="error" type="error" show-icon :message="error" />
   </form>
 </template>

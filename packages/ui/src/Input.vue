@@ -1,9 +1,23 @@
 <script setup lang="ts">
 import { useValue } from "./useValue";
-import { ref, watch } from "vue";
+import { computed, ref, useAttrs, useId, watch } from "vue";
 import ScrollBars from "./ScrollBars.vue";
 import { useOverlayScrollbars } from "./scrollbarContext";
 const overlay = useOverlayScrollbars();
+const attrs = useAttrs();
+const generatedId = useId();
+const id = computed(() => String(attrs.id ?? `xz-input-${generatedId}`));
+const described = computed(
+  () =>
+    [
+      attrs["aria-describedby"],
+      props.error || props.hint ? id.value + "-help" : "",
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined,
+);
+const control = ref<HTMLInputElement | HTMLTextAreaElement>();
+defineExpose({ focus: () => (textarea.value ?? control.value)?.focus() });
 const textarea = ref<HTMLTextAreaElement>();
 const bars = ref<InstanceType<typeof ScrollBars>>();
 defineOptions({ inheritAttrs: false });
@@ -32,6 +46,7 @@ watch(value, () => bars.value?.refresh(), { flush: "post" });
 </script>
 <template>
   <label
+    :for="id"
     :class="[
       'xz-field',
       { 'xz-field--h': layout === 'horizontal', 'xz-field--multi': multiline },
@@ -54,6 +69,8 @@ watch(value, () => bars.value?.refresh(), { flush: "post" });
         <textarea
           ref="textarea"
           v-bind="$attrs"
+          :id="id"
+          :aria-describedby="described"
           :rows="3"
           :required="required"
           class="xz-field__input body xz-overlay-viewport"
@@ -69,8 +86,11 @@ watch(value, () => bars.value?.refresh(), { flush: "post" });
         /> </span
       ><component
         v-else
+        ref="control"
         :is="multiline ? 'textarea' : 'input'"
         v-bind="$attrs"
+        :id="id"
+        :aria-describedby="described"
         :rows="multiline ? 3 : undefined"
         :required="required"
         class="xz-field__input body"
@@ -82,6 +102,7 @@ watch(value, () => bars.value?.refresh(), { flush: "post" });
       ></span
     ><span
       v-if="error || hint"
+      :id="id + '-help'"
       :class="['xz-field__hint', 'body-sm', { 'is-error': error }]"
       >{{ error || hint }}</span
     ></label

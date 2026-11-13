@@ -1,6 +1,17 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { provide, ref } from "vue";
+import { pageScrollKey } from "../common/pageScroll";
 const body = ref<HTMLElement>();
+provide(pageScrollKey, (target) => {
+  const viewport = body.value;
+  if (!viewport) return;
+  const top = target
+    ? target.getBoundingClientRect().top -
+      viewport.getBoundingClientRect().top +
+      viewport.scrollTop
+    : 0;
+  viewport.scrollTo({ top: Math.max(0, top) });
+});
 defineExpose({ scrollToTop: () => body.value?.scrollTo({ top: 0 }) });
 defineProps<{ bottomTone?: "raised" | "clear"; statusBar?: string | false }>();
 </script>

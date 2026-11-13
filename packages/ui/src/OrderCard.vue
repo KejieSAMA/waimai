@@ -46,7 +46,7 @@ const quantity = computed(() =>
       >
         <span v-if="serial != null" class="xz-order__serial title"
           >#{{ serial }}</span
-        ><span class="xz-order__title-text">{{ title }}</span
+        ><span class="xz-order__title-text" :title="title">{{ title }}</span
         ><Icon
           v-if="view === 'user'"
           name="chevron-right"

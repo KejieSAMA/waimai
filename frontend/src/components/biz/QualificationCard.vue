@@ -4,7 +4,7 @@ import { ref, watch } from "vue";
 import Button from "../antd/PcButton.vue";
 import Dialog from "../antd/PcDialog.vue";
 import Icon from "../antd/AppIcon.vue";
-import PcField from "../antd/PcField.vue";
+import Input from "../antd/PcInput.vue";
 const props = defineProps<{
   title: string;
   hasImage: boolean;
@@ -12,6 +12,8 @@ const props = defineProps<{
   editable?: boolean;
   disabled?: boolean;
   uploading?: boolean;
+  fieldName?: string;
+  fieldError?: string;
 }>();
 const emit = defineEmits<{
   select: [file: File];
@@ -119,16 +121,17 @@ function remove() {
     <p v-if="error" class="qualification-card__error body-sm" role="alert">
       {{ error }}
     </p>
-    <PcField v-if="editable" label="有效期至（选填）" hint="长期有效可留空">
-      <a-date-picker
-        :value="expires || undefined"
-        value-format="YYYY-MM-DD"
-        :disabled="disabled || uploading || !hasImage"
-        :aria-label="title + '有效期'"
-        class="qualification-card__picker"
-        @update:value="emit('update:expires', String($event ?? ''))"
-      />
-    </PcField>
+    <Input
+      v-if="editable"
+      :model-value="expires"
+      :name="fieldName"
+      :error="fieldError"
+      :disabled="disabled || uploading || !hasImage"
+      type="date"
+      label="有效期至（选填）"
+      hint="长期有效可留空"
+      @update:model-value="emit('update:expires', $event)"
+    />
     <p v-else-if="hasImage" class="qualification-card__date body-sm">
       有效期至 {{ expires || "未填写" }}
     </p>

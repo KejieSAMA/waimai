@@ -4,8 +4,10 @@ import Input from "./Input.vue";
 defineProps<{
   rules: { threshold: string; discount: string }[];
   disabled?: boolean;
+  fieldError?: (name: string) => string;
 }>();
 defineEmits<{
+  blur: [name: string];
   add: [];
   remove: [index: number];
   update: [index: number, field: "threshold" | "discount", value: string];
@@ -23,6 +25,9 @@ defineEmits<{
       class="promotion-fields__row"
     >
       <Input
+        :name="`rules.${index}.threshold`"
+        :error="fieldError?.(`rules.${index}.threshold`)"
+        @blur="$emit('blur', `rules.${index}.threshold`)"
         :model-value="row.threshold"
         :label="'第 ' + (index + 1) + ' 档门槛'"
         prefix="¥"
@@ -31,6 +36,9 @@ defineEmits<{
         @update:model-value="$emit('update', index, 'threshold', $event)"
       />
       <Input
+        :name="`rules.${index}.discount`"
+        :error="fieldError?.(`rules.${index}.discount`)"
+        @blur="$emit('blur', `rules.${index}.discount`)"
         :model-value="row.discount"
         label="优惠金额"
         prefix="¥"
