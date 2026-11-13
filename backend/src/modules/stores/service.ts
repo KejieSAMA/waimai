@@ -6,13 +6,56 @@ import {
 import { z } from "zod";
 import { Prisma, type Store } from "@prisma/client";
 import { db } from "../../db";
-import { assert, pagination, pageResult, shanghaiDay } from "../../http";
+import {
+  assert,
+  HttpError,
+  pagination,
+  pageResult,
+  shanghaiDay,
+} from "../../http";
 import { canOperateStore } from "../auth/service";
 import { storeTransition } from "../../domain/storeMachine";
 import { recordAudit } from "../audit/service";
 import { privateOwner } from "../uploads/service";
 import { categoryExists } from "../categories/service";
-import { storeSchema, applicationSchema } from "./schema";
+import { storeSchema, applicationSchema, managedStoreSchema } from "./schema";
+export async function createManagedStore(
+  tx: Prisma.TransactionClient,
+  ownerId: string,
+  data: z.output<typeof managedStoreSchema>,
+  actor: { id: string; role: string },
+) {
+  if (!(await categoryExists(data.categoryId, tx)))
+    throw new HttpError(400, "平台类目不存在，请重新选择", {
+      reason: "CATEGORY_UNAVAILABLE",
+    });
+  const store = await tx.store.create({
+    data: {
+      ...data,
+      ownerId,
+      status: "CLOSED",
+      previousStatus: "CLOSED",
+      submitCount: 0,
+      rating: null,
+      monthlySales: 0,
+    },
+  });
+  await recordAudit(
+    tx,
+    actor,
+    "store-create",
+    "Store",
+    store.id,
+    "管理员直接创建，初始休息中",
+  );
+  return store;
+}
+export async function ownsStoreCertificate(ownerId: string, url: string) {
+  return !!(await db.store.findFirst({
+    where: { ownerId, OR: [{ licenseImage: url }, { foodPermitImage: url }] },
+    select: { id: true },
+  }));
+}
 export const ownStore = async (ownerId: string) => {
   const row = await db.store.findUnique({ where: { ownerId } });
   return row ? (await withStoreMetrics([row]))[0] : null;
@@ -97,7 +140,16 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
       include: {
         category: true,
         promotions: true,
-        owner: admin ? { select: { name: true } } : false,
+        owner: admin
+          ? {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                mustChangePassword: true,
+              },
+            }
+          : false,
       },
     }),
     db.store.count({ where }),
@@ -135,7 +187,16 @@ export async function storeDetail(id: string, admin = false) {
     where: { id },
     include: {
       category: true,
-      owner: admin ? { select: { name: true } } : false,
+      owner: admin
+        ? {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              mustChangePassword: true,
+            },
+          }
+        : false,
       promotions: true,
       dishCategories: { orderBy: { sort: "asc" } },
       products: admin

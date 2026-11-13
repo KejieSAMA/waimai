@@ -69,6 +69,20 @@ async function settle() {
 }
 
 describe("账号路由实际集成", () => {
+  it("创建店铺是受保护的管理员页面，保持商家管理导航与深链接", async () => {
+    const router = routerFor();
+    const resolved = router.resolve("/admin/merchants/new");
+    expect(resolved.meta).toMatchObject({
+      role: "ADMIN",
+      protected: true,
+      siteNav: "/admin/merchants",
+    });
+    await router.push("/admin/merchants/new");
+    expect(router.currentRoute.value.path).toBe("/admin/login");
+    expect(router.currentRoute.value.query.redirect).toBe(
+      "/admin/merchants/new",
+    );
+  });
   it("游客直接访问后台进入对应登录，保留查询和锚点", async () => {
     const router = routerFor();
     await router.push("/admin/accounts?page=2#list");

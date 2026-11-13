@@ -8,8 +8,8 @@ const schema = z.object({
 });
 export const platformCategories = () =>
   db.category.findMany({ orderBy: { sort: "asc" } });
-export const categoryExists = (id: string) =>
-  db.category.findUnique({ where: { id } });
+export const categoryExists = (id: string, tx: Prisma.TransactionClient = db) =>
+  tx.category.findUnique({ where: { id } });
 export const dishCategories = (storeId: string) =>
   db.dishCategory.findMany({ where: { storeId }, orderBy: { sort: "asc" } });
 export const dishCategoryExists = (

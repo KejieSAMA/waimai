@@ -27,3 +27,15 @@ export const applicationSchema = storeSchema.transform((data) => ({
   licenseExpireAt: data.licenseImage ? (data.licenseExpireAt ?? null) : null,
   permitExpireAt: data.foodPermitImage ? (data.permitExpireAt ?? null) : null,
 }));
+export const managedStoreSchema = storeSchema
+  .extend({
+    city: z.string().trim().min(1).max(30),
+    address: z.string().trim().min(2).max(200),
+    openHours: z.string().trim().min(1).max(100),
+  })
+  .strict()
+  .transform((data) => ({
+    ...data,
+    licenseExpireAt: data.licenseImage ? (data.licenseExpireAt ?? null) : null,
+    permitExpireAt: data.foodPermitImage ? (data.permitExpireAt ?? null) : null,
+  }));

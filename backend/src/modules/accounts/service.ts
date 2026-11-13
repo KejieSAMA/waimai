@@ -16,6 +16,9 @@ const fields = z.object({
   name: z.string().trim().min(1).max(30),
   phone: contactSchema,
 });
+export const merchantAccountSchema = fields
+  .extend({ username: usernameSchema, password: passwordSchema })
+  .strict();
 export const createSchema = fields
   .extend({
     username: usernameSchema,
@@ -35,6 +38,39 @@ const publicSelect = {
   lastLoginAt: true,
 } as const;
 type Actor = { id: string; role: string };
+export async function createAccountInTransaction(
+  tx: Prisma.TransactionClient,
+  data: {
+    username: string;
+    name: string;
+    phone?: string | null;
+    passwordHash: string;
+  },
+  roles: ("USER" | "MERCHANT" | "ADMIN")[],
+  actor: Actor,
+) {
+  const user = await tx.user.create({
+    data: {
+      username: data.username,
+      name: data.name,
+      phone: data.phone || null,
+      passwordHash: data.passwordHash,
+      status: "ACTIVE",
+      mustChangePassword: true,
+      roles: { create: [...new Set(roles)].map((role) => ({ role })) },
+    },
+  });
+  await recordAudit(tx, actor, "account-create", "Account", user.id);
+  return {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    status: user.status,
+    mustChangePassword: user.mustChangePassword,
+    roles: [...new Set(roles)],
+    createdAt: user.createdAt,
+  };
+}
 export async function list(query: Record<string, unknown>) {
   const p = pagination(query);
   const role = roleSchema.optional().parse(query.role || undefined);
@@ -86,18 +122,12 @@ export async function create(input: unknown, actor: Actor) {
   const p = createSchema.parse(input);
   const passwordHash = await bcrypt.hash(p.password, 12);
   const user = await db.$transaction(async (tx) => {
-    const next = await tx.user.create({
-      data: {
-        username: p.username,
-        name: p.name,
-        phone: p.phone || null,
-        passwordHash,
-        mustChangePassword: true,
-        roles: { create: [...new Set(p.roles)].map((role) => ({ role })) },
-      },
-    });
-    await recordAudit(tx, actor, "account-create", "Account", next.id);
-    return next;
+    return createAccountInTransaction(
+      tx,
+      { ...p, passwordHash },
+      p.roles,
+      actor,
+    );
   });
   return detail(user.id);
 }

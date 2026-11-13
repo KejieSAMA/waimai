@@ -77,7 +77,12 @@ export interface Product {
 export interface Store {
   createdAt?: string;
   submitCount?: number;
-  owner?: { name: string };
+  owner?: {
+    name: string;
+    id?: string;
+    username?: string;
+    mustChangePassword?: boolean;
+  };
   id: string;
   name: string;
   logo: string;
@@ -211,6 +216,7 @@ export function auditActionLabel(action: string): string {
     (
       {
         approve: "审核通过",
+        "store-create": "管理员创建店铺",
         reject: "审核驳回",
         freeze: "冻结商家",
         unfreeze: "解冻商家",
@@ -300,3 +306,4 @@ export * from "./merchantOrders";
 export * from "./profileEditor";
 export * from "./merchantManagement";
 export * from "./accessNavigation";
+export * from "./merchantProvision";

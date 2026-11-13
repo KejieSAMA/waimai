@@ -32,7 +32,7 @@ const route = useRoute(),
 watch(
   () => detail.value,
   (value) => {
-    chrome.title = "入驻审核";
+    chrome.title = route.query.from === "merchants" ? "商家详情" : "入驻审核";
     chrome.subtitle = value?.createdAt ? "创建于 " + time(value.createdAt) : "";
   },
 );
@@ -79,13 +79,23 @@ async function send(action: "approve" | "reject") {
           }}</Tag>
         </div>
         <span class="body-sm app-muted"
-          >{{ detail.category?.name }} · {{ detail.city }} · 第
-          {{ detail.submitCount || 1 }} 次提交</span
+          >{{ detail.category?.name }} · {{ detail.city
+          }}<template v-if="detail.submitCount && detail.submitCount > 0">
+            · 第 {{ detail.submitCount }} 次提交</template
+          ></span
         >
       </div>
     </div>
     <ListCellGroup title="店铺信息"
-      ><ListCell title="门店地址" :value="detail.address" /><ListCell
+      ><ListCell
+        title="登录账号"
+        :value="detail.owner?.username || '未提供'" /><ListCell
+        title="账号安全"
+        :value="
+          detail.owner?.mustChangePassword
+            ? '首次登录需修改密码'
+            : '已设置登录密码'
+        " /><ListCell title="门店地址" :value="detail.address" /><ListCell
         title="营业时间"
         :value="detail.openHours" /><ListCell
         title="负责人"
@@ -131,7 +141,7 @@ async function send(action: "approve" | "reject") {
         </div>
       </div>
     </div>
-    <p class="body-sm app-muted">
+    <p v-if="detail.status === 'PENDING'" class="body-sm app-muted">
       通过后商家可上架商品并开始营业；驳回需填写原因，商家修改后可重新提交。
     </p>
     <PageSlot name="actions"

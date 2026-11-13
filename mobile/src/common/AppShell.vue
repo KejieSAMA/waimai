@@ -67,6 +67,8 @@ const edge = computed(
     isAuditDetail.value,
 );
 const backTo = () => {
+  if (route.path === "/admin/merchants/new")
+    return router.push("/admin/merchants");
   if (route.meta.accountArea)
     return router.push(accountMePath(auth.activeRole));
   if (isProductEdit.value) return router.push("/merchant/products");

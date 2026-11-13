@@ -140,6 +140,8 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 - 管理员使用统一密码登录，仅已有管理员授权或本机 CLI 创建。
 - `GET /admin/stats/overview`、`GET /admin/stats/trend?days=14`、`GET /admin/stats/ranking`、`GET /admin/todos`
 - `GET /admin/merchants?status&keyword&categoryId&city&page`、`GET /admin/merchants/:id`
+- `POST /admin/merchants` 接受严格 `{ account: { username, password, name, phone? }, store: 现有店铺字段 }`，仅当前管理员、已完成改密可用。服务端事务创建 ACTIVE、仅 MERCHANT、首次改密的账号及 CLOSED 店铺（submitCount=0），与账号／店铺审计一起提交；不绑定已有账号，重复账号 409＋USERNAME_TAKEN，失败整体回滚，无新迁移。响应安全 `{ account, store }`，不返回密码／哈希，no-store。详情见 MERCHANT_CREATE.md。
+- 两端 `/admin/merchants/new`（手机加 `/mobile`）为独立分组表单及固定操作区，成功清空密码并进入现有新店详情。管理列表／详情 owner 补充安全 id、username、mustChangePassword，公开响应不增加账号字段。资质选填且只能使用当前管理员私有上传；所属商家改密后可读取本店实际引用的证照，其他商家及游客无权访问。
 - 管理列表附带 `counts`（同类目／城市／关键词范围内各状态及 all 数量），管理资料附带负责人姓名，公开列表不提供管理状态计数或负责人信息。
 - 管理商家列表另返回 `filterOptions.cities`，来自完整管理范围的真实非空城市，独立于分页及当前筛选；公开列表不返回此字段。
 - 总览统计另返回 `disputesPending`，仅计算退款中且已申诉的待处理纠纷，区别于全部退款申请 `refundPending`；导航角标使用实际待处理数量。

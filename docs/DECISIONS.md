@@ -117,3 +117,5 @@
 - 2026-11-13，PC 页面经 `frontend/src/components/pc.ts` 按原名导入 antd 适配组件（Button、Input、Select、Tabs、Tag、Dialog 等与 `@waimai/ui` 同名 props），模板基本不变；`@waimai/ui` 在 PC 只保留 ScrollArea、useGroupScroll、Price 与类型。理由：一次替换全部页面控件、风险最小，业务脚本与原生表单校验原样保留。
 
 - 2026-11-13：PC／手机权限恢复区分首次核验、游客、需显式切换、无授权及网络失败；回跳从实际路由解析，认证响应 no-store，清理失效刷新 Cookie；不新增默认账号或权限申请能力。核验失败不展示旧身份，裸 /access 不作为登录回跳；见 ACCESS_RECOVERY.md。
+
+- 2026-11-13：管理员两端直接创建店铺时，以单事务新建独立 MERCHANT 账号、CLOSED 店铺及审计；免审核、首次登录改密，不绑定已有账号，不生成商品或优惠。沿用八字符密码及选填资质，管理员代传证照保留上传者记录并按本店引用授权读取；无数据库迁移，详见 MERCHANT_CREATE.md。

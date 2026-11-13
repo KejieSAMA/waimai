@@ -5,6 +5,7 @@ import { writableStore } from "../auth/middleware";
 import * as stores from "./service";
 import { publicReviews } from "../orders/service";
 import { promotions, savePromotions } from "./promotions";
+import { provisionMerchant } from "./provision";
 export function registerRouterStores(router: Router) {
   router.get(
     "/public/stores/:id/reviews",
@@ -77,6 +78,20 @@ export function registerMerchantStores(merchant: Router) {
   );
 }
 export function registerAdminStores(admin: Router) {
+  admin.post(
+    "/merchants",
+    handler(async (req, res) => {
+      res.setHeader("Cache-Control", "no-store");
+      return provisionMerchant(
+        {
+          id: req.actor!.id,
+          sessionId: req.sessionId!,
+          version: req.sessionVersion!,
+        },
+        req.body,
+      );
+    }),
+  );
   admin.get(
     "/merchants",
     handler(async (req) => stores.storeList(req.query, true)),

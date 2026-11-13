@@ -123,6 +123,11 @@ function close() {
   ++detailVersion;
   detail.value = null;
   if (route.params.id) void router.push("/admin/audit");
+  if (route.query.created)
+    void router.replace({
+      path: "/admin/merchants",
+      query: { ...route.query, created: undefined },
+    });
 }
 onMounted(async () => {
   await run(async () => {
@@ -130,7 +135,22 @@ onMounted(async () => {
   });
   await load();
   if (typeof route.params.id === "string") await open(route.params.id);
+  else if (!auditOnly.value && typeof route.query.created === "string")
+    await open(route.query.created);
 });
+watch(
+  () => route.query.created,
+  (id, old) => {
+    if (auditOnly.value) return;
+    if (typeof id === "string") void open(id);
+    else if (typeof old === "string") {
+      ++detailVersion;
+      detail.value = null;
+      pending.value = null;
+      logs.value = [];
+    }
+  },
+);
 watch(
   () => route.params.id,
   (id) => {
@@ -208,6 +228,11 @@ async function send(id: string, action: string) {
             ...cities.map((value) => ({ value, label: value })),
           ]"
         />
+        <template v-if="!auditOnly" #actions
+          ><Button icon="plus" @click="router.push('/admin/merchants/new')"
+            >创建店铺</Button
+          ></template
+        >
       </FilterBar>
       <div v-if="loadError" class="app-error body-sm" role="alert">
         {{ loadError
@@ -280,8 +305,10 @@ async function send(id: string, action: string) {
               }}</Tag>
             </div>
             <span class="body-md app-muted"
-              >{{ detail.category?.name }} · {{ detail.city }} · 第
-              {{ detail.submitCount || 1 }} 次提交</span
+              >{{ detail.category?.name }} · {{ detail.city
+              }}<template v-if="detail.submitCount && detail.submitCount > 0">
+                · 第 {{ detail.submitCount }} 次提交</template
+              ></span
             >
           </div>
         </div>
@@ -304,8 +331,15 @@ async function send(id: string, action: string) {
                 ' · ' +
                 phoneTail(detail.contactPhone),
             },
+            { label: '登录账号', value: detail.owner?.username || '未提供' },
             {
-              label: '提交时间',
+              label: '账号安全',
+              value: detail.owner?.mustChangePassword
+                ? '首次登录需修改密码'
+                : '已设置登录密码',
+            },
+            {
+              label: detail.submitCount === 0 ? '创建时间' : '提交时间',
               value: detail.createdAt ? time(detail.createdAt) : '未提供',
             },
           ]"

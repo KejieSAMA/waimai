@@ -118,8 +118,18 @@ async function send(id: string, action: string) {
 <template>
   <div class="app-merchant-list">
     <PageSlot name="right"
-      ><NavBarIcon name="filter" label="筛选商家" @click="filters = true"
-    /></PageSlot>
+      ><div class="app-row">
+        <NavBarIcon
+          v-if="!auditOnly"
+          name="plus"
+          label="创建店铺"
+          @click="router.push('/admin/merchants/new')"
+        /><NavBarIcon
+          name="filter"
+          label="筛选商家"
+          @click="filters = true"
+        /></div
+    ></PageSlot>
     <div class="sc-strip app-merchant-search">
       <SearchBar
         v-model="keyword"

@@ -1,6 +1,16 @@
 import type { RouteRecordRaw } from "vue-router";
 export default [
   {
+    path: "/admin/merchants/new",
+    component: () => import("./pages/MerchantCreate.vue"),
+    meta: {
+      role: "ADMIN",
+      protected: true,
+      title: "创建店铺",
+      siteNav: "/admin/merchants",
+    },
+  },
+  {
     path: "/admin/accounts",
     component: () => import("./pages/Accounts.vue"),
     meta: { role: "ADMIN", protected: true, title: "账号管理" },

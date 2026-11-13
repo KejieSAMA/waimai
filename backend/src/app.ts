@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { config, production } from "./config";
 import { router } from "./routes";
 import { privateOwner } from "./modules/uploads/service";
+import { ownsStoreCertificate } from "./modules/stores/service";
 import { authenticate } from "./modules/auth/middleware";
 import { assert, type AuthRequest } from "./http";
 export const app = express();
@@ -31,19 +32,23 @@ app.use("/uploads", (req, res, next) => {
           next(error);
           return;
         }
-        try {
+        void (async () => {
           const actor = (req as AuthRequest).actor;
           assert(
             actor &&
               !(req as AuthRequest).mustChangePassword &&
-              (actor.role === "ADMIN" || actor.id === owner),
+              (actor.role === "ADMIN" ||
+                actor.id === owner ||
+                (actor.role === "MERCHANT" &&
+                  (await ownsStoreCertificate(
+                    actor.id,
+                    "/uploads" + req.path,
+                  )))),
             403,
             "无权查看证照",
           );
           next();
-        } catch (e) {
-          next(e);
-        }
+        })().catch(next);
       });
     })
     .catch(next);
