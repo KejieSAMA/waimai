@@ -3,6 +3,7 @@ packages:
   - frontend
   - mobile
   - backend
+  - design-demos
 onlyBuiltDependencies:
   - "@prisma/client"
   - "@prisma/engines"

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>盟信外卖 · 设计方案对比</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --text: #1f1f1f;
+      --text-2: #595959;
+      --line: #e8e8e8;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f0f;
+        --card: #1a1a1a;
+        --text: #f0f0f0;
+        --text-2: #a6a6a6;
+        --line: #2a2a2a;
+        color-scheme: dark;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    }
+    main { max-width: 1200px; margin: 0 auto; padding: 48px 24px 64px; }
+    h1 { margin: 0; font-size: 28px; }
+    .lead { margin: 8px 0 32px; color: var(--text-2); max-width: 760px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .card {
+      display: flex; flex-direction: column;
+      border-radius: 12px; background: var(--card); overflow: hidden;
+      color: inherit; text-decoration: none;
+      box-shadow: inset 0 0 0 1px var(--line);
+      transition: box-shadow 0.15s;
+    }
+    .card:hover, .card:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); outline: none; }
+    .preview { height: 168px; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--pv-bg); }
+    .pv-bar { height: 28px; border-radius: var(--pv-r); background: var(--pv-head); display: flex; align-items: center; padding: 0 10px; gap: 6px; }
+    .pv-dot { width: 14px; height: 14px; border-radius: 4px; background: var(--pv-logo); }
+    .pv-line { height: 6px; width: 60px; border-radius: 3px; background: var(--pv-head-text); opacity: 0.6; }
+    .pv-body { flex: 1; display: grid; gap: 8px; grid-template-columns: var(--pv-cols); }
+    .pv-item { border-radius: var(--pv-r); background: var(--pv-card); position: relative; }
+    .pv-item::after { content: ""; position: absolute; left: 8px; bottom: 8px; width: 32px; height: 8px; border-radius: 2px; background: var(--pv-price); }
+    .body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; margin: 0; }
+    .letter { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; background: var(--accent); color: var(--on-accent); font-size: 14px; }
+    .swatches { display: flex; gap: 6px; }
+    .swatches span { width: 22px; height: 22px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line); }
+    ul { margin: 0; padding-left: 18px; color: var(--text-2); }
+    .go { margin-top: auto; font-weight: 600; color: var(--text); }
+    .note { margin-top: 28px; color: var(--text-2); font-size: 13px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>盟信外卖 · 用户端 PC 设计方案</h1>
+    <p class="lead">
+      三套方案都基于 ant-design-vue 4 的 token 与组件，扁平、无投影，覆盖首页与店铺页；每页右上角可切换深色。
+      方案之间不只是换色：顶栏、店铺列表、类目导航和菜品排布各不相同，可以按使用习惯挑选，也可以组合。
+    </p>
+
+    <div class="grid">
+      <a class="card" href="fresh.html" style="--accent:#fa541c;--on-accent:#fff;--pv-bg:#fbf6f2;--pv-head:#fff;--pv-head-text:#1f1f1f;--pv-logo:#fa541c;--pv-card:#fff;--pv-price:#e8490f;--pv-r:6px;--pv-cols:repeat(3,1fr)">
+        <div class="preview" aria-hidden="true">
+          <div class="pv-bar"><span class="pv-dot"></span><span class="pv-line"></span></div>
+          <div class="pv-body"><div class="pv-item"></div><div class="pv-item"></div><div class="pv-item"></div></div>
+        </div>
+        <div class="body">
+          <h2 class="title"><span class="letter">A</span>清爽橙</h2>
+          <div class="swatches"><span style="background:#fa541c"></span><span style="background:#fff0e8"></span><span style="background:#fbf6f2"></span><span style="background:#fff"></span></div>
+          <ul>
+            <li>布局清爽、留白充足，配色与方案 B 相同的活力橙</li>
+            <li>白色顶栏，三列大色块店铺卡片</li>
+            <li>店铺页左侧固定类目菜单，右侧吸顶购物车</li>
+            <li>白色顶栏收住橙色用量，主色只用在操作、价格和选中态</li>
+          </ul>
+          <span class="go">查看方案 A</span>
+        </div>
+      </a>
+
+      <a class="card" href="vibrant.html" style="--accent:#fa541c;--on-accent:#fff;--pv-bg:#fbf6f2;--pv-head:#fa541c;--pv-head-text:#fff;--pv-logo:#fff;--pv-card:#fff;--pv-price:#e8490f;--pv-r:10px;--pv-cols:repeat(2,1fr)">
+        <div class="preview" aria-hidden="true">
+          <div class="pv-bar"><span class="pv-dot"></span><span class="pv-line"></span></div>
+          <div class="pv-body"><div class="pv-item"></div><div class="pv-item"></div></div>
+        </div>
+        <div class="body">
+          <h2 class="title"><span class="letter">B</span>活力橙</h2>
+          <div class="swatches"><span style="background:#fa541c"></span><span style="background:#fff0e8"></span><span style="background:#fbf6f2"></span><span style="background:#fff"></span></div>
+          <ul>
+            <li>延续现有品牌橙红，最有“外卖感”和食欲感</li>
+            <li>品牌色顶栏加搜索 hero，双列横向店铺卡片</li>
+            <li>店铺页顶部类目 Tabs 吸顶，菜品双列卡片</li>
+            <li>大圆角、胶囊按钮，亲和但不花哨</li>
+          </ul>
+          <span class="go">查看方案 B</span>
+        </div>
+      </a>
+
+      <a class="card" href="minimal.html" style="--accent:#fadb14;--on-accent:#1f1f1f;--pv-bg:#f5f5f5;--pv-head:#141414;--pv-head-text:#fff;--pv-logo:#fadb14;--pv-card:#fff;--pv-price:#fadb14;--pv-r:3px;--pv-cols:1fr">
+        <div class="preview" aria-hidden="true">
+          <div class="pv-bar"><span class="pv-dot"></span><span class="pv-line"></span></div>
+          <div class="pv-body"><div class="pv-item"></div></div>
+        </div>
+        <div class="body">
+          <h2 class="title"><span class="letter">C</span>黑黄极简</h2>
+          <div class="swatches"><span style="background:#1f1f1f"></span><span style="background:#fadb14"></span><span style="background:#f5f5f5"></span><span style="background:#fff"></span></div>
+          <ul>
+            <li>高对比、信息密度高，效率优先，紧凑尺寸</li>
+            <li>黑色细顶栏，店铺用表格逐项对比评分、起送、配送费</li>
+            <li>店铺页按分组切换的菜品表格，数量直接在行内加减</li>
+            <li>黄色只用于促销与结算，焦点一眼可见</li>
+          </ul>
+          <span class="go">查看方案 C</span>
+        </div>
+      </a>
+    </div>
+
+    <p class="note">演示数据，不连接后端。依赖文件由 <code>pnpm --filter @waimai/design-demos vendor</code> 生成到 vendor/，之后可直接双击打开。</p>
+  </main>
+</body>
+</html>

@@ -64,3 +64,6 @@ playwright-report/
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Generated design demo vendor bundles
+/design-demos/vendor/

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>盟信外卖 · 设计方案</title>
+  <link rel="stylesheet" href="vendor/reset.css" />
+  <link rel="stylesheet" href="shared/base.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    // 方案 B 活力橙：延续现有品牌色，更有食欲感；品牌色顶栏与搜索 hero、双列横向卡片、类目 Tabs 吸顶。
+    window.DEMO_STYLE = {
+      key: "vibrant",
+      letter: "B",
+      name: "活力橙",
+      token: { colorPrimary: "#fa541c", colorLink: "#e8490f", borderRadius: 12, colorBgLayout: "#fbf6f2", fontSize: 14 },
+      darkToken: { colorPrimary: "#ff6a33", colorLink: "#ff8a5c", colorBgLayout: "#14100e", colorBgContainer: "#1e1916", colorBgElevated: "#27201c" },
+      compact: false,
+      buttonShape: "round",
+      stepShape: "circle",
+      cartBordered: false,
+      cover: { light: { s: 70, l: 90, ts: 60, tl: 36 }, dark: { s: 30, l: 20, ts: 70, tl: 72 } },
+      layout: { header: "brand", hero: true, category: "segmented", storeList: "grid2h", pageSize: 8, menuNav: "tabs", dishLayout: "grid2", storeHead: "banner" },
+      vars: {
+        light: { "--price": "#e8490f", "--rating": "#f76707", "--promo-bg": "#fff0e8", "--promo-text": "#d4380d", "--hero-bg": "#fa541c", "--hero-text": "#ffffff", "--hero-btn-bg": "#2b140a", "--hero-btn-text": "#ffffff", "--tag-radius": "999px", "--header-h": "64px" },
+        dark: { "--price": "#ff8a5c", "--rating": "#ffa94d", "--promo-bg": "#3b2016", "--promo-text": "#ffab85", "--hero-bg": "#2a1a12", "--hero-text": "#ffd8c7", "--tag-radius": "999px", "--header-h": "64px" },
+      },
+    };
+  </script>
+  <script src="vendor/vue.global.prod.js"></script>
+  <script src="vendor/dayjs.min.js"></script>
+  <script src="vendor/dayjs-advancedFormat.js"></script>
+  <script src="vendor/dayjs-customParseFormat.js"></script>
+  <script src="vendor/dayjs-localeData.js"></script>
+  <script src="vendor/dayjs-quarterOfYear.js"></script>
+  <script src="vendor/dayjs-weekOfYear.js"></script>
+  <script src="vendor/dayjs-weekYear.js"></script>
+  <script src="vendor/dayjs-weekday.js"></script>
+  <script src="vendor/antd.min.js"></script>
+  <script src="shared/data.js"></script>
+  <script src="shared/app.js"></script>
+</body>
+</html>

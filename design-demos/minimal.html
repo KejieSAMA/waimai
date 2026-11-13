@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>盟信外卖 · 设计方案</title>
+  <link rel="stylesheet" href="vendor/reset.css" />
+  <link rel="stylesheet" href="shared/base.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    // 方案 C 黑黄极简：高对比、信息密、效率优先；黑色细顶栏、店铺与菜品用紧凑表格，黄色只用于促销和结算。
+    window.DEMO_STYLE = {
+      key: "minimal",
+      letter: "C",
+      name: "黑黄极简",
+      token: { colorPrimary: "#1f1f1f", colorLink: "#1f1f1f", colorInfo: "#1f1f1f", borderRadius: 4, colorBgLayout: "#f5f5f5", fontSize: 14 },
+      darkToken: { colorPrimary: "#f0f0f0", colorLink: "#f0f0f0", colorInfo: "#f0f0f0", colorTextLightSolid: "#141414", colorBgLayout: "#0a0a0a", colorBgContainer: "#141414", colorBgElevated: "#1c1c1c" },
+      compact: true,
+      buttonShape: "default",
+      stepShape: "default",
+      cartBordered: true,
+      cover: { light: { s: 8, l: 90, ts: 10, tl: 28 }, dark: { s: 6, l: 20, ts: 8, tl: 78 } },
+      layout: { header: "dark", hero: false, category: "radio", storeList: "table", pageSize: 10, menuNav: "table", dishLayout: "list", storeHead: "line" },
+      vars: {
+        light: { "--price": "#1f1f1f", "--rating": "#1f1f1f", "--promo-bg": "#fadb14", "--promo-text": "#1f1f1f", "--accent": "#fadb14", "--on-accent": "#1f1f1f", "--header-bg": "#141414", "--header-text": "#ffffff", "--header-line": "transparent", "--logo-bg": "#fadb14", "--logo-text": "#141414", "--tag-radius": "2px", "--header-h": "52px" },
+        dark: { "--price": "#fadb14", "--rating": "#fadb14", "--promo-bg": "#fadb14", "--promo-text": "#141414", "--accent": "#fadb14", "--on-accent": "#141414", "--header-bg": "#000000", "--header-text": "#ffffff", "--header-line": "#262626", "--logo-bg": "#fadb14", "--logo-text": "#141414", "--tag-radius": "2px", "--header-h": "52px" },
+      },
+    };
+  </script>
+  <script src="vendor/vue.global.prod.js"></script>
+  <script src="vendor/dayjs.min.js"></script>
+  <script src="vendor/dayjs-advancedFormat.js"></script>
+  <script src="vendor/dayjs-customParseFormat.js"></script>
+  <script src="vendor/dayjs-localeData.js"></script>
+  <script src="vendor/dayjs-quarterOfYear.js"></script>
+  <script src="vendor/dayjs-weekOfYear.js"></script>
+  <script src="vendor/dayjs-weekYear.js"></script>
+  <script src="vendor/dayjs-weekday.js"></script>
+  <script src="vendor/antd.min.js"></script>
+  <script src="shared/data.js"></script>
+  <script src="shared/app.js"></script>
+</body>
+</html>
