@@ -56,6 +56,7 @@ type Request = <T>(
   options?: { method?: string; body?: unknown },
 ) => Promise<T>;
 interface Cart {
+  ensureSaved?(): Promise<boolean>;
   forStore(id: string): CheckoutCart;
   replaceStore(
     id: string,
@@ -124,6 +125,8 @@ export function useUserOrders(
     reordering.value = true;
     error.value = "";
     try {
+      if (cart.ensureSaved && !(await cart.ensureSaved()))
+        throw new Error("购物车尚未同步，请重试");
       const store = await request<Store>(`/public/stores/${order.storeId}`);
       const lines = order.items.map((item) => ({
         product: store.products?.find((p) => p.id === item.productId),
@@ -151,6 +154,8 @@ export function useUserOrders(
         order.type,
       );
       cart.rememberStore(store);
+      if (cart.ensureSaved && !(await cart.ensureSaved()))
+        throw new Error("购物车保存失败，请重试");
       replacement.value = undefined;
       await navigate(`/store/${order.storeId}`);
     } catch (cause) {

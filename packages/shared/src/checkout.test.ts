@@ -90,6 +90,7 @@ function setup() {
     saveError: null as Error | null,
     orderError: null as Error | null,
     orderWait: undefined as Promise<unknown> | undefined,
+    recoveredOrder: undefined as { id: string } | undefined,
   };
   const request = vi.fn(
     async (
@@ -110,6 +111,11 @@ function setup() {
         if (server.orderError) throw server.orderError;
         return server.orderWait ?? { id: "order-1" };
       }
+      if (path.startsWith("/user/orders?requestId="))
+        return {
+          list: server.recoveredOrder ? [server.recoveredOrder] : [],
+          total: server.recoveredOrder ? 1 : 0,
+        };
       throw new Error("Unexpected request: " + path);
     },
   );
@@ -135,6 +141,17 @@ function setup() {
   return { server, request, carts, cart, state, scope, navigate, orderCalls };
 }
 describe("结算地址", () => {
+  it("购物车同步失败仍加载店铺和地址，重试后可继续结算", async () => {
+    const { state, cart } = setup();
+    cart.ensureSaved = vi.fn().mockResolvedValue(false);
+    cart.syncError = "同步失败";
+    await state.initialize();
+    expect(state.store.value?.id).toBe("store-1");
+    expect(state.selectedAddress.value?.id).toBe(defaultAddress.id);
+    expect(state.canSubmit.value).toBe(false);
+    cart.syncError = "";
+    expect(state.canSubmit.value).toBe(true);
+  });
   it("优先保留当前地址，缺失后回退默认、首项或空值", () => {
     expect(
       chooseCheckoutAddress([defaultAddress, otherAddress], otherAddress.id),
@@ -222,6 +239,58 @@ describe("结算地址", () => {
     await state.loadAddresses();
     await flush();
     expect(state.canSubmit.value).toBe(true);
+  });
+});
+
+describe("服务端购物车结算", () => {
+  it("提交前保存购物车，携带版本和幂等标识，由服务端清车而非本地无条件清空", async () => {
+    const { cart, state, orderCalls } = setup();
+    cart.ensureSaved = vi.fn().mockResolvedValue(true);
+    cart.cartRevision = 2;
+    cart.ownerVersion = "A";
+    cart.newRequestId = () => "checkout_request_123456";
+    cart.acknowledgeOrder = vi.fn().mockResolvedValue(undefined);
+    await state.initialize();
+    await state.submit();
+    expect(orderCalls()[0][1]?.body).toMatchObject({
+      cartRevision: 2,
+      requestId: "checkout_request_123456",
+    });
+    expect(cart.acknowledgeOrder).toHaveBeenCalledWith(2);
+    expect(cart.count).toBe(1);
+  });
+  it("创建响应丢失后只查询原请求，不自动重新创建订单", async () => {
+    const { cart, state, server, navigate, orderCalls } = setup();
+    cart.ensureSaved = vi.fn().mockResolvedValue(true);
+    cart.cartRevision = 2;
+    cart.ownerVersion = "A";
+    cart.newRequestId = () => "checkout_lost_response_123";
+    cart.acknowledgeOrder = vi.fn().mockResolvedValue(undefined);
+    await state.initialize();
+    server.orderError = new Error("网络中断");
+    server.recoveredOrder = { id: "recovered-order" };
+    await state.submit();
+    expect(orderCalls()).toHaveLength(1);
+    expect(state.createdOrderId.value).toBe("recovered-order");
+    expect(navigate).toHaveBeenCalledWith("/orders/recovered-order");
+  });
+  it("下单期间切换账号，不触碰新账号购物车", async () => {
+    const { cart, state, server } = setup();
+    cart.ensureSaved = vi.fn().mockResolvedValue(true);
+    cart.cartRevision = 2;
+    cart.ownerVersion = "A";
+    cart.newRequestId = () => "checkout_account_switch_123";
+    cart.acknowledgeOrder = vi.fn().mockResolvedValue(undefined);
+    await state.initialize();
+    const wait = deferred<{ id: string }>();
+    server.orderWait = wait.promise;
+    const pending = state.submit();
+    await flush();
+    cart.ownerVersion = "B";
+    wait.resolve({ id: "old-account-order" });
+    await pending;
+    expect(cart.acknowledgeOrder).not.toHaveBeenCalled();
+    expect(cart.count).toBe(1);
   });
 });
 describe("可编辑清单与提交", () => {

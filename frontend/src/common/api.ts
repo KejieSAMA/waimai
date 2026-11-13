@@ -38,6 +38,7 @@ export async function api<T>(
     options.method &&
     options.method !== "GET" &&
     options.method !== "HEAD" &&
+    !path.startsWith("/user/cart") &&
     !path.endsWith("/preview")
   )
     invalidateRoleData(role);

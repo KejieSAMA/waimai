@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Icon,
+  CartSyncNotice,
   Dialog,
   CartItems,
   CheckoutFees,
@@ -81,6 +82,12 @@ const backTo = () => {
   return router.back();
 };
 const cart = useCart();
+watch(
+  () => route.fullPath,
+  () => {
+    void cart.synchronize();
+  },
+);
 const pageBody = ref<InstanceType<typeof MobilePage>>();
 watch(
   () => route.query.storeId,
@@ -141,17 +148,6 @@ const menus: Record<string, NavItem[]> = {
   ],
 };
 const auth = useAuth();
-watch(
-  () => auth.revision,
-  () => {
-    for (const entry of cart.carts) {
-      const view = cart.forStore(entry.storeId);
-      view.invalidateQuote("");
-      view.addressId = "";
-    }
-  },
-  { flush: "sync" },
-);
 
 const { badges } = useRoleNotices(
   (path, target) => api(path, {}, target),
@@ -234,7 +230,22 @@ const tabs = computed(() =>
       class="app-content"
       :class="{ 'app-content--edge': edge, 'app-content--store': isStore }"
     >
+      <CartSyncNotice
+        :loading="!cart.ready && !cart.syncError"
+        :error="cart.syncError"
+        :notice="cart.notice"
+        :busy="cart.loading || cart.syncPending"
+        @retry="cart.retry"
+        @dismiss="cart.dismissNotice"
+      />
+      <p
+        v-if="route.path === '/checkout' && !cart.ready"
+        class="app-empty body-sm"
+      >
+        {{ cart.syncError ? "购物车读取失败，请重试" : "正在读取购物车" }}
+      </p>
       <RouterView
+        v-else
         :key="
           String(auth.revision) +
           ':' +

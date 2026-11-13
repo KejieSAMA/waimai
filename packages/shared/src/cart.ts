@@ -24,6 +24,13 @@ export type CheckoutRequest = <T>(
   options?: { method?: string; body?: unknown },
 ) => Promise<T>;
 export interface CheckoutCart {
+  syncPending?: boolean;
+  syncError?: string;
+  cartRevision?: number;
+  ownerVersion?: string;
+  ensureSaved?(): Promise<boolean>;
+  acknowledgeOrder?(revision: number): Promise<void>;
+  newRequestId?(): string;
   lines: CartLine[];
   type: "DELIVERY" | "PICKUP";
   addressId: string;
@@ -41,6 +48,7 @@ export interface CheckoutCart {
   invalidateQuote(message: string): void;
 }
 export interface StoredCart {
+  revision?: number;
   storeId: string;
   lines: CartLine[];
   type: "DELIVERY" | "PICKUP";
@@ -88,6 +96,7 @@ export function restoreCarts(value: unknown): CartSnapshot {
           typeof row.updatedAt === "number" && Number.isFinite(row.updatedAt)
             ? row.updatedAt
             : 0,
+        revision: Number.isInteger(row.revision) ? row.revision : undefined,
       };
       grouped.set(id, entry);
       return entry;
@@ -139,6 +148,7 @@ export function useCartState(
   const checkoutStoreId = ref(restored.checkoutStoreId);
   const storeInfo = reactive<Record<string, Store>>(Object.create(null));
   const views = new Map<string, CheckoutCart>();
+  const dirties = new Map<string, () => void>();
   const scope = effectScope();
   let active = true;
   function forStore(id: string): CheckoutCart {
@@ -169,6 +179,7 @@ export function useCartState(
       transient.quotePending = entry.lines.length > 0;
       if (!entry.lines.length) transient.quote = null;
     }
+    dirties.set(id, dirty);
     scope.run(() =>
       watch(() => [entry.type, entry.addressId], dirty, { flush: "sync" }),
     );
@@ -359,6 +370,31 @@ export function useCartState(
         })),
     };
   }
+  function applySnapshot(value: unknown, resetQuotes = false) {
+    const next = restoreCarts(value);
+    const byId = new Map(next.carts.map((entry) => [entry.storeId, entry]));
+    for (const id of new Set([...Object.keys(entries), ...byId.keys()])) {
+      forStore(id);
+      const row = byId.get(id) ?? {
+        storeId: id,
+        lines: [],
+        type: "DELIVERY" as const,
+        addressId: "",
+        note: "",
+        name: "",
+        logo: "",
+        updatedAt: 0,
+      };
+      if (JSON.stringify(entries[id]) !== JSON.stringify(row)) {
+        Object.assign(entries[id], row);
+        dirties.get(id)?.();
+      }
+      if (resetQuotes) views.get(id)?.invalidateQuote("");
+    }
+    if (resetQuotes)
+      for (const id of Object.keys(storeInfo)) delete storeInfo[id];
+    checkoutStoreId.value = next.checkoutStoreId;
+  }
   watch(
     () => JSON.stringify(snapshot()),
     () => {
@@ -390,5 +426,9 @@ export function useCartState(
     resolveStoreId,
     rememberStore,
     replaceStore,
+    snapshot,
+    applySnapshot,
   };
 }
+
+export * from "./serverCart";

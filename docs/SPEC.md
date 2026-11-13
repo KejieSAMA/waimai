@@ -63,7 +63,7 @@ PC 的 `/orders`、`/orders/:id`、`/addresses`、`/me` 共用个人中心父路
 
 手机三端我的共用身份卡、快捷入口及授权角色选择 sheet；商家店铺入口复用 merchantStoreEntry，管理员管理工具保留现有真实路由。设置与资料页不显示业务底部 Tab，顶栏沿用当前身份，直接进入时返回当前身份我的。资料未修改不可保存，保存失败保留输入；脏草稿离开需确认，身份失效不阻拦安全跳转。手机移除电脑版入口；主题、改密、退出集中到设置，PC 布局不变。详见 MOBILE_ACCOUNT.md。
 
-购物车以店铺 ID 独立保存于当前浏览器 xz-cart v2，旧数组自动迁移；每店保存商品、配送方式、地址 ID 和备注，不保存报价或完整地址。两端确认订单通过 `?storeId=…` 指定单店，支持切换其他非空购物车，每次仅提交一家；成功只清理该店匹配的快照。店铺页仅展示自己的购物车，PC 顶栏角标为所有店铺商品总件数。
+购物车按账号和店铺隔离：游客保存在浏览器 `xz-guest-cart`，用户身份登录后以服务器 SQLite 为准；旧 `xz-cart` 启动时删除且不导入。登录自动合并游客商品，同商品数量相加并受库存／限购约束，保留已有账号购物车的配送、地址和备注；幂等合并成功后清理游客副本。账号购物车不写浏览器持久存储，进入页面、恢复焦点和可见状态时同步，多设备写入通过 revision 检查并提示冲突。退出或换账号立即清空内存中的旧账号资料。两端确认订单通过 `?storeId=…` 指定单店，每次仅提交一家；下单事务只清理对应店铺的匹配版本。店铺页仅展示自己的购物车，PC 顶栏角标为所有店铺商品总件数。详见 SERVER_CART.md。
 
 PC 与手机业务路径对应 `/x` 与 `/mobile/x`，自动跳转保留查询参数、登录回跳及锚点。明确访问 `/mobile`、`/mobile/` 及其子路径时保留手机版，无前缀入口才按设备识别：优先 navigator.userAgentData.mobile（false 有效），缺失时回退手机 UA 与 MacIntel 多点触控的 iPad 辅助识别；Windows 触屏电脑及未知设备使用 PC，窗口宽度不参与分流。
 
@@ -98,10 +98,13 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - `GET /admin/accounts?keyword&role&status&page&pageSize`、`GET /admin/accounts/:id`、`GET /admin/accounts/:id/audit`。
 - `POST /admin/accounts`（username、name、phone?、password、roles）、`PUT /admin/accounts/:id`（name、phone?）、`PUT /admin/accounts/:id/roles|status|password`（分别 roles、status 或 password）。创建／重置设置首次改密；不提供物理删除。
 - `GET|POST|PUT|DELETE /user/addresses`
+- `GET /user/cart`：当前用户全部店铺购物车，返回 `{ version: 2, carts }`，每店含 revision、配送方式、本人地址 ID、备注、安全店铺摘要及最新商品资料，不返回完整地址、联系电话或资质。
+- `PUT /user/cart/:storeId`：严格接受 `{ revision, type, addressId, note, items: [{ productId, qty }] }`；新店 revision=0，更新须匹配当前版本。仅能使用本人地址、该店商品；新增数量校验营业／上架／库存／限购，不预占库存。清空保留空版本记录。409 后读取最新状态，不自动覆盖另一设备修改；同内容重试返回当前结果。
+- `POST /user/cart/merge`：严格接受 `{ guestId, carts: [{ storeId, type, note, items }] }`，guestId 为随机合并标识，不包含账号 ID、地址正文或金额。服务端事务合并并保存幂等回执，重复请求不累加；同标识不会再导入另一账号。响应 `{ snapshot, issues }`，跳过失效商品或约束数量时明确提示。
 - `POST /user/orders/preview` 后端计算金额（小计、配送费、满减、实付），另返回 minOrderCents、shortfallCents、checkoutAllowed；未达起送价仍返回报价，创建订单时继续严格校验，PICKUP 不受起送价限制。
 - 报价的 `items` 包含 `productId`、`qty`、`name`、`priceCents`、`lineTotalCents`；行小计由后端计算，前端按商品 ID 匹配，等待报价时保留已显示金额。
-- `POST /user/orders` 下单（扣库存，事务）→ `POST /user/orders/:id/pay`（模拟支付）
-- `GET /user/orders?status`、`GET /user/orders/:id`
+- `POST /user/orders` 下单（扣库存，事务）→ `POST /user/orders/:id/pay`（模拟支付）。账号购物车增加 cartRevision 和随机 requestId：事务校验整车快照、复核金额及库存、创建订单并清空对应版本；相同账号 requestId 重试返回原订单，不能重复扣库存。不携带新增字段的原有调用保持兼容。
+- `GET /user/orders?status&requestId`、`GET /user/orders/:id`；requestId 仅在用户命名空间筛选本人订单，用于丢失创建响应后的只读确认，不自动重试创建。
 - 用户列表另支持 `tab=all|ongoing|unreviewed|refund`：进行中包括待支付到待自提；待评价仅已完成且无评价；退款仅退款中。与 status 条件取交集后统一分页和计数；列表及详情返回 `review: { id } | null`。
 - 订单创建、列表、详情及操作响应的商品项包含后端计算的 `lineTotalCents`（快照单价 × 数量），供商家卡片展示行金额；前端不重新计算金额。
 - `POST /user/orders/:id/cancel`、`POST /user/orders/:id/refund`、`POST /user/orders/:id/review`
@@ -149,8 +152,11 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 - `DishCategory`（店内分类）：storeId、name、sort
 - `Product`：storeId、dishCategoryId、name、description、images（JSON 字符串）、priceCents、originalPriceCents?、stock、lowStock（默认 5）、limitPerOrder?、status（ON / OFF / REVIEW / REJECTED）、rejectReason、forcedOff、monthlySales；“已售罄”= ON 且 stock = 0，由后端派生返回 `displayStatus`
 - `Promotion`：storeId、thresholdCents、discountCents（满减）
+- `Cart`：userId＋storeId 唯一、version、type、addressId、note、items（商品 ID／数量及服务端名称／图片摘要 JSON）、updatedAt；不保存报价或地址正文，空记录保留版本防止旧请求复活购物车。
+- `CartMerge`：全局唯一 guestId、userId、issues、createdAt；合并与回执同事务，账号删除时级联删除。无 Redis 或购物车 SSE。
 - `Order`：orderNo（唯一，时间 + 随机）、serialOfDay（店铺当日流水号）、userId、storeId、type（DELIVERY / PICKUP）、status（PENDING_PAY / PENDING / PREPARING / DELIVERING / PICKUP / DONE / CANCELLED / REFUNDING）、itemsCents、deliveryFeeCents、discountCents、payCents、note、addressSnapshot（JSON）、paidAt、acceptedAt、readyAt、doneAt、cancelReason、refundReason
 - `OrderItem`：orderId、productId、nameSnapshot、priceCentsSnapshot、qty、spec?
+- `Order.requestId?`：与 userId 组成唯一约束，旧订单为空，不影响历史订单关联。
 - `Review`：orderId、userId、storeId、rating、content、reply?
 - `AuditLog`：actorId、actorRole、action、targetType、targetId、reason?、createdAt（审核、冻结、强制下架、退款介入都要记）
 

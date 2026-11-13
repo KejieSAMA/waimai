@@ -1,5 +1,5 @@
 import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
-import type { Address, Order, Product, Quote, Store } from "./index";
+import type { Address, Order, Product, Quote, Store, Page } from "./index";
 import type {
   CartLine,
   CartPayload,
@@ -113,6 +113,8 @@ export function useCheckout(
       cart.quote.checkoutAllowed !== false &&
       !cart.quotePending &&
       !cart.quoteError &&
+      !cart.syncPending &&
+      !cart.syncError &&
       (cart.type === "PICKUP" ||
         (!addressesLoading.value &&
           !addressError.value &&
@@ -240,6 +242,10 @@ export function useCheckout(
     },
   );
   async function initialize() {
+    // Sync errors already block submission and have their own retry action.
+    // Keep the remaining checkout information usable while retrying the cart.
+    if (cart.ensureSaved) await cart.ensureSaved();
+    if (!active) return;
     if (cart.lines.length) await Promise.all([loadStore(), loadAddresses()]);
     if (!active) return;
     ready = true;
@@ -260,6 +266,16 @@ export function useCheckout(
       if (active) submitError.value = "订单已创建，请点击查看订单继续";
     }
   }
+  let lastSignature = "",
+    requestId = "";
+  let submittedOwner: string | undefined, submittedRevision: number | undefined;
+  function submissionId(signature: string) {
+    if (lastSignature !== signature || !requestId) {
+      lastSignature = signature;
+      requestId = cart.newRequestId!();
+    }
+    return requestId;
+  }
   async function submit() {
     if (!canSubmit.value || !cart.quote) return;
     const displayed = quoteSignature(cart.quote);
@@ -267,6 +283,10 @@ export function useCheckout(
     submitError.value = "";
     notice.value = "";
     try {
+      if (cart.ensureSaved && !(await cart.ensureSaved())) {
+        submitError.value = cart.syncError || "购物车尚未保存，请重试";
+        return;
+      }
       await loadStore();
       if (!active) return;
       if (storeIssue.value || cart.lines.some(itemIssue)) {
@@ -287,14 +307,47 @@ export function useCheckout(
       }
       const body = { ...cart.payload, note: cart.note };
       const snapshot = cartSignature(cart.payload, cart.note);
+      const owner = cart.ownerVersion;
+      const revision = cart.cartRevision;
+      submittedOwner = owner;
+      submittedRevision = revision;
       const order = await request<Order>("/user/orders", {
         method: "POST",
-        body,
+        body: {
+          ...body,
+          ...(revision
+            ? {
+                cartRevision: revision,
+                requestId: submissionId(snapshot + ":" + revision),
+              }
+            : {}),
+        },
       });
       createdOrderId.value = order.id;
-      if (cartSignature(cart.payload, cart.note) === snapshot) cart.clear();
+      if (cart.ownerVersion === owner) {
+        if (cart.acknowledgeOrder && revision)
+          await cart.acknowledgeOrder(revision);
+        else if (cartSignature(cart.payload, cart.note) === snapshot)
+          cart.clear();
+      }
       if (active) await viewOrder();
     } catch (cause) {
+      if (requestId && cart.ownerVersion === submittedOwner) {
+        try {
+          const found = await request<Page<Order>>(
+            `/user/orders?requestId=${encodeURIComponent(requestId)}&pageSize=1`,
+          );
+          if (found.list[0] && cart.ownerVersion === submittedOwner) {
+            createdOrderId.value = found.list[0].id;
+            if (cart.acknowledgeOrder && submittedRevision)
+              await cart.acknowledgeOrder(submittedRevision);
+            if (active) await viewOrder();
+            return;
+          }
+        } catch {
+          /* Creation is never automatically retried; preserve the draft. */
+        }
+      }
       if (active)
         submitError.value =
           cause instanceof Error ? cause.message : "订单提交失败，请重试";

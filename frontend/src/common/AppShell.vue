@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, ScrollArea, Switch } from "@waimai/ui";
+import { Button, ScrollArea, Switch, CartSyncNotice } from "@waimai/ui";
 import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
 import { computed, watch, ref, onMounted, onBeforeUnmount } from "vue";
@@ -25,15 +25,10 @@ const route = useRoute(),
   auth = useAuth();
 const carts = useCart();
 watch(
-  () => auth.revision,
+  () => route.fullPath,
   () => {
-    for (const entry of carts.carts) {
-      const view = carts.forStore(entry.storeId);
-      view.invalidateQuote("");
-      view.addressId = "";
-    }
+    void carts.synchronize();
   },
-  { flush: "sync" },
 );
 
 const pageBody = ref<InstanceType<typeof ScrollArea>>();
@@ -179,7 +174,22 @@ const go = (path: string) => router.push(path);
       :disabled="containedScroll"
     >
       <div class="xz-container">
+        <CartSyncNotice
+          :loading="!carts.ready && !carts.syncError"
+          :error="carts.syncError"
+          :notice="carts.notice"
+          :busy="carts.loading || carts.syncPending"
+          @retry="carts.retry"
+          @dismiss="carts.dismissNotice"
+        />
+        <p
+          v-if="route.path === '/checkout' && !carts.ready"
+          class="app-empty body-md"
+        >
+          {{ carts.syncError ? "购物车读取失败，请重试" : "正在读取购物车" }}
+        </p>
         <RouterView
+          v-else
           :key="
             String(auth.revision) +
             ':' +

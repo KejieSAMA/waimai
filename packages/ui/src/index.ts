@@ -35,3 +35,4 @@ export { default as CartItems } from "./CartItems.vue";
 export { useGroupScroll } from "./useGroupScroll";
 
 export { default as AccountForm } from "./AccountForm.vue";
+export { default as CartSyncNotice } from "./CartSyncNotice.vue";

@@ -41,6 +41,8 @@ pnpm --filter @waimai/backend db:migrate
 
 刷新凭据为服务器生成的随机值并仅存摘要，不再使用 JWT_REFRESH_SECRET；旧环境中的该变量可删除。
 
+服务端购物车升级需先备份数据库，再生成 Prisma 客户端并部署 `20261113000000_server_cart` 迁移；新建 Cart／CartMerge 并为 Order 增加可空 requestId，不修改历史账号密码、店铺、商品或订单。Windows 上先停止本项目服务以释放 Prisma DLL，再执行上述增量命令并重启。两端旧 xz-cart 会清理且不导入，主题与登录偏好保持不变。部署及人工验收步骤见 [购物车说明](SERVER_CART.md)。
+
 生产 refresh cookie 使用 `secure` 和 `httpOnly`，浏览器访问通过 HTTPS 入口进行。账号只使用密码，不依赖短信或固定验证码。支付当前采用规格要求的模拟支付。
 
 ## Nginx

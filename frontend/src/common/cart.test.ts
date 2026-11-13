@@ -6,6 +6,9 @@ import { api } from "./api";
 import { useCart } from "./cart";
 
 vi.mock("./api", () => ({ api: vi.fn() }));
+vi.mock("./auth", () => ({
+  useAuth: () => ({ account: undefined, activeRole: undefined, revision: 0 }),
+}));
 const preview = vi.mocked(api);
 const product: Product = {
   id: "dish-1",
@@ -84,9 +87,12 @@ beforeEach(() => {
   setActivePinia(createPinia());
   preview.mockReset();
   vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() });
+  vi.stubGlobal("window", new EventTarget());
+  vi.stubGlobal("document", new EventTarget());
 });
 afterEach(async () => {
   await nextTick();
+  useCart().$dispose();
   vi.unstubAllGlobals();
 });
 
