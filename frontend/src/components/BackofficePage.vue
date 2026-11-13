@@ -56,15 +56,8 @@ defineExpose({ scrollToTop: () => scroll.value?.scrollTo({ top: 0 }) });
   gap: var(--space-4);
   min-width: 0;
 }
-.bo-page__header :deep(.xz-pagehead),
-.bo-page__header :deep(.xz-filterbar) {
+.bo-page__header :deep(.ant-tabs-nav) {
   margin-bottom: 0;
-}
-.bo-page__header :deep(.xz-tabs--line) {
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
-  border-bottom: 1px solid var(--line);
 }
 .bo-page__header > p {
   margin: 0;

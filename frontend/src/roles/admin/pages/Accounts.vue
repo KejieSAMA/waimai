@@ -4,7 +4,14 @@ import DataTable from "../../../components/DataTable.vue";
 import FilterBar from "../../../components/FilterBar.vue";
 import Pagination from "../../../components/Pagination.vue";
 import { onMounted } from "vue";
-import { Button, Input, Select, Tag, Dialog, AccountForm } from "@waimai/ui";
+import {
+  Button,
+  Input,
+  Select,
+  Tag,
+  Dialog,
+  AccountForm,
+} from "../../../components/pc";
 import { useAdminAccounts, time } from "@waimai/shared";
 import { api } from "../../../common/api";
 const manager = useAdminAccounts((path, options) =>

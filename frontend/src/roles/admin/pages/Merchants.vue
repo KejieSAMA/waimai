@@ -12,7 +12,7 @@ import {
   Select,
   Tabs,
   Tag,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
 import Pagination from "../../../components/Pagination.vue";

@@ -9,7 +9,7 @@ import {
   SearchBar,
   Tabs,
   Tag,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import DataTable from "../../../components/DataTable.vue";
 import Pagination from "../../../components/Pagination.vue";
 import { onMounted, ref, watch } from "vue";

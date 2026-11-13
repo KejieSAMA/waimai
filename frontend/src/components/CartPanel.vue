@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { Button, Icon, Price, Stepper, ScrollArea } from "@waimai/ui";
+// 购物车面板：高度随内容、最高到本栏；清单行高固定，最多 5.5 行后在覆盖式滚动区内滚动，
+// 头部、费用、结算固定，滚动条不占宽度，溢出前后布局不变。
+import { Price, ScrollArea } from "@waimai/ui";
 import { money, type Quote } from "@waimai/shared";
+import { Empty } from "ant-design-vue";
+import AppIcon from "./antd/AppIcon.vue";
+import QtyStepper from "./cards/QtyStepper.vue";
 defineProps<{
   items: {
     id: string;
@@ -22,51 +27,63 @@ const emit = defineEmits<{
   pickup: [];
   quantity: [id: string, qty: number];
 }>();
+const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE;
 </script>
 <template>
-  <aside class="xz-cartpanel" aria-label="购物车">
-    <div class="xz-cartpanel__head">
-      <span class="title">购物车</span
-      ><Button
+  <aside class="pc-cart" aria-label="购物车">
+    <div class="pc-cart__head">
+      <span class="pc-cart__title"
+        ><AppIcon name="cart" /> 购物车
+        <a-badge
+          :count="items.reduce((n, it) => n + it.qty, 0)"
+          :number-style="{ boxShadow: 'none' }"
+      /></span>
+      <a-button
         v-if="items.length"
-        size="sm"
-        variant="text"
+        type="link"
+        size="small"
+        danger
         @click="emit('clear')"
-        >清空</Button
+        >清空</a-button
       >
     </div>
     <ScrollArea
       v-if="items.length"
-      class="xz-cartpanel__list"
-      content-class="xz-cartpanel__items"
+      class="pc-cart__list"
+      content-class="pc-cart__items"
       label="购物车商品列表"
       contain
     >
-      <div v-for="it in items" :key="it.id" class="xz-cartpanel__item">
-        <span class="xz-cartpanel__name"
-          ><span class="body-md" :title="it.name">{{ it.name }}</span></span
-        ><Stepper
+      <div v-for="it in items" :key="it.id" class="pc-cart__item">
+        <span class="pc-cart__name" :title="it.name">{{ it.name }}</span>
+        <QtyStepper
+          :name="it.name"
           :model-value="it.qty"
           :max="it.max"
           :collapse="false"
           @update:model-value="emit('quantity', it.id, $event)"
-        /><Price
+        />
+        <Price
           v-if="it.price != null"
+          class="pc-cart__line"
           :value="it.price"
           size="sm"
           tone="ink"
-        /><span v-else class="body-sm app-muted">—</span>
+        /><span v-else class="pc-cart__line pc-cart__muted">—</span>
       </div>
     </ScrollArea>
-    <div v-else class="xz-cartpanel__empty body-md">
-      <Icon name="cart" :size="32" />还没有选购商品
-    </div>
-    <div v-if="quote" class="xz-cartpanel__sum body-md" :aria-busy="updating">
-      <div>
+    <a-empty
+      v-else
+      :image="simpleImage"
+      class="pc-cart__empty"
+      description="还没有选购商品"
+    />
+    <div v-if="quote" class="pc-cart__sum" :aria-busy="updating">
+      <div class="pc-cart__row">
         <span>商品小计</span
         ><Price :value="quote.itemsCents / 100" tone="ink" size="sm" />
       </div>
-      <div>
+      <div class="pc-cart__row">
         <span>配送费</span><span v-if="!quote.deliveryFeeCents">免配送费</span
         ><Price
           v-else
@@ -75,30 +92,33 @@ const emit = defineEmits<{
           size="sm"
         />
       </div>
-      <div v-if="quote.discountCents" class="is-off">
-        <span>满减优惠</span><span>-¥{{ quote.discountCents / 100 }}</span>
+      <div v-if="quote.discountCents" class="pc-cart__row is-off">
+        <span>满减优惠</span
+        ><span class="xz-num">-¥{{ quote.discountCents / 100 }}</span>
       </div>
     </div>
-    <p v-if="quote?.shortfallCents" class="body-sm app-muted app-cart-hint">
-      差 {{ money(quote.shortfallCents) }} 起送
-      <Button
-        size="sm"
-        variant="text"
+    <div v-if="quote?.shortfallCents" class="pc-cart__hint">
+      <span class="pc-cart__muted"
+        >差 {{ money(quote.shortfallCents) }} 起送</span
+      >
+      <a-button
+        type="link"
+        size="small"
         :disabled="disabled"
         @click="emit('pickup')"
-        >到店自提</Button
+        >到店自提</a-button
       >
-    </p>
-    <p v-if="updating" class="body-sm app-muted app-cart-hint" role="status">
+    </div>
+    <p v-if="updating" class="pc-cart__hint pc-cart__muted" role="status">
       金额更新中
     </p>
-    <div class="xz-cartpanel__foot">
-      <div v-if="quote" class="xz-cartpanel__total">
-        <span class="body-md">合计</span
-        ><Price :value="quote.payCents / 100" size="lg" />
+    <div class="pc-cart__foot">
+      <div v-if="quote" class="pc-cart__row pc-cart__total">
+        <span>合计</span><Price :value="quote.payCents / 100" size="lg" />
       </div>
-      <Button
-        size="lg"
+      <a-button
+        type="primary"
+        size="large"
         block
         :disabled="
           !items.length ||
@@ -111,48 +131,115 @@ const emit = defineEmits<{
           !items.length && minOrder && !pickup
             ? money(minOrder) + " 起送"
             : label || "去结算"
-        }}</Button
+        }}</a-button
       >
     </div>
   </aside>
 </template>
 <style scoped>
-.xz-cartpanel {
-  --cart-row-height: calc(var(--space-6) * 2 + 1px);
-  min-height: 0;
-  max-height: 100%;
+.pc-cart {
+  --cart-pad: 16px;
+  --cart-row: 49px;
+  display: flex;
+  flex-direction: column;
   align-self: start;
-}
-.xz-cartpanel__head,
-.xz-cartpanel__sum,
-.xz-cartpanel__foot {
-  flex: none;
-}
-.xz-cartpanel__list {
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: calc(var(--cart-row-height) * 5.5);
-  padding: 0;
-}
-:deep(.xz-cartpanel__items) {
-  padding: 0 var(--space-4);
-}
-.xz-cartpanel__item {
-  box-sizing: border-box;
-  flex: none;
-  height: var(--cart-row-height);
-  min-height: var(--cart-row-height);
-}
-.xz-cartpanel__empty {
+  width: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
 }
-</style>
-
-<style scoped>
-.app-cart-hint {
+.pc-cart__head,
+.pc-cart__sum,
+.pc-cart__hint,
+.pc-cart__foot,
+.pc-cart__empty {
   flex: none;
-  padding: 0 var(--space-4);
-  margin: var(--space-1) 0;
+}
+.pc-cart__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 12px 8px 8px var(--cart-pad);
+}
+.pc-cart__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pc-cart__list {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: calc(var(--cart-row) * 5.5);
+}
+:deep(.pc-cart__items) {
+  padding: 0 var(--cart-pad);
+}
+.pc-cart__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  height: var(--cart-row);
+  border-bottom: 1px solid var(--line);
+}
+.pc-cart__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pc-cart__line {
+  min-width: 48px;
+  text-align: right;
+}
+.pc-cart__empty.ant-empty {
+  margin: 0;
+  padding: 24px var(--cart-pad);
+}
+.pc-cart__sum {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px var(--cart-pad);
+  color: var(--ink-muted);
+}
+.pc-cart__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+.pc-cart__row.is-off {
+  color: var(--danger);
+}
+.pc-cart__hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0 var(--cart-pad) 8px;
+  font-size: 12px;
+}
+.pc-cart__muted {
+  color: var(--ink-muted);
+}
+.pc-cart__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px var(--cart-pad) var(--cart-pad);
+  border-top: 1px solid var(--line);
+}
+.pc-cart__total {
+  font-size: 14px;
+  color: var(--ink);
 }
 </style>

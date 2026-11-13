@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
-import { Button, Dialog, Input } from "@waimai/ui";
+import { Button, Dialog, Input } from "../../../components/pc";
 import DataTable from "../../../components/DataTable.vue";
 import { onMounted, ref } from "vue";
 import type { Category } from "@waimai/shared";

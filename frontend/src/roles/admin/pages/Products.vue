@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import BackofficePage from "../../../components/BackofficePage.vue";
 import FilterBar from "../../../components/FilterBar.vue";
-import { Button, Dialog, Input, SearchBar, Tabs, Tag } from "@waimai/ui";
+import {
+  Button,
+  Dialog,
+  Input,
+  SearchBar,
+  Tabs,
+  Tag,
+} from "../../../components/pc";
 import DataTable from "../../../components/DataTable.vue";
 import DataTableMedia from "../../../components/DataTableMedia.vue";
 import Pagination from "../../../components/Pagination.vue";

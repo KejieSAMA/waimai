@@ -17,12 +17,12 @@ pnpm dev
 
 服务默认监听 `0.0.0.0`。PC 端口为 `13599`，手机内部开发端口为 `5174`，API 默认端口为 `3000`。当前电脑的 `3000` 已占用，本地 `.env` 使用 `3001`，开发代理已同步。浏览器统一访问 [用户首页](http://localhost:13599)。局域网设备使用开发电脑的 IP 和 `13599` 端口访问。
 
-| 入口         | PC          | 手机               |
-| ------------ | ----------- | ------------------ |
-| 用户         | `/`         | `/mobile/`         |
-| 商家         | `/merchant` | `/mobile/merchant` |
-| 管理         | `/admin`    | `/mobile/admin`    |
-| 开发组件画廊 | `/__ui`     | `/mobile/__ui`     |
+| 入口         | PC                       | 手机               |
+| ------------ | ------------------------ | ------------------ |
+| 用户         | `/`                      | `/mobile/`         |
+| 商家         | `/merchant`              | `/mobile/merchant` |
+| 管理         | `/admin`                 | `/mobile/admin`    |
+| 开发组件画廊 | `/__ui`（antd 主题预览） | `/mobile/__ui`     |
 
 PC 的 Vite 代理 API、上传文件和整个 `/mobile` 路径。手机 HMR websocket 也经过这个入口。端口被占用时启动会报错，可在 `.env` 修改对应端口。
 
@@ -74,10 +74,11 @@ pnpm test
 | 目录              | 内容                                                   |
 | ----------------- | ------------------------------------------------------ |
 | `design-system`   | 原始只读设计规范                                       |
+| `design-demos`    | 用户端 PC 设计方案 demo（ant-design-vue）              |
 | `packages/tokens` | 原样复制的 token、组件 CSS、本地 Barlow 字体与主题逻辑 |
 | `packages/ui`     | 两端共享的 Vue SFC                                     |
 | `packages/shared` | 类型、状态映射、格式化与可注入传输层的 API 客户端      |
-| `frontend`        | PC 三角色应用                                          |
+| `frontend`        | PC 三角色应用，方案 A 主题 + ant-design-vue 4          |
 | `mobile`          | `/mobile/` 手机三角色应用                              |
 | `backend`         | 鉴权、业务模块、领域状态机、数据库迁移、种子与测试     |
 | `docs`            | 详细规格、计划、决定、检查记录与部署说明               |

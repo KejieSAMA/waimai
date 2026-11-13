@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AccountControls from "../../../common/AccountControls.vue";
-import { Button } from "@waimai/ui";
+import { Button } from "../../../components/pc";
 import PageHeader from "../../../components/PageHeader.vue";
 import InfoList from "../../../components/InfoList.vue";
 import { phoneTail } from "@waimai/shared";

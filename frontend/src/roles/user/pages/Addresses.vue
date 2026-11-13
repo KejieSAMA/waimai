@@ -8,7 +8,7 @@ import {
   ListCell,
   ListCellGroup,
   Dialog,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import { type Address, phoneTail } from "@waimai/shared";
 import { api } from "../../../common/api";
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Select, StoreCard, Tabs } from "@waimai/ui";
+import { Button, Select, StoreCard, Tabs } from "../../../components/pc";
 import Pagination from "../../../components/Pagination.vue";
 
 import { useRouter } from "vue-router";
@@ -23,6 +23,10 @@ const {
 </script>
 <template>
   <div class="app-stack app-store-list">
+    <div class="pc-home-head">
+      <h1 class="pc-home-title">附近商家</h1>
+      <span class="app-muted">共 {{ total }} 家</span>
+    </div>
     <Tabs
       v-model="category"
       variant="chip"
@@ -42,7 +46,7 @@ const {
           { value: 'sales', label: '销量最高' },
           { value: 'minOrder', label: '起送价最低' },
         ]"
-      /><span class="app-muted">商家列表</span>
+      />
     </div>
     <div class="ds-stores">
       <StoreCard
@@ -65,18 +69,31 @@ const {
         @click="router.push('/store/' + store.id)"
       />
     </div>
-    <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
-    <p v-if="error" class="app-error body-sm" role="alert">
-      {{ error
-      }}<Button variant="text" :disabled="pending" @click="load()">重试</Button>
-    </p>
-    <p v-if="categoryError" class="app-error body-sm" role="alert">
-      {{ categoryError
-      }}<Button variant="text" @click="loadCategories">重试分类</Button>
-    </p>
-    <p v-if="!pending && !error && !stores.length" class="app-empty body">
-      暂无符合条件的店铺
-    </p>
+    <a-spin v-if="pending" class="app-empty" tip="加载中" />
+    <a-alert v-if="error" type="error" show-icon :message="error">
+      <template #action
+        ><Button variant="text" size="sm" :disabled="pending" @click="load()"
+          >重试</Button
+        ></template
+      >
+    </a-alert>
+    <a-alert
+      v-if="categoryError"
+      type="error"
+      show-icon
+      :message="categoryError"
+    >
+      <template #action
+        ><Button variant="text" size="sm" @click="loadCategories"
+          >重试分类</Button
+        ></template
+      >
+    </a-alert>
+    <a-empty
+      v-if="!pending && !error && !stores.length"
+      class="app-empty"
+      description="暂无符合条件的店铺"
+    />
     <Pagination
       v-model="page"
       class="app-home-pagination"
@@ -88,6 +105,16 @@ const {
 <style scoped>
 .app-store-list {
   padding-bottom: calc(var(--size-button-sm) + var(--space-6));
+}
+.pc-home-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.pc-home-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
 }
 .app-home-pagination {
   position: fixed;

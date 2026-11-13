@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Button, ScrollArea, Switch, CartSyncNotice } from "@waimai/ui";
+import { ScrollArea } from "@waimai/ui";
+import { Button, Switch, CartSyncNotice } from "../components/pc";
 import DesktopShell from "../components/DesktopShell.vue";
 import SiteHeader from "../components/SiteHeader.vue";
 import { computed, watch, ref, onMounted, onBeforeUnmount } from "vue";

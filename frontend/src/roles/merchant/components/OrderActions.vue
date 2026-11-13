@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button } from "@waimai/ui";
+import { Button } from "../../../components/pc";
 import type { Order } from "@waimai/shared";
 defineProps<{ order: Order; disabled?: boolean }>();
 const emit = defineEmits<{ act: [id: string, action: string] }>();

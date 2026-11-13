@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch, onMounted, ref } from "vue";
 import { useRouter, useRoute, isNavigationFailure } from "vue-router";
+import { ScrollArea } from "@waimai/ui";
 import {
   Button,
   Input,
@@ -10,8 +11,7 @@ import {
   CartItems,
   CheckoutFees,
   CheckoutTotal,
-  ScrollArea,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import { useCheckout, money } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";

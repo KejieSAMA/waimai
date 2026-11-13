@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Dialog, OrderCard, Tabs } from "@waimai/ui";
+import { Button, Dialog, OrderCard, Tabs } from "../../../components/pc";
 import { useRouter } from "vue-router";
 import { orderTime, userOrderTabs, useUserOrders } from "@waimai/shared";
 import { api } from "../../../common/api";
@@ -57,9 +57,7 @@ const {
       @close="replacement = undefined"
     >
       再来一单将替换
-      {{
-        replacement?.store?.name || "该店铺"
-      }}
+      {{ replacement?.store?.name || "该店铺" }}
       的已选商品，其他店铺购物车不受影响。
       <p v-if="error" class="app-error body-sm" role="alert">{{ error }}</p>
       <template #actions

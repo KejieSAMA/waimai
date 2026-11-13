@@ -8,7 +8,7 @@ import {
   StatCard,
   Switch,
   Tag,
-} from "@waimai/ui";
+} from "../../../components/pc";
 import {
   merchantStore,
   loadMerchantStore,
