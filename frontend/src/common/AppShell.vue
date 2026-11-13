@@ -100,6 +100,7 @@ const menus: Record<string, NavItem[]> = {
     { key: "/merchant/dashboard", label: "工作台", icon: "grid" },
     { key: "/merchant/orders", label: "订单", icon: "order" },
     { key: "/merchant/products", label: "商品管理", icon: "box" },
+    { key: "/merchant/reviews", label: "评价管理", icon: "star" },
     { key: "/merchant/store", label: "店铺设置", icon: "store" },
     { key: "/merchant/me", label: "我的", icon: "user" },
   ],
@@ -133,8 +134,8 @@ const nav = computed(() =>
 const groups = computed<NavGroup[]>(() =>
   role.value === "merchant"
     ? [
-        { items: nav.value.slice(0, 3) },
-        { title: "店铺", items: nav.value.slice(3) },
+        { items: nav.value.slice(0, 4) },
+        { title: "店铺", items: nav.value.slice(4) },
       ]
     : role.value === "admin"
       ? [

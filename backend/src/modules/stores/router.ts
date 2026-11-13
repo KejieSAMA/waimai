@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
-import { handler, reasonSchema } from "../../http";
+import { handler, reasonSchema, assert } from "../../http";
 import { writableStore } from "../auth/middleware";
 import * as stores from "./service";
 import { publicReviews } from "../orders/service";
+import { promotions, savePromotions } from "./promotions";
 export function registerRouterStores(router: Router) {
   router.get(
     "/public/stores/:id/reviews",
@@ -22,6 +23,31 @@ export function registerRouterStores(router: Router) {
   );
 }
 export function registerMerchantStores(merchant: Router) {
+  merchant.get(
+    "/promotions",
+    handler(async (req) => {
+      const store = await stores.ownStore(req.actor!.id);
+      assert(store, 404, "请先申请入驻");
+      return promotions(store.id);
+    }),
+  );
+  merchant.put(
+    "/promotions",
+    writableStore,
+    handler(async (req) => {
+      const store = await stores.ownStore(req.actor!.id);
+      assert(store, 404, "请先申请入驻");
+      return savePromotions(
+        {
+          id: req.actor!.id,
+          sessionId: req.sessionId!,
+          version: req.sessionVersion!,
+        },
+        store.id,
+        req.body,
+      );
+    }),
+  );
   merchant.get(
     "/application",
     handler(async (req) => stores.ownStore(req.actor!.id)),

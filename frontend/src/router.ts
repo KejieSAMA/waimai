@@ -19,6 +19,17 @@ export function makeRouter() {
         component: () => import("./common/Access.vue"),
         meta: { protected: true, title: "身份权限" },
       },
+      {
+        path: "/account/profile",
+        component: () => import("./common/Profile.vue"),
+        meta: {
+          protected: true,
+          accountArea: true,
+          accountNav: "/me",
+          containedScroll: true,
+          title: "个人资料",
+        },
+      },
       ...user,
       ...merchant,
       ...admin,

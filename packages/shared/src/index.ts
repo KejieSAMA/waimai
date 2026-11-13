@@ -217,6 +217,8 @@ export function auditActionLabel(action: string): string {
         "force-off": "强制下架",
         "refund-approve": "同意退款",
         "refund-reject": "拒绝退款",
+        "review-reply": "回复评价",
+        "promotion-update": "修改满减",
       } as Record<string, string>
     )[action] ?? "处理记录"
   );
@@ -294,3 +296,6 @@ export * from "./dishGroups";
 export * from "./publicStores";
 export * from "./storeEditor";
 export * from "./merchantOrders";
+
+export * from "./profileEditor";
+export * from "./merchantManagement";

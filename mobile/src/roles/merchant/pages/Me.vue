@@ -44,6 +44,13 @@ const { store, pending, error, entry, load } = useMerchantProfile(() =>
           @click="router.push(entry.key)"
       /></ListCellGroup>
     </section>
+    <ListCellGroup
+      ><ListCell
+        title="评价管理"
+        icon="star"
+        arrow
+        @click="router.push('/merchant/reviews')"
+    /></ListCellGroup>
   </MyPage>
 </template>
 <style scoped>

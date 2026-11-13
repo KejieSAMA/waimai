@@ -62,7 +62,7 @@ const todos = computed(() =>
           label: "新订单",
           count: stats.value.pending,
           icon: "order" as const,
-          path: "/merchant/orders",
+          path: "/merchant/orders?status=PENDING",
         },
         {
           label: "退款申请",
@@ -75,6 +75,12 @@ const todos = computed(() =>
           count: stats.value.lowStock,
           icon: "box" as const,
           path: "/merchant/products?stock=low",
+        },
+        {
+          label: "差评待回复",
+          count: stats.value.badReviews,
+          icon: "star" as const,
+          path: "/merchant/reviews?rating=bad&reply=pending",
         },
       ]
     : [],

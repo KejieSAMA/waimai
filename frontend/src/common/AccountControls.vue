@@ -31,6 +31,9 @@ async function switchTo(role: Role) {
   <section class="app-card app-stack" aria-label="账号安全与身份">
     <p class="body-sm">账号 {{ auth.account?.username }}</p>
     <div class="app-row">
+      <Button variant="outline" @click="router.push('/account/profile')"
+        >编辑资料</Button
+      >
       <Button
         variant="outline"
         :disabled="pending"

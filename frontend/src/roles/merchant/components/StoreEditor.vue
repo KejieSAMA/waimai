@@ -259,6 +259,13 @@ onBeforeUnmount(() => {
           </section>
           <section v-else-if="editor.section === 'business'" class="app-stack">
             <h2 class="title">营业配送</h2>
+            <a
+              v-if="!application"
+              class="store-editor__upload body-sm"
+              href="/merchant/promotions"
+              @click.prevent="router.push('/merchant/promotions')"
+              >满减配置</a
+            >
             <div v-if="!application && current" class="app-row body-md">
               <span>营业状态</span
               ><Switch
