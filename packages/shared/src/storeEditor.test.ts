@@ -139,17 +139,36 @@ describe("店铺入口与分组草稿", () => {
     expect(await editor.save()).toBe(false);
     expect(editor.section.value).toBe("business");
     editor.form.fee = "2";
-    editor.form.licenseImage = "";
+    editor.form.licenseExpireAt = "2028-02-31";
     expect(await editor.save()).toBe(false);
     expect(editor.section.value).toBe("qualification");
-    editor.form.licenseImage = store.licenseImage!;
+    editor.form.licenseExpireAt = "2028-01-01";
+    editor.form.licenseImage = "";
     request.mockResolvedValueOnce({ ...store, status: "PENDING" });
     expect(await editor.save()).toBe(true);
     expect(request.mock.lastCall![0]).toBe("/merchant/application");
     expect(request.mock.lastCall![1].body).toMatchObject({
-      licenseImage: store.licenseImage,
+      licenseImage: "",
+      licenseExpireAt: null,
     });
   });
+  it.each(["none", "license", "permit"])(
+    "证照选填：%s 组合可以提交，空日期明确清除，不携带孤立有效期",
+    (kind) => {
+      const form = storeDraft(store);
+      form.licenseImage = kind === "license" ? store.licenseImage! : "";
+      form.foodPermitImage = kind === "permit" ? store.foodPermitImage! : "";
+      form.licenseExpireAt = "";
+      form.permitExpireAt = kind === "permit" ? "" : "2028-01-01";
+      expect(storeDraftIssue(form, true)).toBeNull();
+      expect(storeDraftPayload(form, true)).toMatchObject({
+        licenseImage: form.licenseImage,
+        foodPermitImage: form.foodPermitImage,
+        licenseExpireAt: null,
+        permitExpireAt: null,
+      });
+    },
+  );
   it("无店铺可填写申请，加载失败可重试，离开后不写回旧加载", async () => {
     const { editor, loader, scope } = setup(true, null);
     loader.mockResolvedValueOnce(undefined);

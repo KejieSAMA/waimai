@@ -1,6 +1,10 @@
 import { computed, onMounted, onScopeDispose, reactive, ref } from "vue";
 import type { Category, Store } from "./index";
 import type { CheckoutRequest } from "./cart";
+export const qualificationDocuments = [
+  { key: "licenseImage", date: "licenseExpireAt", title: "营业执照" },
+  { key: "foodPermitImage", date: "permitExpireAt", title: "食品经营许可证" },
+] as const;
 export function merchantStoreEntry(store: Store | null | undefined) {
   if (store === undefined) return null;
   return !store || ["PENDING", "REJECTED"].includes(store.status)
@@ -78,11 +82,21 @@ export function storeDraftIssue(form: StoreDraft, application: boolean) {
       section: "business",
       message: "起送价应在 0–10000 元，配送费应在 0–1000 元，最多两位小数",
     };
-  if (application && (!form.licenseImage || !form.foodPermitImage))
-    return {
-      section: "qualification",
-      message: "请上传营业执照及食品经营许可证",
-    };
+  if (application)
+    for (const doc of qualificationDocuments) {
+      const date = form[doc.date];
+      if (
+        form[doc.key] &&
+        date &&
+        (!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+          !Number.isFinite(Date.parse(date)) ||
+          new Date(date).toISOString().slice(0, 10) !== date)
+      )
+        return {
+          section: "qualification",
+          message: `请填写有效的${doc.title}有效期`,
+        };
+    }
   return null;
 }
 export function storeDraftPayload(form: StoreDraft, application: boolean) {
@@ -103,8 +117,10 @@ export function storeDraftPayload(form: StoreDraft, application: boolean) {
       ? {
           licenseImage,
           foodPermitImage,
-          ...(licenseExpireAt ? { licenseExpireAt } : {}),
-          ...(permitExpireAt ? { permitExpireAt } : {}),
+          licenseExpireAt:
+            licenseImage && licenseExpireAt ? licenseExpireAt : null,
+          permitExpireAt:
+            foodPermitImage && permitExpireAt ? permitExpireAt : null,
         }
       : {}),
   };

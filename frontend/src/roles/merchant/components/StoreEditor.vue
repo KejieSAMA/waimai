@@ -17,11 +17,13 @@ import {
   Switch,
   Tag,
   Thumb,
+  QualificationCard,
 } from "@waimai/ui";
 import {
   merchantStoreRedirect,
   storeStatuses,
   useStoreEditor,
+  qualificationDocuments as documents,
 } from "@waimai/shared";
 import { api, upload } from "../../../common/api";
 import { useAuth } from "../../../common/auth";
@@ -33,10 +35,6 @@ import {
 } from "../../../common/merchantStatus";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
 import BackofficePage from "../../../components/BackofficePage.vue";
-const documents = [
-  { key: "licenseImage", date: "licenseExpireAt", title: "营业执照" },
-  { key: "foodPermitImage", date: "permitExpireAt", title: "食品经营许可证" },
-] as const;
 const props = defineProps<{ application: boolean }>();
 const route = useRoute(),
   router = useRouter(),
@@ -60,6 +58,7 @@ const locked = computed(
 );
 const statusPending = ref(false),
   notice = ref("");
+const uploadingKey = ref("");
 watch([() => merchantStore.value?.status, () => editor.loading], () => {
   if (editor.loading || (editor.error && !editor.store)) return;
   const target = merchantStoreRedirect(merchantStore.value, route.path);
@@ -71,8 +70,16 @@ async function image(
 ) {
   const input = event.target as HTMLInputElement,
     file = input.files?.[0];
+  await imageFile(file, key);
+  input.value = "";
+}
+async function imageFile(
+  file: File | undefined,
+  key: "logo" | "licenseImage" | "foodPermitImage",
+) {
   if (!file || locked.value) return;
   editor.uploading = true;
+  uploadingKey.value = key;
   editor.error = "";
   try {
     editor.form[key] = await upload(
@@ -84,7 +91,7 @@ async function image(
     editor.error = cause instanceof Error ? cause.message : "上传失败";
   } finally {
     editor.uploading = false;
-    input.value = "";
+    uploadingKey.value = "";
   }
 }
 async function save() {
@@ -200,7 +207,7 @@ onBeforeUnmount(() => {
         novalidate
         @submit.prevent="save"
       >
-        <fieldset :disabled="locked">
+        <fieldset :disabled="locked && editor.section !== 'qualification'">
           <section v-if="editor.section === 'base'" class="app-stack">
             <h2 class="title">基础信息</h2>
             <div class="app-row">
@@ -297,36 +304,34 @@ onBeforeUnmount(() => {
           </section>
           <section v-else class="app-stack">
             <h2 class="title">资质信息</h2>
+            <p v-if="application" class="body-sm app-muted">
+              证照为选填，不上传也可提交审核。支持 JPG、PNG、WebP，单张不超过
+              5MB。
+            </p>
             <p v-if="!application" class="body-sm app-muted">
               已提交的资质仅供查看，暂不提供在线变更
             </p>
-            <template v-for="doc in documents" :key="doc.key">
-              <h3 class="title-sm">{{ doc.title }}</h3>
-              <ProtectedImage
-                v-if="editor.form[doc.key]"
-                role="MERCHANT"
-                :src="editor.form[doc.key]"
-                :alt="doc.title"
-                class="store-editor__certificate"
-              />
-              <p v-else class="body-sm app-muted">暂无证照</p>
-              <template v-if="application"
-                ><label class="store-editor__upload body-sm"
-                  >上传证照<input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    :disabled="locked"
-                    @change="image($event, doc.key)" /></label
-                ><Input
-                  v-model="editor.form[doc.date]"
-                  type="date"
-                  label="有效期至"
-              /></template>
-              <p v-else class="body-sm app-muted">
-                有效期至
-                {{ editor.form[doc.date] || "未提供" }}
-              </p>
-            </template>
+            <div class="store-editor__documents">
+              <QualificationCard
+                v-for="doc in documents"
+                :key="doc.key"
+                v-model:expires="editor.form[doc.date]"
+                :title="doc.title"
+                :has-image="!!editor.form[doc.key]"
+                :editable="application"
+                :disabled="locked"
+                :uploading="uploadingKey === doc.key"
+                @select="imageFile($event, doc.key)"
+                @remove="editor.form[doc.key] = ''"
+              >
+                <template #preview
+                  ><ProtectedImage
+                    role="MERCHANT"
+                    :src="editor.form[doc.key]"
+                    :alt="doc.title"
+                /></template>
+              </QualificationCard>
+            </div>
           </section>
         </fieldset>
       </form>
@@ -451,11 +456,14 @@ onBeforeUnmount(() => {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-.store-editor__certificate {
-  max-width: 100%;
-  max-height: calc(var(--size-thumb) * 2);
-  object-fit: contain;
-  border-radius: var(--radius-md);
+.store-editor__documents {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--size-cart-panel)), 1fr)
+  );
+  gap: var(--space-4);
+  max-width: calc(var(--size-cart-panel) * 3);
 }
 @media (max-width: 767px) {
   .store-editor {

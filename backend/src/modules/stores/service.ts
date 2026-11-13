@@ -140,7 +140,7 @@ export async function saveStore(
   const data = (application ? applicationSchema : storeSchema).parse(body);
   assert(await categoryExists(data.categoryId), 400, "平台类目不存在");
   if (application) {
-    for (const url of [data.licenseImage, data.foodPermitImage])
+    for (const url of [data.licenseImage, data.foodPermitImage].filter(Boolean))
       assert(
         (await privateOwner(url.replace("/uploads/", ""))) === ownerId,
         400,

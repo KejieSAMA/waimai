@@ -19,10 +19,11 @@ export const storeSchema = z.object({
   deliveryFeeCents: z.number().int().min(0).max(100000),
   licenseImage: image.default(""),
   foodPermitImage: image.default(""),
-  licenseExpireAt: z.coerce.date().optional(),
-  permitExpireAt: z.coerce.date().optional(),
+  licenseExpireAt: z.coerce.date().nullable().optional(),
+  permitExpireAt: z.coerce.date().nullable().optional(),
 });
-export const applicationSchema = storeSchema.refine(
-  (v) => !!v.licenseImage && !!v.foodPermitImage,
-  "请上传营业执照及食品经营许可证",
-);
+export const applicationSchema = storeSchema.transform((data) => ({
+  ...data,
+  licenseExpireAt: data.licenseImage ? (data.licenseExpireAt ?? null) : null,
+  permitExpireAt: data.foodPermitImage ? (data.permitExpireAt ?? null) : null,
+}));

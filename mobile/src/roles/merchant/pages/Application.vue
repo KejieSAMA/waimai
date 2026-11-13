@@ -1,12 +1,25 @@
 <script setup lang="ts">
 import PageSlot from "../../../components/PageSlot.vue";
 import ProtectedImage from "../../../common/ProtectedImage.vue";
-import { Button, Input, Select, Tag, Thumb } from "@waimai/ui";
+import {
+  Button,
+  Input,
+  Select,
+  Tag,
+  Thumb,
+  QualificationCard,
+} from "@waimai/ui";
 import { onMounted, reactive, ref } from "vue";
-import { type Store, type Category, storeStatuses } from "@waimai/shared";
+import {
+  type Store,
+  type Category,
+  storeStatuses,
+  qualificationDocuments,
+} from "@waimai/shared";
 import { api, upload } from "../../../common/api";
 import { run, busy } from "../../../common/feedback";
 const application = true;
+const uploadingKey = ref("");
 const store = ref<Store | null>(null),
   categories = ref<Category[]>([]);
 const form = reactive({
@@ -47,8 +60,16 @@ async function image(
   event: Event,
   key: "logo" | "licenseImage" | "foodPermitImage",
 ) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (file)
+  const input = event.target as HTMLInputElement;
+  await imageFile(input.files?.[0], key);
+  input.value = "";
+}
+async function imageFile(
+  file: File | undefined,
+  key: "logo" | "licenseImage" | "foodPermitImage",
+) {
+  if (file && !busy.value) {
+    uploadingKey.value = key;
     await run(async () => {
       form[key] = await upload(
         file,
@@ -56,6 +77,8 @@ async function image(
         key === "logo" ? "image" : "certificate",
       );
     });
+    uploadingKey.value = "";
+  }
 }
 async function save() {
   await run(async () => {
@@ -76,12 +99,14 @@ async function save() {
           logo: form.logo,
           licenseImage: form.licenseImage,
           foodPermitImage: form.foodPermitImage,
-          ...(form.licenseExpireAt
-            ? { licenseExpireAt: form.licenseExpireAt }
-            : {}),
-          ...(form.permitExpireAt
-            ? { permitExpireAt: form.permitExpireAt }
-            : {}),
+          licenseExpireAt:
+            form.licenseImage && form.licenseExpireAt
+              ? form.licenseExpireAt
+              : null,
+          permitExpireAt:
+            form.foodPermitImage && form.permitExpireAt
+              ? form.permitExpireAt
+              : null,
         },
       },
       "MERCHANT",
@@ -138,56 +163,55 @@ async function save() {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           @change="image($event, 'logo')" /></label
-      ><Thumb
-        v-if="form.logo"
-        kind="logo"
-        :src="form.logo"
-        :name="form.name"
-      /><template v-if="application"
-        ><label class="app-upload body-sm"
-          >营业执照<input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            @change="image($event, 'licenseImage')" /></label
-        ><ProtectedImage
-          v-if="form.licenseImage"
-          role="MERCHANT"
-          :src="form.licenseImage"
-          alt="营业执照"
-          class="app-image" /><Input
-          v-model="form.licenseExpireAt"
-          type="date"
-          label="营业执照到期日" /><label class="app-upload body-sm"
-          >食品经营许可证<input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            @change="image($event, 'foodPermitImage')" /></label
-        ><ProtectedImage
-          v-if="form.foodPermitImage"
-          role="MERCHANT"
-          :src="form.foodPermitImage"
-          alt="食品经营许可证"
-          class="app-image" /><Input
-          v-model="form.permitExpireAt"
-          type="date"
-          label="许可证到期日" /></template
-      ><PageSlot name="actions"
-        ><div class="sc-full-actions">
-          <Button
-            size="lg"
-            form="mobile-edit-form"
-            type="submit"
-            :disabled="
-              busy ||
-              store?.status === 'FROZEN' ||
-              (application &&
-                !!store &&
-                !['PENDING', 'REJECTED'].includes(store.status))
-            "
-            >{{ application ? "提交审核" : "保存设置" }}</Button
-          >
-        </div></PageSlot
-      >
+      ><Thumb v-if="form.logo" kind="logo" :src="form.logo" :name="form.name" />
     </div>
+    <section class="app-card app-stack">
+      <h2 class="title">资质信息</h2>
+      <p
+        v-if="!store || ['PENDING', 'REJECTED'].includes(store.status)"
+        class="body-sm app-muted"
+      >
+        证照为选填，不上传也可提交审核。支持 JPG、PNG、WebP，单张不超过 5MB。
+      </p>
+      <p v-else class="body-sm app-muted">
+        已提交的资质仅供查看，暂不提供在线变更
+      </p>
+      <QualificationCard
+        v-for="doc in qualificationDocuments"
+        :key="doc.key"
+        v-model:expires="form[doc.date]"
+        :title="doc.title"
+        :has-image="!!form[doc.key]"
+        :editable="!store || ['PENDING', 'REJECTED'].includes(store.status)"
+        :disabled="busy"
+        :uploading="uploadingKey === doc.key"
+        @select="imageFile($event, doc.key)"
+        @remove="form[doc.key] = ''"
+      >
+        <template #preview
+          ><ProtectedImage
+            role="MERCHANT"
+            :src="form[doc.key]"
+            :alt="doc.title"
+        /></template>
+      </QualificationCard>
+    </section>
+    <PageSlot name="actions"
+      ><div class="sc-full-actions">
+        <Button
+          size="lg"
+          form="mobile-edit-form"
+          type="submit"
+          :disabled="
+            busy ||
+            store?.status === 'FROZEN' ||
+            (application &&
+              !!store &&
+              !['PENDING', 'REJECTED'].includes(store.status))
+          "
+          >{{ application ? "提交审核" : "保存设置" }}</Button
+        >
+      </div></PageSlot
+    >
   </form>
 </template>

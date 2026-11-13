@@ -112,7 +112,7 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 商家 `merchant`
 
 - 商家不开放独立注册；统一登录及管理员角色授权见认证接口。
-- `GET|PUT /merchant/application`（入驻资料、证照图片）
+- `GET|PUT /merchant/application`（入驻资料、证照图片）：营业执照、食品经营许可证分别选填，均不上传或只上传一张也能提交待审核；有图片时仍校验本人私有证照归属。有效期选填，null 可清空，移除图片同步清除对应历史有效期；不改变人工审核、冻结和通过后资质只读规则。
 - `GET|PUT /merchant/store`、`PUT /merchant/store/open`（营业 / 休息）
 - `GET|POST|PUT|DELETE /merchant/dish-categories`
 - `GET /merchant/products?status&keyword&categoryId&stock=low|soldout&page`
