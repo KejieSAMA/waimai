@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { DEFAULT_PAGE_SIZE } from "@waimai/shared";
-import { Button, Dialog, OrderCard, Tabs } from "../../../components/pc";
+import { Button, Dialog, Tabs } from "../../../components/pc";
 import { useRouter } from "vue-router";
-import { orderTime, userOrderTabs, useUserOrders } from "@waimai/shared";
+import { userOrderTabs, useUserOrders } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";
 import PageHeader from "../../../components/PageHeader.vue";
 import Pagination from "../../../components/Pagination.vue";
+import UserOrderRow from "../components/UserOrderRow.vue";
+import type { Order } from "@waimai/shared";
+import type { OrderUiAction } from "../orderPresentation";
 const router = useRouter();
 const {
   tab,
@@ -21,36 +24,48 @@ const {
   load,
   reorder,
   actions,
+  loaded,
 } = useUserOrders(api, useCart(), (path) => router.push(path));
+function onAction(order: Order, key: OrderUiAction) {
+  if (key === "reorder")
+    actions(order)
+      .find((a) => a.label === "再来一单")
+      ?.onClick?.();
+  else
+    void router.push(
+      "/orders/" + order.id + (key === "evaluate" ? "#review" : ""),
+    );
+}
 </script>
 <template>
-  <section aria-label="我的订单">
-    <PageHeader title="我的订单" :subtitle="'共 ' + total + ' 单'" />
+  <section class="user-orders" aria-label="我的订单">
+    <PageHeader
+      title="我的订单"
+      :subtitle="loaded ? '共 ' + total + ' 单' : undefined"
+    />
     <Tabs v-model="tab" :items="userOrderTabs" class="ds-tabs" />
-    <div v-if="error" class="app-error body-sm" role="alert">
+    <div v-if="error && !replacement" class="app-error body-sm" role="alert">
       {{ error
       }}<Button variant="text" size="sm" :disabled="pending" @click="load"
         >重试</Button
       >
     </div>
-    <div class="ds-orders" :aria-busy="pending">
-      <OrderCard
+    <p v-if="pending" class="body-sm app-muted" role="status">
+      {{ loaded ? "正在更新订单" : "正在加载订单" }}
+    </p>
+    <div class="user-orders__list" :aria-busy="pending">
+      <UserOrderRow
         v-for="order in list"
         :key="order.id"
-        :title="order.store.name"
-        title-clickable
-        @open="router.push('/orders/' + order.id)"
-        :status="order.status"
-        :items="
-          order.items.map((it) => ({ name: it.nameSnapshot, qty: it.qty }))
-        "
-        :total="order.payCents / 100"
-        :time="orderTime(order.createdAt)"
-        :actions="actions(order)"
+        :order="order"
+        :disabled="pending || reordering"
+        @action="onAction(order, $event)"
       />
     </div>
-    <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
-    <p v-else-if="!list.length && !error" class="app-empty body">暂无订单</p>
+    <a-empty
+      v-if="loaded && !pending && !error && !list.length"
+      description="暂无订单"
+    />
     <Pagination
       v-if="total > DEFAULT_PAGE_SIZE"
       :model-value="page"
@@ -60,6 +75,7 @@ const {
     <Dialog
       variant="modal"
       :open="!!replacement"
+      :close-disabled="reordering"
       title="重新选购"
       @close="replacement = undefined"
     >
@@ -82,3 +98,12 @@ const {
     </Dialog>
   </section>
 </template>
+
+<style scoped>
+.user-orders__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+</style>

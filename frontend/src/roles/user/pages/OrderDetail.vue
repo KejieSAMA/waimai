@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { Button, Dialog, Input, Select, Tag } from "../../../components/pc";
+import { Button, Dialog, Input, Select } from "../../../components/pc";
 import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  orderStatuses,
-  money,
-  phoneTail,
-  time,
-  useUserOrderDetail,
-} from "@waimai/shared";
+import { time, useUserOrderDetail } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { orderActivity } from "../../../common/orderActivity";
 import PageHeader from "../../../components/PageHeader.vue";
 import InfoList from "../../../components/InfoList.vue";
-import DataTable from "../../../components/DataTable.vue";
+import UserOrderGoods from "../components/UserOrderGoods.vue";
+import { orderPresentation, type OrderUiAction } from "../orderPresentation";
+import { usePaymentClock } from "../paymentClock";
+import { useDraftLeave } from "../../../common/draftLeave";
 
 const route = useRoute(),
   router = useRouter();
@@ -54,23 +51,54 @@ watch(
   },
   { flush: "post" },
 );
-const address = computed(() => {
-  try {
-    const value = JSON.parse(order.value?.addressSnapshot ?? "{}");
-    return value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-});
-const canRefund = computed(
-  () =>
-    order.value &&
-    ["PENDING", "PREPARING", "DELIVERING", "PICKUP"].includes(
-      order.value.status,
-    ),
+const view = computed(() =>
+  order.value ? orderPresentation(order.value) : undefined,
 );
+const clock = usePaymentClock(order, orderActivity, load);
+const refundDialog = ref<InstanceType<typeof Dialog>>();
+const copyInput = ref<{ focus(): void; select(): void }>(),
+  copyFallback = ref(false),
+  copyNotice = ref("");
+watch(
+  () => order.value?.id,
+  () => {
+    copyFallback.value = false;
+    copyNotice.value = "";
+  },
+);
+async function copyOrderNo() {
+  const target = order.value?.id,
+    value = order.value?.orderNo;
+  if (!value) return;
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error();
+    await navigator.clipboard.writeText(value);
+    if (order.value?.id === target) copyNotice.value = "已复制订单号";
+  } catch {
+    if (order.value?.id !== target) return;
+    copyFallback.value = true;
+    copyNotice.value = "请选中下方订单号复制";
+    await nextTick();
+    copyInput.value?.focus();
+    copyInput.value?.select();
+  }
+}
+const draftLeave = useDraftLeave(
+  () => refundOpen.value && !!reason.value.trim(),
+  () => processing.value,
+);
+async function onAction(key: OrderUiAction) {
+  if (key === "evaluate") {
+    await router.replace({ hash: "#review" });
+    await nextTick();
+    document.getElementById("review")?.scrollIntoView({ block: "nearest" });
+    document
+      .querySelector<HTMLElement>("#review textarea")
+      ?.focus({ preventScroll: true });
+  } else if (key === "cancel" || key === "complete") confirmation.value = key;
+  else if (key === "refund") refundOpen.value = true;
+  else if (key === "pay" || key === "dispute") await act(key);
+}
 const disabled = computed(() => pending.value || processing.value);
 async function confirm() {
   const action = confirmation.value;
@@ -81,42 +109,12 @@ async function refund() {
 }
 </script>
 <template>
-  <section class="app-stack" aria-label="订单详情" :aria-busy="pending">
-    <PageHeader
-      title="订单详情"
-      back
-      :subtitle="order?.orderNo"
-      @back="router.push('/orders')"
-    >
-      <template v-if="order" #actions>
-        <Button
-          v-if="order.status === 'PENDING_PAY'"
-          :disabled="disabled || paymentExpired"
-          @click="act('pay')"
-          >模拟支付</Button
-        >
-        <Button
-          v-if="['PENDING_PAY', 'PENDING'].includes(order.status)"
-          variant="outline"
-          :disabled="disabled"
-          @click="confirmation = 'cancel'"
-          >取消订单</Button
-        >
-        <Button
-          v-if="['DELIVERING', 'PICKUP'].includes(order.status)"
-          :disabled="disabled"
-          @click="confirmation = 'complete'"
-          >确认完成</Button
-        >
-        <Button
-          v-if="canRefund"
-          variant="danger-outline"
-          :disabled="disabled"
-          @click="refundOpen = true"
-          >申请退款</Button
-        >
-      </template>
-    </PageHeader>
+  <section
+    class="app-stack order-detail"
+    aria-label="订单详情"
+    :aria-busy="pending"
+  >
+    <PageHeader title="订单详情" back @back="router.push('/orders')" />
     <div
       v-if="error && !refundOpen && !confirmation"
       class="app-error body-sm"
@@ -131,83 +129,108 @@ async function refund() {
       加载中
     </p>
     <template v-if="order">
-      <section class="app-card app-stack" aria-label="订单状态">
-        <div class="app-row">
-          <h2 class="title-sm app-section-title">{{ order.store.name }}</h2>
-          <Tag :tone="orderStatuses[order.status].tone">{{
-            orderStatuses[order.status].label
-          }}</Tag>
+      <section v-if="view" class="app-card order-status" aria-label="订单状态">
+        <div class="order-status__head">
+          <div>
+            <h1
+              class="title-lg"
+              aria-live="polite"
+              :class="'order-status__title--' + view.state.tone"
+            >
+              {{ view.state.label }}
+            </h1>
+            <p class="body-md app-muted">{{ view.description }}</p>
+            <p
+              v-if="order.status === 'PENDING_PAY'"
+              class="body-sm order-status__deadline"
+              role="timer"
+              aria-live="off"
+            >
+              {{
+                clock.expired.value
+                  ? "支付时间已到，请核对订单状态"
+                  : clock.text.value
+                    ? "剩余 " +
+                      clock.text.value +
+                      " · 截止 " +
+                      time(order.paymentExpiresAt!)
+                    : "支付截止时间暂不可用"
+              }}
+              · 当前为模拟支付
+            </p>
+          </div>
+          <div class="order-status__actions">
+            <Button
+              v-for="item in view.detailActions"
+              :key="item.key"
+              :variant="item.primary ? 'primary' : 'outline'"
+              :disabled="
+                disabled ||
+                (item.key === 'pay' && (paymentExpired || clock.expired.value))
+              "
+              @click="onAction(item.key)"
+              >{{ item.label }}</Button
+            ><span
+              v-if="order.status === 'DONE' && reviewed"
+              class="body-sm app-muted"
+              >评价已提交</span
+            >
+          </div>
         </div>
-        <p v-if="order.status === 'REFUNDING'" class="body-md app-muted">
-          {{
-            order.disputed
-              ? "平台正在处理退款申请"
-              : order.refundRejected
-                ? "商家已拒绝退款，可申请平台介入"
-                : "等待商家处理退款申请"
-          }}
-        </p>
-        <InfoList
-          :items="[
-            { label: '下单时间', value: time(order.createdAt) },
-            {
-              label: '配送方式',
-              value: order.type === 'PICKUP' ? '到店自提' : '外卖配送',
-            },
-            ...(order.type === 'DELIVERY'
-              ? [
-                  {
-                    label: '收货人',
-                    value:
-                      String(address.contact ?? '') +
-                      ' · ' +
-                      phoneTail(String(address.phone ?? '')),
-                  },
-                  { label: '收货地址', value: address.detail ?? '—' },
-                ]
-              : [{ label: '自提地址', value: order.store.address }]),
-            { label: '订单备注', value: order.note || '无' },
-            ...(order.refundReason
-              ? [{ label: '退款原因', value: order.refundReason }]
-              : []),
-          ]"
+        <a-steps
+          v-if="view.steps.length"
+          :items="view.steps"
+          :current="view.progress"
+          :status="order.status === 'DONE' ? 'finish' : 'process'"
+          size="small"
+          class="order-status__steps order-status__steps--wide"
         />
-        <div v-if="order.refundRejected && !order.disputed" class="app-row">
-          <Button variant="outline" :disabled="disabled" @click="act('dispute')"
-            >申请介入</Button
-          >
-        </div>
+        <a-steps
+          v-if="view.steps.length"
+          :items="view.steps"
+          :current="view.progress"
+          :status="order.status === 'DONE' ? 'finish' : 'process'"
+          size="small"
+          direction="vertical"
+          class="order-status__steps order-status__steps--compact"
+        />
+        <p
+          v-if="order.status === 'REFUNDING' && order.refundReason"
+          class="body-sm order-status__reason"
+        >
+          退款原因：{{ order.refundReason }}
+        </p>
       </section>
-      <DataTable
-        :columns="[
-          { key: 'nameSnapshot', title: '商品' },
-          { key: 'price', title: '单价', align: 'right', num: true },
-          { key: 'qty', title: '数量', align: 'right', num: true },
-          { key: 'subtotal', title: '小计', align: 'right', num: true },
-        ]"
-        :rows="order.items"
-      >
-        <template #price="{ row }">{{
-          money(row.priceCentsSnapshot)
-        }}</template>
-        <template #subtotal="{ row }">{{
-          row.lineTotalCents == null ? "—" : money(row.lineTotalCents)
-        }}</template>
-        <template #footer>
-          <InfoList
-            :items="[
-              { label: '商品小计', value: money(order.itemsCents) },
-              { label: '配送费', value: money(order.deliveryFeeCents) },
-              {
-                label: '满减优惠',
-                value:
-                  (order.discountCents ? '-' : '') + money(order.discountCents),
-              },
-              { label: '实付金额', value: money(order.payCents) },
-            ]"
-          />
-        </template>
-      </DataTable>
+      <div class="order-detail__columns">
+        <UserOrderGoods :order="order" />
+        <aside class="order-detail__aside">
+          <section class="app-card order-detail__info">
+            <h2 class="title-sm">配送信息</h2>
+            <InfoList v-if="view" :items="view.deliveryInfo" />
+          </section>
+          <section class="app-card order-detail__info">
+            <h2 class="title-sm">订单资料</h2>
+            <p class="caption app-muted">订单编号</p>
+            <p class="body-sm order-detail__number">{{ order.orderNo }}</p>
+            <Button variant="text" size="sm" @click="copyOrderNo"
+              >复制编号</Button
+            >
+            <p v-if="copyNotice" class="caption app-muted" role="status">
+              {{ copyNotice }}
+            </p>
+            <a-input
+              v-if="copyFallback"
+              ref="copyInput"
+              :value="order.orderNo"
+              readonly
+              aria-label="订单编号，可选中复制"
+              @focus="copyInput?.select()"
+            /><InfoList
+              :items="[{ label: '下单时间', value: time(order.createdAt) }]"
+            />
+          </section>
+        </aside>
+      </div>
       <form
         id="review"
         v-if="order.status === 'DONE' && !reviewed"
@@ -241,7 +264,11 @@ async function refund() {
     </template>
     <Dialog
       variant="modal"
+      ref="refundDialog"
       :open="refundOpen"
+      :close-disabled="processing"
+      :confirm-discard="true"
+      :dirty="!!reason.trim()"
       title="申请退款"
       @close="!processing && (refundOpen = false)"
     >
@@ -260,7 +287,7 @@ async function refund() {
         <Button
           variant="outline"
           :disabled="processing"
-          @click="refundOpen = false"
+          @click="refundDialog?.close()"
           >返回</Button
         >
         <Button
@@ -275,6 +302,7 @@ async function refund() {
     <Dialog
       variant="modal"
       :open="!!confirmation"
+      :close-disabled="processing"
       :title="confirmation === 'cancel' ? '取消订单' : '确认完成'"
       @close="!processing && (confirmation = undefined)"
     >
@@ -301,10 +329,113 @@ async function refund() {
         >
       </template>
     </Dialog>
+    <Dialog
+      :open="draftLeave.open.value"
+      title="放弃修改"
+      @close="draftLeave.choose(false)"
+      ><p>离开将放弃尚未提交的内容。</p>
+      <template #actions
+        ><Button variant="outline" @click="draftLeave.choose(false)"
+          >继续编辑</Button
+        ><Button variant="danger" @click="draftLeave.choose(true)"
+          >放弃修改</Button
+        ></template
+      ></Dialog
+    >
   </section>
 </template>
 <style scoped>
-.app-section-title {
+.order-status__title--brand {
+  color: var(--brand-text);
+}
+.order-status__title--info {
+  color: var(--info);
+}
+.order-status__title--success {
+  color: var(--success);
+}
+.order-status__title--warning {
+  color: var(--warning);
+}
+.order-status__title--danger {
+  color: var(--danger);
+}
+.order-detail {
+  container: order-detail / inline-size;
+}
+.order-status__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+.order-status h1 {
+  margin: 0 0 var(--space-2);
+}
+.order-status p {
   margin: 0;
+}
+.order-status__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.order-status__deadline {
+  margin-top: var(--space-3) !important;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}
+.order-status__steps {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.order-status__reason {
+  margin-top: var(--space-3) !important;
+  overflow-wrap: anywhere;
+}
+.order-detail__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--size-cart-panel);
+  gap: var(--space-4);
+  align-items: start;
+}
+.order-detail__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.order-detail__info h2 {
+  margin: 0 0 var(--space-4);
+}
+.order-detail__info :deep(.ant-descriptions-item-content) {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.order-detail__number {
+  overflow-wrap: anywhere;
+  user-select: text;
+  margin: var(--space-1) 0;
+}
+.order-detail__info > p {
+  margin-bottom: var(--space-2);
+}
+@container order-detail (max-width:879px) {
+  .order-detail__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.order-status__steps--compact {
+  display: none;
+}
+@container order-detail (max-width:559px) {
+  .order-status__steps--wide {
+    display: none;
+  }
+  .order-status__steps--compact {
+    display: flex;
+  }
 }
 </style>
