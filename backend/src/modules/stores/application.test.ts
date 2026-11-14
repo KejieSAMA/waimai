@@ -172,3 +172,124 @@ describe("入驻资质选填", () => {
     expect((await apply(a.token, a.body)).status).toBe(403);
   });
 });
+
+describe("店铺可见状态", () => {
+  const visibility = (token: string, body: object) =>
+    request(app)
+      .put("/api/v1/merchant/store/visibility")
+      .auth(token, { type: "bearer" })
+      .send(body);
+  it("默认开启，隐藏与营业独立，公开列表、详情、评价及访问登记不泄漏隐藏店铺", async () => {
+    const f = await fixture();
+    await apply(f.token, f.body);
+    const store = await db.store.update({
+      where: { ownerId: f.user.id },
+      data: { status: "OPEN" },
+    });
+    expect(store.visible).toBe(true);
+    const hidden = await visibility(f.token, { visible: false });
+    expect(hidden.status).toBe(200);
+    expect(hidden.body.data).toMatchObject({ visible: false, status: "OPEN" });
+    for (const sort of ["default", "sales", "minOrder"]) {
+      const list = await request(app).get("/api/v1/public/stores?sort=" + sort);
+      expect(
+        list.body.data.list.some((s: { id: string }) => s.id === store.id),
+      ).toBe(false);
+    }
+    for (const suffix of ["", "/reviews"]) {
+      expect(
+        (await request(app).get("/api/v1/public/stores/" + store.id + suffix))
+          .status,
+      ).toBe(404);
+    }
+    expect(
+      (
+        await request(app)
+          .post("/api/v1/public/stores/" + store.id + "/visits")
+          .send({})
+      ).status,
+    ).toBe(404);
+    const stores = await import("./service");
+    await expect(stores.requireOpenStore(store.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(
+      (
+        await request(app)
+          .get("/api/v1/merchant/store")
+          .auth(f.token, { type: "bearer" })
+      ).body.data.visible,
+    ).toBe(false);
+    expect(
+      (await visibility(f.token, { visible: true })).body.data.status,
+    ).toBe("OPEN");
+    await request(app)
+      .put("/api/v1/merchant/store/open")
+      .auth(f.token, { type: "bearer" })
+      .send({ open: false });
+    expect(
+      (await visibility(f.token, { visible: false })).body.data.status,
+    ).toBe("CLOSED");
+    expect(
+      (await visibility(f.token, { visible: true })).body.data.status,
+    ).toBe("CLOSED");
+    expect(
+      (await request(app).get("/api/v1/public/stores/" + store.id)).status,
+    ).toBe(200);
+  });
+  it("切换不覆盖基础草稿、重复请求不重复审计，设置保存不覆盖可见状态", async () => {
+    const f = await fixture();
+    await apply(f.token, f.body);
+    const store = await db.store.update({
+      where: { ownerId: f.user.id },
+      data: { status: "CLOSED" },
+    });
+    await visibility(f.token, { visible: false });
+    await visibility(f.token, { visible: false });
+    expect(
+      await db.auditLog.count({
+        where: { targetId: store.id, action: "store-visibility" },
+      }),
+    ).toBe(1);
+    const result = await request(app)
+      .put("/api/v1/merchant/store")
+      .auth(f.token, { type: "bearer" })
+      .send({ ...f.body, notice: "修改公告" });
+    expect(result.status).toBe(200);
+    expect(result.body.data).toMatchObject({
+      visible: false,
+      notice: "修改公告",
+    });
+  });
+  it("只操作本人已通过店铺，拒绝冻结、未审核、越权字段及游客", async () => {
+    const f = await fixture(),
+      other = await fixture();
+    await apply(f.token, f.body);
+    await apply(other.token, other.body);
+    expect((await visibility(f.token, { visible: false })).status).toBe(403);
+    const store = await db.store.update({
+      where: { ownerId: f.user.id },
+      data: { status: "CLOSED" },
+    });
+    expect(
+      (await visibility(f.token, { visible: false, storeId: "other" })).status,
+    ).toBe(400);
+    await visibility(f.token, { visible: false });
+    expect(
+      (await db.store.findUniqueOrThrow({ where: { ownerId: other.user.id } }))
+        .visible,
+    ).toBe(true);
+    await db.store.update({
+      where: { id: store.id },
+      data: { status: "FROZEN" },
+    });
+    expect((await visibility(f.token, { visible: true })).status).toBe(403);
+    expect(
+      (
+        await request(app)
+          .put("/api/v1/merchant/store/visibility")
+          .send({ visible: false })
+      ).status,
+    ).toBe(401);
+  });
+});

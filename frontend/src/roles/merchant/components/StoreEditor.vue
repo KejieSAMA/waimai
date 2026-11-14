@@ -6,7 +6,6 @@ import {
   Dialog,
   Input,
   Select,
-  Switch,
   Tag,
   Thumb,
   QualificationCard,
@@ -111,21 +110,26 @@ async function save() {
     merchantStoreBusy.value = false;
   }
 }
+async function setVisibility(visible: boolean) {
+  await setStatus("visibility", { visible });
+}
 async function setOpen(open: boolean) {
+  await setStatus("open", { open });
+}
+async function setStatus(
+  kind: "open" | "visibility",
+  body: { open?: boolean; visible?: boolean },
+) {
   if (locked.value || statusPending.value) return;
   statusPending.value = true;
   merchantStoreBusy.value = true;
   editor.error = "";
   try {
     updateMerchantStore(
-      await api(
-        "/merchant/store/open",
-        { method: "PUT", body: { open } },
-        "MERCHANT",
-      ),
+      await api("/merchant/store/" + kind, { method: "PUT", body }, "MERCHANT"),
     );
   } catch (cause) {
-    editor.error = cause instanceof Error ? cause.message : "营业状态更新失败";
+    editor.error = cause instanceof Error ? cause.message : "状态更新失败";
   } finally {
     statusPending.value = false;
     merchantStoreBusy.value = false;
@@ -264,21 +268,31 @@ function keepEditing() {
           </section>
           <section v-else-if="editor.section === 'business'" class="app-stack">
             <h2 class="title">营业配送</h2>
-            <a
-              v-if="!application"
-              class="store-editor__upload body-sm"
-              href="/merchant/promotions"
-              @click.prevent="router.push('/merchant/promotions')"
-              >满减配置</a
+            <div
+              v-if="!application && current"
+              class="store-editor__status-row body-md"
             >
-            <div v-if="!application && current" class="app-row body-md">
-              <span>营业状态</span
-              ><Switch
-                :model-value="current.status === 'OPEN'"
-                :disabled="locked || statusPending"
-                aria-label="营业状态"
-                @update:model-value="setOpen"
-              /><span class="body-sm app-muted">即时生效，不随表单保存</span>
+              <label class="app-row"
+                ><span>营业状态</span
+                ><a-switch
+                  :checked="current.status === 'OPEN'"
+                  :disabled="locked || statusPending"
+                  aria-label="营业状态"
+                  @change="setOpen($event === true)"
+              /></label>
+              <label class="app-row"
+                ><span>可见状态</span
+                ><a-switch
+                  :checked="current.visible !== false"
+                  :disabled="locked || statusPending"
+                  aria-label="可见状态"
+                  @change="setVisibility($event === true)"
+              /></label>
+              <RouterLink
+                class="store-editor__upload body-sm"
+                to="/merchant/promotions"
+                >满减配置</RouterLink
+              >
             </div>
             <Input
               name="openHours"
@@ -427,6 +441,12 @@ function keepEditing() {
   >
 </template>
 <style scoped>
+.store-editor__status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
 .store-editor__identity {
   display: flex;
   align-items: center;

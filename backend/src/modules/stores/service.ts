@@ -21,7 +21,7 @@ import { categoryExists } from "../categories/service";
 import { storeSchema, applicationSchema, managedStoreSchema } from "./schema";
 export async function visibleStore(id: string) {
   const store = await db.store.findFirst({
-    where: { id, status: { in: ["OPEN", "CLOSED"] } },
+    where: { id, visible: true, status: { in: ["OPEN", "CLOSED"] } },
     select: { id: true, ownerId: true },
   });
   assert(store, 404, "店铺不存在");
@@ -71,7 +71,7 @@ export const ownStore = async (ownerId: string) => {
 export const cartStore = (id: string, tx: Prisma.TransactionClient = db) =>
   tx.store.findUnique({
     where: { id },
-    select: { id: true, name: true, logo: true, status: true },
+    select: { id: true, name: true, logo: true, status: true, visible: true },
   });
 export function safeStore<T extends Store>(store: T) {
   const {
@@ -99,7 +99,7 @@ export async function requireOpenStore(
     where: { id },
     include: { promotions: true },
   });
-  assert(store?.status === "OPEN", 409, "店铺当前无法接单");
+  assert(store?.status === "OPEN" && store.visible, 409, "店铺当前无法接单");
   return store;
 }
 export async function storeList(query: Record<string, unknown>, admin = false) {
@@ -112,7 +112,7 @@ export async function storeList(query: Record<string, unknown>, admin = false) {
       ? { status }
       : admin
         ? {}
-        : { status: { in: ["OPEN", "CLOSED"] } }),
+        : { visible: true, status: { in: ["OPEN", "CLOSED"] } }),
     categoryId,
     city,
     ...(p.keyword ? { name: { contains: p.keyword } } : {}),
@@ -213,7 +213,8 @@ export async function storeDetail(id: string, admin = false) {
     },
   });
   assert(
-    store && (admin || ["OPEN", "CLOSED"].includes(store.status)),
+    store &&
+      (admin || (store.visible && ["OPEN", "CLOSED"].includes(store.status))),
     404,
     "店铺不存在",
   );
@@ -386,3 +387,29 @@ export const updateStoreRating = (
   id: string,
   rating: number,
 ) => tx.store.update({ where: { id }, data: { rating } });
+
+export async function setVisibility(ownerId: string, visible: boolean) {
+  return db.$transaction(async (tx) => {
+    const old = await tx.store.findUnique({ where: { ownerId } });
+    assert(old, 404, "店铺不存在");
+    assert(
+      ["OPEN", "CLOSED"].includes(old.status),
+      403,
+      "当前店铺状态只允许查看",
+    );
+    if (old.visible === visible) return old;
+    const result = await tx.store.update({
+      where: { id: old.id },
+      data: { visible },
+    });
+    await recordAudit(
+      tx,
+      { id: ownerId, role: "MERCHANT" },
+      "store-visibility",
+      "Store",
+      old.id,
+      visible ? "开启可见" : "关闭可见",
+    );
+    return result;
+  });
+}

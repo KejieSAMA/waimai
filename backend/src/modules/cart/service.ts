@@ -165,7 +165,7 @@ export async function saveCart(
         before = previous.find((item) => item.productId === line.productId);
       assert(p || before, 400, "商品不存在或不属于该店铺");
       if (line.qty > (before?.qty ?? 0)) {
-        assert(shop.status === "OPEN", 409, "店铺当前无法加购");
+        assert(shop.status === "OPEN" && shop.visible, 409, "店铺当前无法加购");
         assert(p?.status === "ON" && !p.forcedOff, 409, "商品已下架");
         assert(
           line.qty <= p.stock &&
@@ -213,7 +213,7 @@ export async function mergeCart(actor: CartActor, body: unknown) {
     const issues: string[] = [];
     for (const draft of input.carts) {
       const shop = await cartStore(draft.storeId, tx);
-      if (!shop || shop.status !== "OPEN") {
+      if (!shop || !shop.visible || shop.status !== "OPEN") {
         issues.push("部分店铺不可用，未合并其游客商品");
         continue;
       }

@@ -222,3 +222,7 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 ## 2026-11-13 UI 错误反馈兼容补充
 
 统一错误响应保留既有 code、message、details.reason、details.fieldErrors 和 details.formErrors；Zod 校验错误可附加 details.issues，每项为 `{ path: (string | number)[], message: string }`。嵌套账号、店铺和满减数组以完整路径定位，不附带输入值；客户端透传并兼容只包含旧 fieldErrors 的响应。UI 状态、关闭保护和人工验收规则见 UI_CONSISTENCY.md。本补充不新增业务接口或数据库迁移。
+
+## 店铺可见状态（2026-11-14）
+
+Store.visible 为独立布尔字段，默认 true。`PUT /merchant/store/visibility` 严格接受 `{ visible: boolean }`，归属来自当前商家会话，OPEN／CLOSED 可修改，其他状态只读；变化写入 store-visibility 审计，相同请求不重复审计。公开列表、详情、评价、访问登记排除 visible=false；禁止新增加购、游客合并及新的报价下单。营业状态与历史订单不变。PC 营业配送同排展示营业状态、可见状态、满减配置，不显示“即时生效，不随表单保存”。

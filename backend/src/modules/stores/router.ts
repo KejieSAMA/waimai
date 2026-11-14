@@ -24,6 +24,17 @@ export function registerRouterStores(router: Router) {
   );
 }
 export function registerMerchantStores(merchant: Router) {
+  merchant.put(
+    "/store/visibility",
+    writableStore,
+    handler(async (req) =>
+      stores.setVisibility(
+        req.actor!.id,
+        z.object({ visible: z.boolean() }).strict().parse(req.body).visible,
+      ),
+    ),
+  );
+
   merchant.get(
     "/promotions",
     handler(async (req) => {

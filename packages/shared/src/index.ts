@@ -80,6 +80,7 @@ export interface Product {
   monthlySales: number;
 }
 export interface Store {
+  visible?: boolean;
   createdAt?: string;
   submitCount?: number;
   owner?: {

@@ -70,6 +70,7 @@ model Store {
   minOrderCents Int @default(0)
   deliveryFeeCents Int @default(0)
   status String @default("PENDING")
+  visible Boolean @default(true)
   previousStatus String @default("CLOSED")
   rejectReason String?
   frozenReason String?
