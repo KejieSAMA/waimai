@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { Button, Dialog, OrderCard, Tabs } from "@waimai/ui";
+import { Button, Dialog, Tabs } from "@waimai/ui";
+import PurchaseOrderCard from "../components/PurchaseOrderCard.vue";
 import { useRouter } from "vue-router";
-import { orderTime, userOrderTabs, useUserOrders } from "@waimai/shared";
+import {
+  userOrderTabs,
+  useUserOrders,
+  type Order,
+  type OrderUiAction,
+} from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";
 const router = useRouter();
@@ -20,6 +26,16 @@ const {
   reorder,
   actions,
 } = useUserOrders(api, useCart(), (path) => router.push(path), true);
+function onAction(order: Order, key: OrderUiAction) {
+  if (key === "reorder")
+    actions(order)
+      .find((a) => a.label === "再来一单")
+      ?.onClick?.();
+  else
+    void router.push(
+      "/orders/" + order.id + (key === "evaluate" ? "#review" : ""),
+    );
+}
 </script>
 <template>
   <section class="app-user-orders" aria-label="订单">
@@ -31,19 +47,13 @@ const {
           >重试</Button
         >
       </div>
-      <OrderCard
+      <PurchaseOrderCard
         v-for="order in list"
         :key="order.id"
-        :title="order.store.name"
-        title-clickable
+        :order="order"
+        :disabled="reordering"
         @open="router.push('/orders/' + order.id)"
-        :status="order.status"
-        :items="
-          order.items.map((it) => ({ name: it.nameSnapshot, qty: it.qty }))
-        "
-        :total="order.payCents / 100"
-        :time="orderTime(order.createdAt)"
-        :actions="actions(order)"
+        @action="onAction(order, $event)"
       />
       <p v-if="pending" class="app-empty body-sm" role="status">加载中</p>
       <p v-else-if="loaded && !list.length && !error" class="app-empty body">
@@ -60,6 +70,7 @@ const {
     <Dialog
       :open="!!replacement"
       title="重新选购"
+      :close-disabled="reordering"
       @close="replacement = undefined"
     >
       再来一单将替换
