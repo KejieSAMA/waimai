@@ -139,6 +139,16 @@ async function fixture() {
       .post("/api/v1/merchant/orders/batch-arrive")
       .auth(merchant.accessToken, { type: "bearer" })
       .send(body);
+  const batchAction = (action: string, ids: string[], reason?: string) =>
+    request(app)
+      .post("/api/v1/merchant/orders/batch-action")
+      .auth(merchant.accessToken, { type: "bearer" })
+      .send({ action, ids, ...(reason === undefined ? {} : { reason }) });
+  const singleAction = (action: string, id: string, reason?: string) =>
+    request(app)
+      .post(`/api/v1/merchant/orders/${id}/${action}`)
+      .auth(merchant.accessToken, { type: "bearer" })
+      .send(reason === undefined ? {} : { reason });
   return {
     user,
     owner,
@@ -151,6 +161,8 @@ async function fixture() {
     create,
     single,
     batch,
+    batchAction,
+    singleAction,
   };
 }
 describe("商家自配送到达", () => {
@@ -426,5 +438,309 @@ describe("商家自配送到达", () => {
         .stock,
     ).toBe(80);
     expect(f.notifications).toHaveLength(1);
+  });
+});
+
+describe("商家全部操作批量处理", () => {
+  it("六种动作与单笔共用事务，重放不重复时间、库存、审计或事件", async () => {
+    const f = await fixture();
+    const cases = [
+      ["accept", "PENDING", "PREPARING"],
+      ["reject", "PENDING", "CANCELLED"],
+      ["ready", "PREPARING", "DELIVERING"],
+      ["arrive", "DELIVERING", "DONE"],
+      ["refund-approve", "REFUNDING", "CANCELLED"],
+      ["refund-reject", "REFUNDING", "REFUNDING"],
+    ];
+    for (const [action, status, next] of cases) {
+      const a = await f.create(status),
+        b = await f.create(status);
+      const result = await f.batchAction(action, [a.id, b.id], "  统一原因  ");
+      expect(result.status).toBe(200);
+      expect(
+        result.body.data.results.map((r: { outcome: string }) => r.outcome),
+      ).toEqual(["applied", "applied"]);
+      const first = await db.order.findUniqueOrThrow({ where: { id: a.id } });
+      expect(first.status).toBe(next);
+      if (action === "refund-reject") expect(first.refundRejected).toBe(true);
+      if (action === "accept") expect(first.acceptedAt).not.toBeNull();
+      if (action === "ready") expect(first.readyAt).not.toBeNull();
+      expect(first.paidAt).toEqual(a.paidAt);
+      expect(first.payCents).toBe(a.payCents);
+      expect(
+        (
+          await f.singleAction(
+            action,
+            a.id,
+            ["reject", "refund-reject"].includes(action)
+              ? "再次处理"
+              : undefined,
+          )
+        ).status,
+      ).toBe(200);
+      const replay = await f.batchAction(action, [a.id, b.id], "再次处理");
+      expect(
+        replay.body.data.results.map((r: { outcome: string }) => r.outcome),
+      ).toEqual(["already_applied", "already_applied"]);
+      expect(await db.order.findUniqueOrThrow({ where: { id: a.id } })).toEqual(
+        first,
+      );
+      expect(
+        await db.auditLog.count({
+          where: {
+            targetId: { in: [a.id, b.id] },
+            action: `merchant-${action}`,
+          },
+        }),
+      ).toBe(2);
+      expect(
+        (
+          await db.auditLog.findFirstOrThrow({
+            where: { targetId: a.id, action: `merchant-${action}` },
+          })
+        ).reason,
+      ).toBe("统一原因");
+    }
+    expect(f.notifications).toHaveLength(12);
+    expect(
+      (await db.product.findUniqueOrThrow({ where: { id: f.product.id } }))
+        .stock,
+    ).toBe(88);
+  });
+  it("同批出餐按配送类型分流，自提不能到达", async () => {
+    const f = await fixture(),
+      a = await f.create("PREPARING"),
+      b = await f.create("PREPARING", "PICKUP");
+    expect(
+      (await f.batchAction("ready", [a.id, b.id])).body.data.results.every(
+        (r: { outcome: string }) => r.outcome === "applied",
+      ),
+    ).toBe(true);
+    expect(
+      (await db.order.findUniqueOrThrow({ where: { id: b.id } })).status,
+    ).toBe("PICKUP");
+    const result = await f.batchAction("arrive", [a.id, b.id]);
+    expect(
+      result.body.data.results.map((r: { outcome: string }) => r.outcome),
+    ).toEqual(["applied", "failed"]);
+  });
+  it("严格校验动作、原因、ID、数量和注入字段；错误请求零写入", async () => {
+    const f = await fixture(),
+      order = await f.create("PENDING");
+    for (const [action, ids, reason] of [
+      ["pay", [order.id], undefined],
+      ["accept", [], undefined],
+      ["accept", [order.id, order.id], undefined],
+      ["reject", [order.id], "  "],
+      ["refund-reject", [order.id], undefined],
+      ["reject", [order.id], "字".repeat(501)],
+      ["accept", Array.from({ length: 101 }, (_, i) => String(i)), undefined],
+    ] as [string, string[], string | undefined][])
+      expect((await f.batchAction(action, ids, reason)).status).toBe(400);
+    const injected = await request(app)
+      .post("/api/v1/merchant/orders/batch-action")
+      .auth(f.merchant.accessToken, { type: "bearer" })
+      .send({ action: "accept", ids: [order.id], storeId: f.store.id });
+    expect(injected.status).toBe(400);
+    expect(f.notifications).toEqual([]);
+    expect(await db.auditLog.count({ where: { targetId: order.id } })).toBe(0);
+  });
+  it("跨店或不存在整批404；冻结、失效及用户身份禁止所有批量动作", async () => {
+    const f = await fixture(),
+      foreign = await fixture(),
+      a = await f.create("PENDING"),
+      b = await foreign.create("PENDING");
+    for (const id of [b.id, "missing"])
+      expect((await f.batchAction("accept", [a.id, id])).status).toBe(404);
+    expect(
+      (await db.order.findUniqueOrThrow({ where: { id: a.id } })).status,
+    ).toBe("PENDING");
+    expect(
+      (
+        await request(app)
+          .post("/api/v1/merchant/orders/batch-action")
+          .auth(f.customer.accessToken, { type: "bearer" })
+          .send({ action: "accept", ids: [a.id] })
+      ).status,
+    ).toBe(403);
+    await db.store.update({
+      where: { id: f.store.id },
+      data: { status: "FROZEN" },
+    });
+    expect((await f.batchAction("accept", [a.id])).status).toBe(403);
+    await db.store.update({
+      where: { id: f.store.id },
+      data: { status: "OPEN" },
+    });
+    await auth.revokeSession(f.merchant.refreshToken);
+    expect((await f.batchAction("accept", [a.id])).status).toBe(401);
+    expect(f.notifications).toEqual([]);
+  });
+  it("100单接单及重放完整返回；批量中会话撤销保留此前成功", async () => {
+    const f = await fixture(),
+      rows = [];
+    for (let i = 0; i < 100; i++) rows.push(await f.create("PENDING"));
+    const ids = rows.map((row) => row.id);
+    expect(
+      (await f.batchAction("accept", ids)).body.data.results.filter(
+        (r: { outcome: string }) => r.outcome === "applied",
+      ),
+    ).toHaveLength(100);
+    expect(
+      (await f.batchAction("accept", ids)).body.data.results.filter(
+        (r: { outcome: string }) => r.outcome === "already_applied",
+      ),
+    ).toHaveLength(100);
+    expect(f.notifications).toHaveLength(100);
+    const a = await f.create("PENDING"),
+      b = await f.create("PENDING");
+    const original = auth.validateSession;
+    let calls = 0;
+    vi.spyOn(auth, "validateSession").mockImplementation(async (...args) => {
+      if (++calls === 4) throw new HttpError(401, "会话已失效");
+      return original(...args);
+    });
+    const result = await f.batchAction("accept", [a.id, b.id]);
+    expect(
+      result.body.data.results.map((r: { outcome: string }) => r.outcome),
+    ).toEqual(["applied", "failed"]);
+  });
+  it("部分失败与平台处理中排除；重复拒退幂等但仍可同意退款", async () => {
+    const f = await fixture(),
+      a = await f.create("REFUNDING"),
+      b = await f.create("REFUNDING"),
+      c = await f.create("DONE");
+    await db.order.update({ where: { id: b.id }, data: { disputed: true } });
+    const result = await f.batchAction(
+      "refund-reject",
+      [a.id, b.id, c.id],
+      "统一原因",
+    );
+    expect(
+      result.body.data.results.map((r: { outcome: string }) => r.outcome),
+    ).toEqual(["applied", "failed", "failed"]);
+    expect(
+      (await f.batchAction("refund-reject", [a.id], "重试")).body.data
+        .results[0].outcome,
+    ).toBe("already_applied");
+    expect(
+      (await f.batchAction("refund-approve", [a.id])).body.data.results[0]
+        .outcome,
+    ).toBe("applied");
+    expect(
+      (await f.batchAction("refund-reject", [a.id], "再次拒绝")).body.data
+        .results[0].outcome,
+    ).toBe("failed");
+  });
+  it("取消状态必须匹配商家动作审计，不把用户取消或另一操作判为已处理", async () => {
+    const f = await fixture(),
+      a = await f.create("PENDING"),
+      b = await f.create("PENDING"),
+      c = await f.create("REFUNDING");
+    await orders.actOnOrder(a.id, { id: f.user.id, role: "USER" }, "cancel");
+    expect(
+      (await f.batchAction("reject", [a.id], "拒单")).body.data.results[0]
+        .outcome,
+    ).toBe("failed");
+    await f.singleAction("reject", b.id, "拒单");
+    await f.singleAction("refund-approve", c.id);
+    expect(
+      (await f.batchAction("refund-approve", [b.id])).body.data.results[0]
+        .outcome,
+    ).toBe("failed");
+    expect(
+      (await f.batchAction("reject", [c.id], "拒单")).body.data.results[0]
+        .outcome,
+    ).toBe("failed");
+    expect(
+      (await db.product.findUniqueOrThrow({ where: { id: f.product.id } }))
+        .stock,
+    ).toBe(86);
+  });
+  it("单笔及批量审计失败均回滚状态和回补库存，其他订单照常处理", async () => {
+    const f = await fixture(),
+      a = await f.create("PENDING"),
+      b = await f.create("PENDING");
+    const original = audit.recordAudit;
+    vi.spyOn(audit, "recordAudit").mockImplementation((...args) => {
+      if (args[4] === a.id) throw new Error("injected");
+      return original(...args);
+    });
+    const result = await f.batchAction("reject", [a.id, b.id], "拒单");
+    expect(
+      result.body.data.results.map((r: { outcome: string }) => r.outcome),
+    ).toEqual(["failed", "applied"]);
+    expect(
+      (await db.order.findUniqueOrThrow({ where: { id: a.id } })).status,
+    ).toBe("PENDING");
+    expect(
+      (await db.product.findUniqueOrThrow({ where: { id: f.product.id } }))
+        .stock,
+    ).toBe(82);
+    const c = await f.create("PENDING");
+    vi.restoreAllMocks();
+    vi.spyOn(audit, "recordAudit").mockRejectedValue(
+      new HttpError(409, "审计失败"),
+    );
+    expect((await f.singleAction("accept", c.id)).status).toBe(409);
+    expect(
+      (await db.order.findUniqueOrThrow({ where: { id: c.id } })).status,
+    ).toBe("PENDING");
+    expect(f.notifications).toHaveLength(1);
+  });
+  it("接单与拒单／用户取消竞争只有一次有效转换及库存副作用", async () => {
+    const f = await fixture();
+    for (const second of ["reject", "cancel"]) {
+      const order = await f.create("PENDING"),
+        before = await db.product.findUniqueOrThrow({
+          where: { id: f.product.id },
+        });
+      const results = await Promise.allSettled([
+        orders.merchantOrderAction(order.id, f.actor, "accept"),
+        second === "reject"
+          ? orders.merchantOrderAction(order.id, f.actor, "reject", "拒单")
+          : orders.actOnOrder(
+              order.id,
+              { id: f.user.id, role: "USER" },
+              "cancel",
+            ),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      const current = await db.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      expect(["PREPARING", "CANCELLED"]).toContain(current.status);
+      expect(
+        (await db.product.findUniqueOrThrow({ where: { id: f.product.id } }))
+          .stock,
+      ).toBe(before.stock + (current.status === "CANCELLED" ? 2 : 0));
+    }
+    expect(f.notifications).toHaveLength(2);
+  });
+  it("同意与拒绝退款／用户申诉竞争保持有效状态及一次回补", async () => {
+    const f = await fixture(),
+      a = await f.create("REFUNDING");
+    await Promise.allSettled([
+      orders.merchantOrderAction(a.id, f.actor, "refund-approve"),
+      orders.merchantOrderAction(a.id, f.actor, "refund-reject", "拒绝"),
+    ]);
+    const current = await db.order.findUniqueOrThrow({ where: { id: a.id } });
+    expect(["REFUNDING", "CANCELLED"]).toContain(current.status);
+    expect(
+      (await db.product.findUniqueOrThrow({ where: { id: f.product.id } }))
+        .stock,
+    ).toBe(current.status === "CANCELLED" ? 82 : 80);
+    const b = await f.create("REFUNDING");
+    await db.order.update({
+      where: { id: b.id },
+      data: { refundRejected: true },
+    });
+    const before = f.notifications.length;
+    const results = await Promise.allSettled([
+      orders.merchantOrderAction(b.id, f.actor, "refund-approve"),
+      orders.actOnOrder(b.id, { id: f.user.id, role: "USER" }, "dispute"),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(f.notifications).toHaveLength(before + 1);
   });
 });

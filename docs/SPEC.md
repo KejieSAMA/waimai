@@ -118,6 +118,8 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 
 商家 `merchant`
 
+- `POST /merchant/orders/batch-action`：严格接受 `{ action, ids, reason? }`，action 为 accept／reject／ready／arrive／refund-approve／refund-reject，1–100 个不重复订单 ID；拒单及拒绝退款须统一填写修剪后 1–500 字原因。批量先整体核对归属（跨店或缺失整批404、零写入），再逐单独立事务重新核验会话／角色／可写店铺，返回 `{ results: [{ id, orderNo, outcome: applied|already_applied|failed, message? }] }`。六种单笔共用事务核心，取消类幂等须匹配对应商家动作审计，不将其他原因取消冒充已处理；状态、时间、回补及审计原子提交后静默通知。原 batch-arrive 保留旧返回格式。界面仅对应状态页，先选动作再勾当前页／已加载订单；详见 MERCHANT_ORDER_BATCH.md。
+
 - 商家不开放独立注册；统一登录及管理员角色授权见认证接口。
 - `GET|PUT /merchant/application`（入驻资料、证照图片）：营业执照、食品经营许可证分别选填，均不上传或只上传一张也能提交待审核；有图片时仍校验本人私有证照归属。有效期选填，null 可清空，移除图片同步清除对应历史有效期；不改变人工审核、冻结和通过后资质只读规则。
 - `GET|PUT /merchant/store`、`PUT /merchant/store/open`（营业 / 休息）

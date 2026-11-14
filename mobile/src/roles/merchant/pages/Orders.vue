@@ -18,7 +18,12 @@ import {
   orderStatuses,
   time,
   canArrive,
-  useMerchantArrival,
+  useMerchantOrderBatch,
+  merchantActionsForStatus,
+  merchantOrderActions,
+  merchantActionNeedsReason,
+  canApplyMerchantAction,
+  MAX_MERCHANT_ORDER_BATCH,
 } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { usePageChrome } from "../../../common/pageChrome";
@@ -27,8 +32,9 @@ const chrome = usePageChrome();
 const profile = useMerchantProfile(() =>
   api<Store | null>("/merchant/application", {}, "MERCHANT"),
 );
-const batchMode = ref(false);
+const actionPickerOpen = ref(false);
 const arrivalResultsOpen = ref(false);
+const arrivalDialog = ref<InstanceType<typeof Dialog>>();
 const busy = ref(false),
   actionError = ref("");
 import { useOrderStream } from "../../../common/events";
@@ -46,7 +52,7 @@ onScopeDispose(() => {
 });
 async function search(reset = false) {
   if (arrival.pending || busy.value) return;
-  batchMode.value = false;
+  arrival.choose();
   if (reset) keyword.value = "";
   appliedKeyword.value = keyword.value;
   page.value = 1;
@@ -73,7 +79,7 @@ const list = ref<Order[]>([]),
   pending = ref<{ id: string; action: string } | null>(null);
 const filtered = computed(() => list.value);
 const arrival = reactive(
-  useMerchantArrival((path, options) => api(path, options, "MERCHANT"), {
+  useMerchantOrderBatch((path, options) => api(path, options, "MERCHANT"), {
     rows: () => list.value,
     scope: () => JSON.stringify([status.value, appliedKeyword.value]),
     locked: () =>
@@ -87,6 +93,21 @@ const arrival = reactive(
     },
   }),
 );
+const batchMode = computed(() => !!arrival.action);
+const batchActions = computed(() => merchantActionsForStatus(status.value));
+const batchLabel = computed(() =>
+  arrival.action ? merchantOrderActions[arrival.action].label : "",
+);
+const confirmAction = computed(() =>
+  arrival.target ? merchantOrderActions[arrival.target.action] : undefined,
+);
+function toggleBatch() {
+  if (arrival.pending || busy.value) return;
+  if (batchMode.value) arrival.choose();
+  else if (batchActions.value.length === 1)
+    arrival.choose(batchActions.value[0]);
+  else actionPickerOpen.value = true;
+}
 const locked = computed(() => arrival.locked);
 watch(
   batchMode,
@@ -97,7 +118,8 @@ watch(
   { immediate: true },
 );
 watch(status, () => {
-  batchMode.value = false;
+  actionPickerOpen.value = false;
+  arrival.choose();
 });
 watch(
   () => [profile.store.value?.status, arrival.pending],
@@ -106,8 +128,8 @@ watch(
       !arrival.pending &&
       !["OPEN", "CLOSED"].includes(profile.store.value?.status ?? "")
     ) {
-      batchMode.value = false;
-      arrival.clearSelection();
+      actionPickerOpen.value = false;
+      arrival.choose();
     }
   },
 );
@@ -175,7 +197,7 @@ async function act(id: string, action: string) {
   if (locked.value) return;
   if (action === "arrive") {
     const order = list.value.find((row) => row.id === id);
-    if (order) arrival.open([order]);
+    if (order) arrival.open({ order, action: "arrive" });
     return;
   }
   actionError.value = "";
@@ -211,11 +233,11 @@ async function send(id: string, action: string) {
     <PageSlot name="right"
       ><div class="merchant-order-tools">
         <Button
-          v-if="status === 'DELIVERING'"
+          v-if="batchActions.length"
           size="sm"
           variant="text"
           :disabled="arrival.pending || busy || (!batchMode && locked)"
-          @click="batchMode = !batchMode"
+          @click="toggleBatch"
           >{{ batchMode ? "退出批量" : "批量" }}</Button
         ><NavBarIcon
           name="search"
@@ -224,6 +246,27 @@ async function send(id: string, action: string) {
           @click="toolsOpen = true"
         /></div
     ></PageSlot>
+    <Dialog
+      :open="actionPickerOpen"
+      title="选择批量操作"
+      variant="sheet"
+      @close="actionPickerOpen = false"
+    >
+      <div class="batch-action-options">
+        <Button
+          v-for="action in batchActions"
+          :key="action"
+          block
+          variant="outline"
+          :disabled="locked"
+          @click="
+            arrival.choose(action);
+            actionPickerOpen = false;
+          "
+          >批量{{ merchantOrderActions[action].label }}</Button
+        >
+      </div>
+    </Dialog>
     <Dialog
       :open="toolsOpen"
       title="搜索订单"
@@ -290,8 +333,12 @@ async function send(id: string, action: string) {
       {{ arrival.error }}
     </p>
     <div v-if="arrival.results.length" class="app-card body-sm" role="status">
-      本次完成 {{ arrival.summary.completed }} 单，已完成
-      {{ arrival.summary.alreadyCompleted }} 单，失败
+      {{
+        arrival.resultAction
+          ? merchantOrderActions[arrival.resultAction].label
+          : ""
+      }}：成功 {{ arrival.summary.applied }} 单，已处理
+      {{ arrival.summary.alreadyApplied }} 单，失败
       {{ arrival.summary.failed.length }} 单
       <Button
         v-if="arrival.summary.failed.length"
@@ -335,7 +382,11 @@ async function send(id: string, action: string) {
           <Checkbox
             v-if="batchMode"
             :model-value="arrival.selected.includes(o.id)"
-            :disabled="locked || !canArrive(o)"
+            :disabled="
+              locked ||
+              !arrival.action ||
+              !canApplyMerchantAction(o, arrival.action)
+            "
             :aria-label="'选择订单 ' + o.orderNo"
             @update:model-value="
               arrival.select(
@@ -399,7 +450,7 @@ async function send(id: string, action: string) {
                     ><Button
                       size="sm"
                       variant="danger-outline"
-                      :disabled="locked"
+                      :disabled="locked || o.refundRejected"
                       @click="act(o.id, 'refund-reject')"
                       >拒绝退款</Button
                     ><Button
@@ -448,13 +499,26 @@ async function send(id: string, action: string) {
             "
           /><span class="body-sm">已选 {{ arrival.selected.length }} 单</span>
         </div>
-        <p class="caption app-muted">每批最多 100 单，仅选择已加载的配送订单</p>
+        <div class="app-row">
+          <span class="body-sm">当前：{{ batchLabel }}</span
+          ><Button
+            variant="text"
+            size="sm"
+            :disabled="arrival.pending || busy"
+            @click="actionPickerOpen = true"
+            >切换操作</Button
+          >
+        </div>
+        <p class="caption app-muted">
+          每批最多
+          {{ MAX_MERCHANT_ORDER_BATCH }} 单，仅选择已加载且符合条件的订单
+        </p>
         <Button
           block
           size="lg"
           :disabled="locked || !arrival.selected.length"
           @click="arrival.open()"
-          >批量到达</Button
+          >批量{{ batchLabel }}</Button
         >
       </div></PageSlot
     >
@@ -478,14 +542,34 @@ async function send(id: string, action: string) {
     >
     <Dialog
       :open="!!arrival.target"
-      title="确认已送达"
+      ref="arrivalDialog"
+      :title="'确认' + (confirmAction?.label ?? '')"
+      :variant="
+        arrival.target && merchantActionNeedsReason(arrival.target.action)
+          ? 'sheet'
+          : 'center'
+      "
       :close-disabled="arrival.pending"
+      :confirm-discard="
+        !!arrival.target && merchantActionNeedsReason(arrival.target.action)
+      "
+      :dirty="!!arrival.reason.trim()"
       @close="arrival.close"
       ><p class="body">
         {{ arrival.target?.orders[0]?.storeName }} · 共
         {{ arrival.target?.orders.length }} 单
       </p>
-      <p class="body">确认所选外卖订单均已实际送达？提交后将直接变为已完成。</p>
+      <p class="body">{{ confirmAction?.notice }}</p>
+      <Input
+        v-if="
+          arrival.target && merchantActionNeedsReason(arrival.target.action)
+        "
+        v-model="arrival.reason"
+        label="统一处理原因"
+        multiline
+        :maxlength="500"
+        :disabled="arrival.pending"
+      />
       <p v-if="arrival.error" class="app-error body-sm" role="alert">
         {{ arrival.error }}
       </p>
@@ -493,10 +577,10 @@ async function send(id: string, action: string) {
         ><Button
           variant="outline"
           :disabled="arrival.pending"
-          @click="arrival.close"
+          @click="arrivalDialog?.close()"
           >返回</Button
         ><Button :disabled="arrival.locked" @click="arrival.confirm"
-          >确认已送达</Button
+          >确认{{ confirmAction?.label }}</Button
         ></template
       ></Dialog
     >
@@ -524,6 +608,11 @@ async function send(id: string, action: string) {
 </template>
 
 <style scoped>
+.batch-action-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
 .arrival-failure {
   overflow-wrap: anywhere;
 }

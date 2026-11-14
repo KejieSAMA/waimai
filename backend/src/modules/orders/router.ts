@@ -8,7 +8,7 @@ import { validateSession } from "../auth/service";
 import { orderEvents } from "./events";
 import { visitorHash } from "../traffic/identity";
 import { TRAFFIC_RULES } from "../../rules";
-import { MAX_ARRIVAL_ORDERS } from "@waimai/shared";
+import { MAX_ARRIVAL_ORDERS, MAX_MERCHANT_ORDER_BATCH } from "@waimai/shared";
 export function registerUserOrders(user: Router) {
   user.post(
     "/orders/preview",
@@ -59,6 +59,51 @@ export function registerMerchantOrders(merchant: Router) {
     sessionId: req.sessionId!,
     version: req.sessionVersion!,
   });
+  merchant.post(
+    "/orders/batch-action",
+    writableStore,
+    handler(async (req) => {
+      const body = z
+        .object({
+          action: z.enum([
+            "accept",
+            "reject",
+            "ready",
+            "arrive",
+            "refund-approve",
+            "refund-reject",
+          ]),
+          ids: z
+            .array(z.string().min(1).max(128))
+            .min(1)
+            .max(MAX_MERCHANT_ORDER_BATCH)
+            .refine(
+              (ids) => new Set(ids).size === ids.length,
+              "订单不能重复选择",
+            ),
+          reason: z.string().trim().max(500).optional(),
+        })
+        .strict()
+        .superRefine((value, ctx) => {
+          if (
+            ["reject", "refund-reject"].includes(value.action) &&
+            !value.reason
+          )
+            ctx.addIssue({
+              code: "custom",
+              path: ["reason"],
+              message: "请填写原因",
+            });
+        })
+        .parse(req.body);
+      return orders.batchMerchantOrderAction(
+        body.ids,
+        arrivalActor(req),
+        body.action,
+        body.reason,
+      );
+    }),
+  );
   merchant.post(
     "/orders/batch-arrive",
     writableStore,
@@ -146,15 +191,21 @@ export function registerMerchantOrders(merchant: Router) {
       `/orders/:id/${action}`,
       writableStore,
       handler(async (req) =>
-        orders.actOnOrder(
-          req.params.id,
-          req.actor!,
-          action,
-          req.storeId,
-          ["reject", "refund-reject"].includes(action)
-            ? reasonSchema.parse(req.body).reason
-            : undefined,
-        ),
+        orders
+          .merchantOrderAction(
+            req.params.id,
+            arrivalActor(req),
+            action as
+              | "accept"
+              | "reject"
+              | "ready"
+              | "refund-approve"
+              | "refund-reject",
+            ["reject", "refund-reject"].includes(action)
+              ? reasonSchema.parse(req.body).reason
+              : undefined,
+          )
+          .then((result) => result.order),
       ),
     );
 }

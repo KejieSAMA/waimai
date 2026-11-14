@@ -39,7 +39,7 @@ const emit = defineEmits<{ act: [id: string, action: string] }>();
       ><Button
         size="sm"
         variant="danger-text"
-        :disabled="disabled"
+        :disabled="disabled || order.refundRejected"
         @click="emit('act', order.id, 'refund-reject')"
         >拒绝退款</Button
       ><Button

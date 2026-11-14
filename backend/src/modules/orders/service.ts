@@ -33,7 +33,13 @@ import { notifyOrder } from "./events";
 import { paidVisit } from "../traffic/service";
 import { PAYMENT_TTL_MS } from "../../rules";
 import { validateSession } from "../auth/service";
-import type { ArrivalItemResult } from "@waimai/shared";
+import {
+  type ArrivalItemResult,
+  type MerchantOrderAction,
+  type MerchantOrderActionResult,
+  merchantOrderActions,
+  merchantActionNeedsReason,
+} from "@waimai/shared";
 export { PAYMENT_TTL_MS } from "../../rules";
 const include = {
   items: true,
@@ -382,6 +388,20 @@ export async function actOnOrder(
       include,
     });
     assert(old, 404, "订单不存在");
+    if (
+      actor.role === "MERCHANT" &&
+      Object.hasOwn(merchantOrderActions, action)
+    ) {
+      const applied = await applyMerchantAction(
+        tx,
+        old,
+        actor,
+        action as MerchantOrderAction,
+        reason,
+      );
+      changedState = applied.changed;
+      return applied.order;
+    }
     const now = new Date(Date.now());
     if (
       action === "pay" &&
@@ -502,7 +522,95 @@ async function authorizeArrival(
     "当前店铺状态只允许查看",
   );
 }
-export async function arriveOrder(id: string, actor: MerchantArrivalActor) {
+type LoadedOrder = Prisma.OrderGetPayload<{ include: typeof include }>;
+async function applyMerchantAction(
+  tx: Prisma.TransactionClient,
+  old: LoadedOrder,
+  actor: { id: string; role: string },
+  action: MerchantOrderAction,
+  reason?: string,
+) {
+  const text = reason?.trim();
+  assert(
+    !merchantActionNeedsReason(action) || (text && text.length <= 500),
+    400,
+    "请填写 1–500 字的处理原因",
+  );
+  if (action === "arrive")
+    assert(old.type === "DELIVERY", 409, "到店自提订单不能确认到达");
+  if (action === "refund-approve" || action === "refund-reject")
+    assert(!old.disputed, 409, "纠纷已由平台处理");
+  const auditAction = `merchant-${action}`;
+  const target =
+    action === "accept"
+      ? "PREPARING"
+      : action === "ready"
+        ? old.type === "PICKUP"
+          ? "PICKUP"
+          : "DELIVERING"
+        : action === "arrive"
+          ? "DONE"
+          : action === "refund-reject"
+            ? "REFUNDING"
+            : "CANCELLED";
+  let already = old.status === target;
+  if (action === "refund-reject") already = already && old.refundRejected;
+  if (target === "CANCELLED")
+    already =
+      already &&
+      !!(await tx.auditLog.findFirst({
+        where: {
+          targetType: "Order",
+          targetId: old.id,
+          actorRole: "MERCHANT",
+          action: auditAction,
+        },
+      }));
+  if (already) return { order: old, changed: false };
+  assert(
+    old.status === merchantOrderActions[action].status,
+    409,
+    "订单状态不允许此操作",
+  );
+  const status =
+    action === "refund-reject"
+      ? "REFUNDING"
+      : orderTransition(old.status, action, old.type);
+  const now = new Date();
+  const changed = await tx.order.updateMany({
+    where: {
+      id: old.id,
+      storeId: old.storeId,
+      status: old.status,
+      ...(action.startsWith("refund-")
+        ? { disputed: false, refundRejected: old.refundRejected }
+        : {}),
+    },
+    data: {
+      status,
+      ...(action === "accept" ? { acceptedAt: now } : {}),
+      ...(action === "ready" ? { readyAt: now } : {}),
+      ...(action === "arrive" ? { doneAt: now } : {}),
+      ...(action === "refund-reject" ? { refundRejected: true } : {}),
+      ...(status === "CANCELLED"
+        ? { cancelReason: text ?? "商家同意退款" }
+        : {}),
+    },
+  });
+  assert(changed.count === 1, 409, "订单状态已更新，请刷新核对");
+  if (status === "CANCELLED") await restoreStock(tx, old);
+  await recordAudit(tx, actor, auditAction, "Order", old.id, text);
+  return {
+    order: await tx.order.findUniqueOrThrow({ where: { id: old.id }, include }),
+    changed: true,
+  };
+}
+export async function merchantOrderAction(
+  id: string,
+  actor: MerchantArrivalActor,
+  action: MerchantOrderAction,
+  reason?: string,
+) {
   let changed = false;
   const order = await cartTransaction(async (tx) => {
     changed = false;
@@ -512,32 +620,31 @@ export async function arriveOrder(id: string, actor: MerchantArrivalActor) {
       include,
     });
     assert(old, 404, "订单不存在");
-    assert(old.type === "DELIVERY", 409, "到店自提订单不能确认到达");
-    if (old.status === "DONE") return old;
-    const next = orderTransition(old.status, "arrive", old.type);
-    const updated = await tx.order.updateMany({
-      where: {
-        id,
-        status: "DELIVERING",
-        type: "DELIVERY",
-        storeId: actor.storeId,
-      },
-      data: { status: next, doneAt: new Date() },
-    });
-    assert(updated.count === 1, 409, "订单状态已更新，请重试");
-    await recordAudit(tx, actor, "merchant-arrive", "Order", id);
-    changed = true;
-    return tx.order.findUniqueOrThrow({ where: { id }, include });
+    const applied = await applyMerchantAction(tx, old, actor, action, reason);
+    changed = applied.changed;
+    return applied.order;
   });
   if (changed) notifyOrder(order.storeId, order.id);
   return {
     order: serializeOrder(order, "MERCHANT"),
-    outcome: changed ? ("completed" as const) : ("already_completed" as const),
+    outcome: changed ? ("applied" as const) : ("already_applied" as const),
   };
 }
-export async function batchArriveOrders(
+export async function arriveOrder(id: string, actor: MerchantArrivalActor) {
+  const result = await merchantOrderAction(id, actor, "arrive");
+  return {
+    order: result.order,
+    outcome:
+      result.outcome === "applied"
+        ? ("completed" as const)
+        : ("already_completed" as const),
+  };
+}
+export async function batchMerchantOrderAction(
   ids: string[],
   actor: MerchantArrivalActor,
+  action: MerchantOrderAction,
+  reason?: string,
 ) {
   const rows = await cartTransaction(async (tx) => {
     await authorizeArrival(actor, tx);
@@ -548,11 +655,11 @@ export async function batchArriveOrders(
     assert(orders.length === ids.length, 404, "订单不存在");
     return orders;
   });
-  const results: ArrivalItemResult[] = [];
+  const results: MerchantOrderActionResult[] = [];
   for (const id of ids) {
     const orderNo = rows.find((row) => row.id === id)!.orderNo;
     try {
-      const result = await arriveOrder(id, actor);
+      const result = await merchantOrderAction(id, actor, action, reason);
       results.push({ id, orderNo, outcome: result.outcome });
     } catch (error) {
       results.push({
@@ -566,6 +673,22 @@ export async function batchArriveOrders(
       });
     }
   }
+  return { results };
+}
+export async function batchArriveOrders(
+  ids: string[],
+  actor: MerchantArrivalActor,
+) {
+  const result = await batchMerchantOrderAction(ids, actor, "arrive");
+  const results: ArrivalItemResult[] = result.results.map((row) => ({
+    ...row,
+    outcome:
+      row.outcome === "applied"
+        ? "completed"
+        : row.outcome === "already_applied"
+          ? "already_completed"
+          : "failed",
+  }));
   return { results };
 }
 export async function resolveDispute(

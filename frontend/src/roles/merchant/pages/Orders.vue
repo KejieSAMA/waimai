@@ -18,8 +18,11 @@ import {
   orderStatuses,
   time,
   useMerchantOrders,
-  useMerchantArrival,
-  canArrive,
+  useMerchantOrderBatch,
+  merchantActionsForStatus,
+  merchantOrderActions,
+  merchantActionNeedsReason,
+  canApplyMerchantAction,
 } from "@waimai/shared";
 import BackofficePage from "../../../components/BackofficePage.vue";
 import DataTable from "../../../components/DataTable.vue";
@@ -54,7 +57,7 @@ const orders = reactive(
   ),
 );
 const arrival = reactive(
-  useMerchantArrival((path, options) => api(path, options, "MERCHANT"), {
+  useMerchantOrderBatch((path, options) => api(path, options, "MERCHANT"), {
     rows: () => orders.list,
     scope: () => JSON.stringify(query.value),
     locked: () =>
@@ -65,7 +68,19 @@ const arrival = reactive(
     refresh: refreshOrders,
   }),
 );
+const batchActions = computed(() =>
+  merchantActionsForStatus(query.value.status),
+);
+const batchLabel = computed(() =>
+  arrival.action ? merchantOrderActions[arrival.action].label : "",
+);
+const confirmAction = computed(() =>
+  arrival.target ? merchantOrderActions[arrival.target.action] : undefined,
+);
+const rowSelectable = (row: Parameters<typeof canApplyMerchantAction>[0]) =>
+  !!arrival.action && canApplyMerchantAction(row, arrival.action);
 const arrivalResultsOpen = ref(false);
+const arrivalDialog = ref<InstanceType<typeof Dialog>>();
 async function refreshOrders() {
   await Promise.all([
     orders.refresh(),
@@ -77,7 +92,7 @@ function act(id: string, action: string) {
     const order =
       orders.list.find((row) => row.id === id) ??
       (orders.detail?.id === id ? orders.detail : undefined);
-    if (order) arrival.open([order]);
+    if (order) arrival.open({ order, action: "arrive" });
   } else if (!arrival.pending) orders.act(id, action);
 }
 useOrderStream(
@@ -125,7 +140,7 @@ watch(
       !arrival.pending &&
       !["OPEN", "CLOSED"].includes(merchantStore.value?.status ?? "")
     )
-      arrival.clearSelection();
+      arrival.choose();
   },
 );
 const detailAddress = computed(() => {
@@ -145,13 +160,34 @@ const detailAddress = computed(() => {
         :items="orders.tabs"
         @update:model-value="orders.changeStatus"
       />
-      <div class="order-search">
-        <SearchBar
-          v-model="orders.keyword"
-          placeholder="搜索订单编号"
-          action="查询"
-          @action="!locked && orders.search()"
-        />
+      <div class="order-tools">
+        <div class="order-search">
+          <SearchBar
+            v-model="orders.keyword"
+            placeholder="搜索订单编号"
+            action="查询"
+            @action="!locked && orders.search()"
+          />
+        </div>
+        <template v-if="batchActions.length">
+          <Button
+            v-for="action in batchActions"
+            :key="action"
+            size="sm"
+            :variant="arrival.action === action ? 'primary' : 'outline'"
+            :disabled="arrival.locked"
+            @click="arrival.choose(action)"
+            >批量{{ merchantOrderActions[action].label }}</Button
+          >
+          <Button
+            v-if="arrival.action"
+            variant="text"
+            size="sm"
+            :disabled="locked"
+            @click="arrival.choose()"
+            >退出批量</Button
+          >
+        </template>
       </div>
       <p v-if="orders.error" class="app-error body-sm" role="alert">
         {{ orders.error
@@ -171,8 +207,12 @@ const detailAddress = computed(() => {
         class="arrival-result body-sm"
         role="status"
       >
-        本次完成 {{ arrival.summary.completed }} 单，已完成
-        {{ arrival.summary.alreadyCompleted }} 单，失败
+        {{
+          arrival.resultAction
+            ? merchantOrderActions[arrival.resultAction].label
+            : ""
+        }}：成功 {{ arrival.summary.applied }} 单，已处理
+        {{ arrival.summary.alreadyApplied }} 单，失败
         {{ arrival.summary.failed.length }} 单
         <Button
           v-if="arrival.summary.failed.length"
@@ -204,8 +244,8 @@ const detailAddress = computed(() => {
       :columns="columns"
       :reset-key="JSON.stringify(query)"
       :aria-busy="orders.loading"
-      :selectable="query.status === 'DELIVERING'"
-      :row-selectable="canArrive"
+      :selectable="!!arrival.action"
+      :row-selectable="rowSelectable"
       :selection-disabled="arrival.locked"
       :selected="arrival.selected"
       @select="arrival.select"
@@ -215,7 +255,7 @@ const detailAddress = computed(() => {
           size="sm"
           :disabled="arrival.locked || !arrival.selected.length"
           @click="arrival.open()"
-          >批量到达</Button
+          >批量{{ batchLabel }}</Button
         ></template
       >
       <template #index="{ row }">{{
@@ -299,9 +339,14 @@ const detailAddress = computed(() => {
       >
       <Dialog
         :open="!!arrival.target"
-        title="确认已送达"
+        ref="arrivalDialog"
+        :title="'确认' + (confirmAction?.label ?? '')"
         variant="modal"
         :close-disabled="arrival.pending"
+        :confirm-discard="
+          !!arrival.target && merchantActionNeedsReason(arrival.target.action)
+        "
+        :dirty="!!arrival.reason.trim()"
         @close="arrival.close"
       >
         <p class="body-md">
@@ -309,8 +354,18 @@ const detailAddress = computed(() => {
           {{ arrival.target?.orders.length }} 单
         </p>
         <p class="body-md">
-          确认所选外卖订单均已实际送达？提交后将直接变为已完成。
+          {{ confirmAction?.notice }}
         </p>
+        <Input
+          v-if="
+            arrival.target && merchantActionNeedsReason(arrival.target.action)
+          "
+          v-model="arrival.reason"
+          label="统一处理原因"
+          multiline
+          :maxlength="500"
+          :disabled="arrival.pending"
+        />
         <p v-if="arrival.error" class="app-error body-sm" role="alert">
           {{ arrival.error }}
         </p>
@@ -318,10 +373,10 @@ const detailAddress = computed(() => {
           ><Button
             variant="outline"
             :disabled="arrival.pending"
-            @click="arrival.close"
+            @click="arrivalDialog?.close()"
             >返回</Button
           ><Button :disabled="arrival.locked" @click="arrival.confirm"
-            >确认已送达</Button
+            >确认{{ confirmAction?.label }}</Button
           ></template
         >
       </Dialog>
@@ -458,6 +513,15 @@ const detailAddress = computed(() => {
   </BackofficePage>
 </template>
 <style scoped>
+.order-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.order-search {
+  flex: 1 1 calc(var(--size-sidebar) * 2);
+}
 .arrival-result {
   padding: var(--space-3);
   background: var(--surface-raised);
