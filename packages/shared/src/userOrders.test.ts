@@ -77,7 +77,7 @@ describe("订单展示规则", () => {
     ["REFUNDING", "查看进度", undefined],
     ["CANCELLED", "再来一单", "secondary"],
     ["DELIVERING", "查看订单", "secondary"],
-    ["PENDING_PAY", "去支付", "secondary"],
+    ["PENDING_PAY", "提交订单", "secondary"],
   ] as const)("%s 使用 %s 操作", (status, label, variant) => {
     const fn = vi.fn();
     const actions = userOrderActions({ status } as Order, fn, fn, fn);

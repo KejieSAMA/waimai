@@ -149,7 +149,7 @@ describe("手机订单操作层级", () => {
     if (status === "PENDING_PAY")
       expect(actions[0]).toMatchObject({
         key: "details",
-        label: "去支付",
+        label: "提交订单",
         primary: true,
       });
   });

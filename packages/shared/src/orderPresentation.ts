@@ -29,8 +29,8 @@ export function orderPresentation(order: Order) {
           ? "商家已拒绝退款，可申请平台介入"
           : "等待商家处理退款申请"
       : {
-          PENDING_PAY: "请在支付期限内完成模拟支付",
-          PENDING: "订单已支付，等待商家接单",
+          PENDING_PAY: "请核对订单信息后提交订单",
+          PENDING: "订单已提交，等待商家接单",
           PREPARING: "商家正在准备商品",
           DELIVERING: "商品正在配送，请留意收货",
           PICKUP: "商品已备好，请到店自提",
@@ -56,7 +56,7 @@ export function orderPresentation(order: Order) {
             action(
               "details",
               order.status === "PENDING_PAY"
-                ? "去支付"
+                ? "提交订单"
                 : order.status === "REFUNDING"
                   ? "查看进度"
                   : "查看订单",
@@ -65,7 +65,7 @@ export function orderPresentation(order: Order) {
           ];
   const detailActions: OrderAction[] = [];
   if (order.status === "PENDING_PAY")
-    detailActions.push(action("pay", "模拟支付", true));
+    detailActions.push(action("pay", "提交订单", true));
   if (["DELIVERING", "PICKUP"].includes(order.status))
     detailActions.push(action("complete", "确认完成", true));
   if (order.status === "DONE" && !order.review)

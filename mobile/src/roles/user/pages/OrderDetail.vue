@@ -144,15 +144,14 @@ async function copyOrderNo() {
         >
           {{
             clock.expired.value
-              ? "支付时间已到，请核对订单状态"
+              ? "提交时间已到，请核对订单状态"
               : clock.text.value
                 ? "剩余 " +
                   clock.text.value +
                   " · 截止 " +
                   time(order.paymentExpiresAt!)
-                : "支付截止时间暂不可用"
+                : "提交截止时间暂不可用"
           }}
-          · 当前为模拟支付
         </p>
         <ol
           v-if="view.steps.length"

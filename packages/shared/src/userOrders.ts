@@ -44,7 +44,7 @@ export function userOrderActions(
     return [{ label: "查看进度", onClick: details }];
   return [
     {
-      label: order.status === "PENDING_PAY" ? "去支付" : "查看订单",
+      label: order.status === "PENDING_PAY" ? "提交订单" : "查看订单",
       variant: "secondary",
       onClick: details,
     },

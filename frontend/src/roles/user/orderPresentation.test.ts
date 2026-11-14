@@ -78,10 +78,18 @@ describe("PC 订单展示模型", () => {
     expect(v.listActions.map((a) => a.key)).toEqual(["details", "reorder"]);
     expect(v.listActions.every((a) => !a.primary)).toBe(true);
   });
-  it("待支付列表只导航去支付，不新增直接付款操作", () =>
-    expect(orderPresentation(order("PENDING_PAY")).listActions).toEqual([
-      { key: "details", label: "去支付", primary: true },
-    ]));
+  it("待处理入口与详情统一为提交订单，列表仍只负责导航", () => {
+    const view = orderPresentation(order("PENDING_PAY"));
+    expect(view.listActions).toEqual([
+      { key: "details", label: "提交订单", primary: true },
+    ]);
+    expect(view.detailActions[0]).toEqual({
+      key: "pay",
+      label: "提交订单",
+      primary: true,
+    });
+    expect(view.description).toBe("请核对订单信息后提交订单");
+  });
   it("退款拒绝与平台处理中以真实标识显示，不伪造正常进度或退款到账", () => {
     const rejected = orderPresentation(
       order("REFUNDING", { refundRejected: true }),

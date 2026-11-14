@@ -95,6 +95,8 @@ const columns = [
 <style scoped>
 .order-goods {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .order-goods__head {
   display: flex;
@@ -141,7 +143,9 @@ const columns = [
 .order-goods__fees {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-4);
+  margin-top: auto;
+  padding-top: var(--space-4);
+  padding-inline: var(--space-2);
 }
 .order-goods__fees dl {
   width: min(100%, var(--size-cart-panel));
@@ -156,7 +160,11 @@ const columns = [
 }
 .order-goods__fees dd {
   margin: 0;
+  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+.order-goods__table :deep(.ant-table-cell) {
+  padding-inline: var(--space-2);
 }
 .order-goods__total {
   border-top: 1px solid var(--line);
