@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { reactive, watch, onMounted } from "vue";
+import { computed, ref, reactive, watch, onMounted } from "vue";
 import { useRouter, useRoute, isNavigationFailure } from "vue-router";
 import {
   Button,
   Input,
+  Dialog,
+  Icon,
   Tabs,
   CartSelector,
   CheckoutAddress,
@@ -15,6 +17,9 @@ import { useCheckout, money } from "@waimai/shared";
 import { api } from "../../../common/api";
 import { useCart } from "../../../common/cart";
 import PageSlot from "../../../components/PageSlot.vue";
+import { useGoodsDisclosure, useNoteDraft } from "../purchaseUi";
+import { useDraftLeave } from "../../../common/draftLeave";
+import DiscardDraft from "../components/DiscardDraft.vue";
 const carts = useCart(),
   router = useRouter(),
   route = useRoute();
@@ -34,6 +39,29 @@ const checkout = reactive(
     const failure = await router.push(path);
     if (isNavigationFailure(failure)) throw new Error("暂时无法打开订单");
   }),
+);
+const goods = useGoodsDisclosure(
+  computed(() => storeId),
+  computed(() => cart.lines),
+  () => cart.lines.some(checkout.itemIssue),
+);
+const note = useNoteDraft(
+  () => cart.note,
+  (value) => {
+    cart.note = value;
+  },
+  () => checkout.locked,
+);
+const {
+  open: noteOpen,
+  draft: noteDraft,
+  begin: editNote,
+  save: saveNote,
+} = note;
+const noteDialog = ref<InstanceType<typeof Dialog>>();
+const leave = useDraftLeave(
+  () => noteOpen.value && noteDraft.value !== cart.note,
+  () => checkout.locked && !checkout.createdOrderId,
 );
 watch(
   () => checkout.store,
@@ -65,7 +93,6 @@ onMounted(() => {
     </section>
     <template v-else-if="cart.lines.length"
       ><section class="app-card checkout-delivery" aria-label="配送信息">
-        <h2 class="title">配送信息</h2>
         <Tabs
           v-model="cart.type"
           :disabled="checkout.locked"
@@ -144,7 +171,7 @@ onMounted(() => {
           >
         </div>
         <CartItems
-          :lines="cart.lines"
+          :lines="goods.visible.value"
           :quote="cart.quote"
           :product-for="checkout.productFor"
           :item-issue="checkout.itemIssue"
@@ -156,19 +183,26 @@ onMounted(() => {
             )
           "
         />
+        <Button
+          v-if="goods.canToggle.value"
+          block
+          variant="text"
+          :aria-expanded="goods.showAll.value"
+          @click="goods.toggle"
+          >{{ goods.label.value }}</Button
+        >
       </section>
       <section class="app-card checkout-note" aria-label="订单备注">
-        <h2 class="title">
-          订单备注 <span class="body-sm app-muted">选填</span>
-        </h2>
-        <Input
-          v-model="cart.note"
-          multiline
-          maxlength="300"
-          placeholder="口味、忌口等要求，最多 300 字"
+        <button
+          type="button"
+          class="checkout-note__entry"
           :disabled="checkout.locked"
-        />
-        <p class="caption app-muted">{{ cart.note.length }} / 300</p>
+          @click="editNote"
+        >
+          <span class="title-sm">订单备注</span
+          ><span class="body-sm app-muted">{{ cart.note || "添加备注" }}</span
+          ><Icon name="chevron-right" :size="18" />
+        </button>
       </section>
       <section class="app-card app-stack" aria-label="费用明细">
         <h2 class="title checkout-fees-title">费用明细</h2>
@@ -239,8 +273,60 @@ onMounted(() => {
         /></div
     ></PageSlot>
   </div>
+  <Dialog
+    ref="noteDialog"
+    :open="noteOpen"
+    title="订单备注"
+    variant="sheet"
+    confirm-discard
+    :dirty="noteDraft !== cart.note"
+    :close-disabled="checkout.locked"
+    @close="note.cancel"
+  >
+    <Input
+      v-model="noteDraft"
+      label="口味、忌口等要求"
+      multiline
+      maxlength="300"
+      :disabled="checkout.locked"
+    />
+    <p class="caption app-muted">{{ noteDraft.length }} / 300</p>
+    <template #actions
+      ><Button
+        size="lg"
+        variant="outline"
+        :disabled="checkout.locked"
+        @click="noteDialog?.close()"
+        >取消</Button
+      ><Button size="lg" :disabled="checkout.locked" @click="saveNote"
+        >保存备注</Button
+      ></template
+    >
+  </Dialog>
+  <DiscardDraft :open="leave.open.value" @choose="leave.choose" />
 </template>
 <style scoped>
+.checkout-note__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--size-tap);
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.checkout-note__entry > .body-sm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
 .checkout-delivery {
   display: flex;
   flex-direction: column;
