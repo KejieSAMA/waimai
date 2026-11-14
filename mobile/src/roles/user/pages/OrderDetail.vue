@@ -229,10 +229,34 @@ async function copyOrderNo() {
           <div>
             <dt>订单编号</dt>
             <dd class="purchase-order-no">
-              {{ order.orderNo
-              }}<Button size="sm" variant="text" @click="copyOrderNo"
-                >复制</Button
+              <span class="purchase-order-no__text" :title="order.orderNo">{{
+                order.orderNo
+              }}</span>
+              <button
+                type="button"
+                class="purchase-order-no__copy"
+                aria-label="复制订单编号"
+                title="复制订单编号"
+                @click="copyOrderNo"
               >
+                <svg
+                  width="1em"
+                  height="1em"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="8" y="8" width="12" height="13" rx="2" />
+                  <path
+                    d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"
+                  />
+                </svg>
+              </button>
             </dd>
           </div>
           <div>
@@ -532,7 +556,29 @@ async function copyOrderNo() {
   overflow-wrap: anywhere;
 }
 .purchase-order-no {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
   user-select: text;
+}
+.purchase-order-no__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.purchase-order-no__copy {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--size-tap);
+  height: var(--size-tap);
+  border: 0;
+  padding: 0;
+  color: var(--brand-text);
+  background: none;
+  cursor: pointer;
 }
 .purchase-copy {
   width: 100%;

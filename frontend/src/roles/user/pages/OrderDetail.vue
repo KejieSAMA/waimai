@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button, Dialog, Input, Select } from "../../../components/pc";
+import { CopyOutlined } from "@ant-design/icons-vue";
 import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { time, useUserOrderDetail } from "@waimai/shared";
@@ -210,10 +211,20 @@ async function refund() {
           <section class="app-card order-detail__info">
             <h2 class="title-sm">订单资料</h2>
             <p class="caption app-muted">订单编号</p>
-            <p class="body-sm order-detail__number">{{ order.orderNo }}</p>
-            <Button variant="text" size="sm" @click="copyOrderNo"
-              >复制编号</Button
-            >
+            <div class="body-sm order-detail__number">
+              <span class="order-detail__number-text" :title="order.orderNo">{{
+                order.orderNo
+              }}</span>
+              <Button
+                class="order-detail__copy"
+                variant="text"
+                size="sm"
+                aria-label="复制订单编号"
+                title="复制订单编号"
+                @click="copyOrderNo"
+                ><CopyOutlined aria-hidden="true"
+              /></Button>
+            </div>
             <p v-if="copyNotice" class="caption app-muted" role="status">
               {{ copyNotice }}
             </p>
@@ -414,9 +425,24 @@ async function refund() {
   white-space: pre-wrap;
 }
 .order-detail__number {
-  overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
   user-select: text;
   margin: var(--space-1) 0;
+}
+.order-detail__number-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.order-detail__copy {
+  flex: none;
+  width: var(--size-button-sm);
+  height: var(--size-button-sm);
+  padding: 0;
 }
 .order-detail__info > p {
   margin-bottom: var(--space-2);
