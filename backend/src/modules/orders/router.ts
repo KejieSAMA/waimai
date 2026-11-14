@@ -8,6 +8,7 @@ import { validateSession } from "../auth/service";
 import { orderEvents } from "./events";
 import { visitorHash } from "../traffic/identity";
 import { TRAFFIC_RULES } from "../../rules";
+import { MAX_ARRIVAL_ORDERS } from "@waimai/shared";
 export function registerUserOrders(user: Router) {
   user.post(
     "/orders/preview",
@@ -49,6 +50,43 @@ export function registerUserOrders(user: Router) {
   );
 }
 export function registerMerchantOrders(merchant: Router) {
+  const arrivalActor = (
+    req: import("../../http").AuthRequest,
+  ): orders.MerchantArrivalActor => ({
+    id: req.actor!.id,
+    role: "MERCHANT",
+    storeId: req.storeId!,
+    sessionId: req.sessionId!,
+    version: req.sessionVersion!,
+  });
+  merchant.post(
+    "/orders/batch-arrive",
+    writableStore,
+    handler(async (req) => {
+      const body = z
+        .object({
+          ids: z
+            .array(z.string().min(1).max(128))
+            .min(1)
+            .max(MAX_ARRIVAL_ORDERS)
+            .refine(
+              (ids) => new Set(ids).size === ids.length,
+              "订单不能重复选择",
+            ),
+        })
+        .strict()
+        .parse(req.body);
+      return orders.batchArriveOrders(body.ids, arrivalActor(req));
+    }),
+  );
+  merchant.post(
+    "/orders/:id/arrive",
+    writableStore,
+    handler(async (req) => {
+      z.object({}).strict().parse(req.body);
+      return (await orders.arriveOrder(req.params.id, arrivalActor(req))).order;
+    }),
+  );
   merchant.get("/orders/stream", (request, res) => {
     const storeId = (request as import("../../http").AuthRequest).storeId!;
     res.writeHead(200, {

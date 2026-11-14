@@ -12,7 +12,7 @@ export function useOrderStream(
   let audio: AudioContext | undefined;
   let stopped = true;
   function sound() {
-    if (!audio || audio.state !== "running") return;
+    if (!enabled.value || !audio || audio.state !== "running") return;
     const oscillator = audio.createOscillator();
     const gain = audio.createGain();
     oscillator.connect(gain);
@@ -46,7 +46,7 @@ export function useOrderStream(
       let buffer = "";
       while (!stopped) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (stopped || done) break;
         buffer += decoder.decode(value, { stream: true });
         let boundary = buffer.indexOf("\n\n");
         while (boundary >= 0) {
@@ -75,15 +75,20 @@ export function useOrderStream(
   }
   async function toggle(value: boolean) {
     enabled.value = value;
-    stopped = !value;
-    if (!value) {
+    if (value) {
+      audio ??= new AudioContext();
+      await audio.resume();
+    }
+    if (!value && !options.autoConnect) {
+      stopped = true;
       controller?.abort();
       clearTimeout(timer);
       return;
     }
-    audio ??= new AudioContext();
-    await audio.resume();
-    void connect();
+    if (stopped) {
+      stopped = false;
+      void connect();
+    }
   }
   onMounted(() => {
     if (options.autoConnect) {

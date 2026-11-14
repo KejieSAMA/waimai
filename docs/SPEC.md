@@ -134,6 +134,7 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 - `GET /merchant/orders/:id` 商家只读详情，归属店铺从登录态获取，跨店 404，手机号继续脱敏，商品项提供后端行小计。
 - 订单列表另支持 `stage=PENDING|PREPARING|DELIVERING|REFUNDING`，配送分组包含待自提，保留给现有客户端；PC 新列表按精确 status 分组并使用统一固定分页。
 - `POST /merchant/orders/:id/accept|reject|ready|refund-approve|refund-reject`
+- `POST /merchant/orders/:id/arrive`：仅本店配送中外卖确认送达，直接 DONE；已完成外卖幂等，不允许自提。`POST /merchant/orders/batch-arrive` 严格接受 `{ ids }`（1–100 个不重复订单 ID），先检查全部归属，跨店／不存在整批404；逐单事务返回 completed／already_completed／failed 与原因，部分成功保留。每单重新核验会话与店铺可写状态，同事务记录完成时间及审计，提交后静默通知。详情和人工验收见 MERCHANT_ARRIVAL.md。
 - `GET /merchant/stats/today`、`GET /merchant/stats/trend?days=7`、`GET /merchant/todos`
 - 今日统计的 visitors 为真实浏览器 UV，convertedVisitors 为其中同日同店支付成功 UV，conversionRate 为百分数（无访客 null），traffic 包含持久采集起点、统计日、Asia/Shanghai 与首日部分数据标记；管理端不汇总平台 UV。支付归因只随首次支付成功事务写入，退款不撤销，匿名明细保留 30 日，详见 TRAFFIC_METRICS.md。
 
@@ -181,7 +182,7 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 
 - 商家：PENDING →（admin approve）→ OPEN；PENDING →（admin reject + reason）→ REJECTED →（merchant 修改重提）→ PENDING；OPEN ↔ CLOSED（merchant）；OPEN / CLOSED →（admin freeze + reason）→ FROZEN →（admin unfreeze）→ 冻结前的状态。FROZEN 时店铺对用户不可见，商家后台只读。
 - 商品：新建 → 平台开启审核（配置项 `PRODUCT_REVIEW=true`）时 REVIEW，否则 ON；REVIEW →（admin approve）→ ON /（reject + reason）→ REJECTED →（merchant 修改）→ REVIEW；ON ↔ OFF（merchant）；admin force-off → OFF 且 `forcedOff = true`，商家不能再上架直到修改后重新审核。
-- 订单：PENDING_PAY →（pay）→ PENDING →（merchant accept）→ PREPARING →（merchant ready）→ DELIVERING（外卖）/ PICKUP（自提）→ DONE；PENDING →（merchant reject / user cancel）→ CANCELLED（回补库存、模拟退款）；已支付未完成 →（user refund）→ REFUNDING →（merchant approve）→ CANCELLED /（merchant reject，用户可申诉）→ 管理端介入 resolve。PENDING_PAY 超过 15 分钟自动取消（定时任务）。
+- 订单：PENDING_PAY →（pay）→ PENDING →（merchant accept）→ PREPARING →（merchant ready）→ DELIVERING（外卖）/ PICKUP（自提）→ DONE（外卖另可由商家确认到达直接 DONE）；PENDING →（merchant reject / user cancel）→ CANCELLED（回补库存、模拟退款）；已支付未完成 →（user refund）→ REFUNDING →（merchant approve）→ CANCELLED /（merchant reject，用户可申诉）→ 管理端介入 resolve。PENDING_PAY 超过 15 分钟自动取消（定时任务）。
 
 ## 6. 初始化数据
 

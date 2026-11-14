@@ -238,6 +238,7 @@ export function auditActionLabel(action: string): string {
         "refund-reject": "拒绝退款",
         "review-reply": "回复评价",
         "promotion-update": "修改满减",
+        "merchant-arrive": "确认送达",
       } as Record<string, string>
     )[action] ?? "处理记录"
   );
@@ -321,6 +322,7 @@ export * from "./dishGroups";
 export * from "./publicStores";
 export * from "./storeEditor";
 export * from "./merchantOrders";
+export * from "./merchantArrival";
 
 export * from "./profileEditor";
 export * from "./merchantManagement";

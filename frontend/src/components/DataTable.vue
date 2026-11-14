@@ -19,6 +19,8 @@ const props = withDefaults(
     rows: R[];
     rowKey?: string;
     selectable?: boolean;
+    rowSelectable?: (row: R) => boolean;
+    selectionDisabled?: boolean;
     rowInteractive?: boolean;
     selected?: string[];
     batchActions?: Action[];
@@ -53,8 +55,12 @@ const rowSelection = computed(() =>
     ? {
         selectedRowKeys: props.selected,
         columnWidth: 48,
+        getCheckboxProps: (row: R) => ({
+          disabled:
+            props.selectionDisabled || props.rowSelectable?.(row) === false,
+        }),
         onChange: (keys: (string | number)[]) =>
-          emit("select", keys.map(String)),
+          !props.selectionDisabled && emit("select", keys.map(String)),
       }
     : undefined,
 );
@@ -108,7 +114,11 @@ const record = (r: unknown) => r as R;
         @click="a.onClick?.()"
         >{{ a.label }}</ActionButton
       >
-      <a-button size="small" type="link" @click="emit('select', [])"
+      <a-button
+        size="small"
+        type="link"
+        :disabled="selectionDisabled"
+        @click="emit('select', [])"
         >取消选择</a-button
       >
     </div>

@@ -16,7 +16,7 @@ export function orderTransition(
       ready: type === "PICKUP" ? "PICKUP" : "DELIVERING",
       refund: "REFUNDING",
     },
-    DELIVERING: { complete: "DONE", refund: "REFUNDING" },
+    DELIVERING: { complete: "DONE", arrive: "DONE", refund: "REFUNDING" },
     PICKUP: { complete: "DONE", refund: "REFUNDING" },
     REFUNDING: { "refund-approve": "CANCELLED" },
   };

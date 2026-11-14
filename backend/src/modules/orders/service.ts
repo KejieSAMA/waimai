@@ -32,6 +32,8 @@ import {
 import { notifyOrder } from "./events";
 import { paidVisit } from "../traffic/service";
 import { PAYMENT_TTL_MS } from "../../rules";
+import { validateSession } from "../auth/service";
+import type { ArrivalItemResult } from "@waimai/shared";
 export { PAYMENT_TTL_MS } from "../../rules";
 const include = {
   items: true,
@@ -369,6 +371,7 @@ export async function actOnOrder(
   reason?: string,
   visitor?: string,
 ) {
+  assert(action !== "arrive", 403, "请使用商家送达接口");
   let changedState = false,
     expired = false;
   const result = await cartTransaction(async (tx) => {
@@ -469,6 +472,101 @@ export async function actOnOrder(
   if (expired)
     throw new HttpError(409, "订单已超时取消", { reason: "PAYMENT_EXPIRED" });
   return serializeOrder(result, actor.role);
+}
+export interface MerchantArrivalActor {
+  id: string;
+  role: "MERCHANT";
+  storeId: string;
+  sessionId: string;
+  version: number;
+}
+async function authorizeArrival(
+  actor: MerchantArrivalActor,
+  tx: Prisma.TransactionClient,
+) {
+  const session = await validateSession(actor.sessionId, actor.version, tx);
+  assert(
+    session.userId === actor.id &&
+      session.activeRole === "MERCHANT" &&
+      !session.user.mustChangePassword,
+    403,
+    "请使用商家身份处理订单",
+  );
+  const store = await tx.store.findFirst({
+    where: { id: actor.storeId, ownerId: actor.id },
+  });
+  assert(store, 404, "店铺不存在");
+  assert(
+    ["OPEN", "CLOSED"].includes(store.status),
+    403,
+    "当前店铺状态只允许查看",
+  );
+}
+export async function arriveOrder(id: string, actor: MerchantArrivalActor) {
+  let changed = false;
+  const order = await cartTransaction(async (tx) => {
+    changed = false;
+    await authorizeArrival(actor, tx);
+    const old = await tx.order.findFirst({
+      where: { id, storeId: actor.storeId },
+      include,
+    });
+    assert(old, 404, "订单不存在");
+    assert(old.type === "DELIVERY", 409, "到店自提订单不能确认到达");
+    if (old.status === "DONE") return old;
+    const next = orderTransition(old.status, "arrive", old.type);
+    const updated = await tx.order.updateMany({
+      where: {
+        id,
+        status: "DELIVERING",
+        type: "DELIVERY",
+        storeId: actor.storeId,
+      },
+      data: { status: next, doneAt: new Date() },
+    });
+    assert(updated.count === 1, 409, "订单状态已更新，请重试");
+    await recordAudit(tx, actor, "merchant-arrive", "Order", id);
+    changed = true;
+    return tx.order.findUniqueOrThrow({ where: { id }, include });
+  });
+  if (changed) notifyOrder(order.storeId, order.id);
+  return {
+    order: serializeOrder(order, "MERCHANT"),
+    outcome: changed ? ("completed" as const) : ("already_completed" as const),
+  };
+}
+export async function batchArriveOrders(
+  ids: string[],
+  actor: MerchantArrivalActor,
+) {
+  const rows = await cartTransaction(async (tx) => {
+    await authorizeArrival(actor, tx);
+    const orders = await tx.order.findMany({
+      where: { id: { in: ids }, storeId: actor.storeId },
+      select: { id: true, orderNo: true },
+    });
+    assert(orders.length === ids.length, 404, "订单不存在");
+    return orders;
+  });
+  const results: ArrivalItemResult[] = [];
+  for (const id of ids) {
+    const orderNo = rows.find((row) => row.id === id)!.orderNo;
+    try {
+      const result = await arriveOrder(id, actor);
+      results.push({ id, orderNo, outcome: result.outcome });
+    } catch (error) {
+      results.push({
+        id,
+        orderNo,
+        outcome: "failed",
+        message:
+          error instanceof HttpError
+            ? error.message
+            : "处理失败，请刷新订单后重试",
+      });
+    }
+  }
+  return { results };
 }
 export async function resolveDispute(
   id: string,

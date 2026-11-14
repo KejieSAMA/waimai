@@ -26,6 +26,13 @@ const emit = defineEmits<{ act: [id: string, action: string] }>();
     @click="emit('act', order.id, 'ready')"
     >出餐完成</Button
   >
+  <Button
+    v-if="order.type === 'DELIVERY' && order.status === 'DELIVERING'"
+    size="sm"
+    :disabled="disabled"
+    @click="emit('act', order.id, 'arrive')"
+    >到达</Button
+  >
   <template v-if="order.status === 'REFUNDING'"
     ><span v-if="order.disputed" class="body-sm app-muted">平台处理中</span
     ><template v-else
