@@ -398,7 +398,7 @@ async function refund() {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--size-cart-panel);
   gap: var(--space-4);
-  align-items: stretch;
+  align-items: start;
 }
 .order-detail__aside {
   display: flex;

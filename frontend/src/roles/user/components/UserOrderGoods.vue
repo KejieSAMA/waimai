@@ -95,8 +95,6 @@ const columns = [
 <style scoped>
 .order-goods {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
 }
 .order-goods__head {
   display: flex;
@@ -141,14 +139,11 @@ const columns = [
   margin: var(--space-1) 0 0;
 }
 .order-goods__fees {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: auto;
-  padding-top: var(--space-4);
+  margin-top: var(--space-4);
   padding-inline: var(--space-2);
 }
 .order-goods__fees dl {
-  width: min(100%, var(--size-cart-panel));
+  width: 100%;
   margin: 0;
 }
 .order-goods__fees dl > div {
