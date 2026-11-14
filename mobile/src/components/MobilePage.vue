@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { provide, ref } from "vue";
-import { pageScrollKey } from "../common/pageScroll";
+import { pageScrollKey, pagePositionKey } from "../common/pageScroll";
 const body = ref<HTMLElement>();
+provide(pagePositionKey, {
+  read: () => body.value?.scrollTop ?? 0,
+  restore: (top) => body.value?.scrollTo({ top: Math.max(0, top) }),
+});
 provide(pageScrollKey, (target) => {
   const viewport = body.value;
   if (!viewport) return;

@@ -10,8 +10,13 @@ import {
   Dialog,
   SearchBar,
 } from "@waimai/ui";
-import { computed, onScopeDispose, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { computed, nextTick, ref, watch } from "vue";
+import {
+  useRoute,
+  onBeforeRouteLeave,
+  onBeforeRouteUpdate,
+  useRouter,
+} from "vue-router";
 import {
   type Store,
   type Product,
@@ -25,9 +30,33 @@ import { useCart } from "../../../common/cart";
 import { useAuth } from "../../../common/auth";
 import PageSlot from "../../../components/PageSlot.vue";
 import NavBarIcon from "../../../components/NavBarIcon.vue";
+import { browsingMemory, type StoreBrowseState } from "../browsingMemory";
+import { useStoreReviews } from "../storeReviews";
 const route = useRoute(),
+  router = useRouter(),
   carts = useCart(),
   auth = useAuth();
+const memory = browsingMemory.forOwner(auth.revision);
+const saved = memory.read<StoreBrowseState>("store:" + route.params.id);
+const categoryPane = ref<HTMLElement>(),
+  section = ref<HTMLElement>();
+let dishesTop = saved?.dishesTop ?? 0,
+  categoriesTop = saved?.categoriesTop ?? 0;
+function rememberBrowse() {
+  memory.write<StoreBrowseState>("store:" + route.params.id, {
+    view: view.value,
+    keyword: keyword.value,
+    category: category.value,
+    dishesTop: dishList.value?.scrollTop ?? dishesTop,
+    categoriesTop:
+      categoryPane.value?.querySelector(".xz-catnav")?.scrollTop ??
+      categoriesTop,
+    sectionTop: section.value?.scrollTop ?? 0,
+    reviews: reviewList.snapshot(),
+  });
+}
+onBeforeRouteLeave(rememberBrowse);
+onBeforeRouteUpdate(rememberBrowse);
 const cart = carts.forStore(String(route.params.id));
 const store = ref<Store>(),
   category = ref("");
@@ -40,6 +69,7 @@ watch(
   keyword,
   () => {
     category.value = "";
+    dishesTop = 0;
     dishList.value?.scrollTo({ top: 0 });
   },
   {
@@ -70,51 +100,36 @@ watch(
   { deep: true },
 );
 const view = ref("dishes");
-const reviews = ref<
-    { id: string; rating: number; content: string; reply: string | null }[]
-  >([]),
-  reviewPage = ref(1),
-  reviewTotal = ref(0),
-  reviewLoading = ref(false),
-  reviewError = ref("");
-let reviewVersion = 0;
-onScopeDispose(() => {
-  ++reviewVersion;
-});
-async function loadReviews() {
-  const current = ++reviewVersion,
-    target = String(route.params.id),
-    page = reviewPage.value;
-  reviewLoading.value = true;
-  reviewError.value = "";
-  try {
-    const result = await api<{ list: typeof reviews.value; total: number }>(
-      `/public/stores/${target}/reviews?page=${page}`,
-    );
-    if (current !== reviewVersion) return false;
-    reviews.value =
-      page === 1 ? result.list : [...reviews.value, ...result.list];
-    reviewTotal.value = result.total;
-    return true;
-  } catch (cause) {
-    if (current === reviewVersion)
-      reviewError.value =
-        cause instanceof Error ? cause.message : "评价加载失败";
-    return false;
-  } finally {
-    if (current === reviewVersion) reviewLoading.value = false;
-  }
-}
-async function moreReviews() {
-  const requested = ++reviewPage.value;
-  if (!(await loadReviews()) && reviewPage.value === requested)
-    reviewPage.value = Math.max(1, requested - 1);
-}
+const reviewList = useStoreReviews(
+  api,
+  String(route.params.id),
+  saved?.reviews,
+);
+const {
+  reviews,
+  total: reviewTotal,
+  pending: reviewLoading,
+  error: reviewError,
+  load: loadReviews,
+  more: moreReviews,
+} = reviewList;
 
-watch(view, (value) => {
+watch(view, async (value, old) => {
+  if (old === "dishes") {
+    dishesTop = dishList.value?.scrollTop ?? dishesTop;
+    categoriesTop =
+      categoryPane.value?.querySelector(".xz-catnav")?.scrollTop ??
+      categoriesTop;
+  }
   if (value === "reviews") {
-    reviewPage.value = 1;
-    void loadReviews();
+    if (!reviews.value.length) void loadReviews(1);
+  }
+  if (value === "dishes") {
+    await nextTick();
+    dishList.value?.scrollTo({ top: dishesTop });
+    categoryPane.value
+      ?.querySelector(".xz-catnav")
+      ?.scrollTo({ top: categoriesTop });
   }
 });
 const groups = computed(() =>
@@ -141,12 +156,6 @@ watch(
     category.value = "";
     keyword.value = "";
     view.value = "dishes";
-    ++reviewVersion;
-    reviewLoading.value = false;
-    reviewError.value = "";
-    reviews.value = [];
-    reviewPage.value = 1;
-    reviewTotal.value = 0;
     storeLoading.value = true;
     storeError.value = "";
     try {
@@ -155,6 +164,19 @@ watch(
       store.value = result;
       carts.rememberStore(result);
       cart.storeOpen = result.status === "OPEN";
+      if (saved) {
+        keyword.value = saved.keyword;
+        view.value = saved.view;
+        await nextTick();
+        category.value = saved.category;
+        dishesTop = saved.dishesTop;
+        categoriesTop = saved.categoriesTop;
+        dishList.value?.scrollTo({ top: saved.dishesTop });
+        categoryPane.value
+          ?.querySelector(".xz-catnav")
+          ?.scrollTo({ top: saved.categoriesTop });
+        section.value?.scrollTo({ top: saved.sectionTop });
+      }
       if (auth.tokens.USER && cart.count) await cart.refresh();
     } catch (cause) {
       if (active)
@@ -199,12 +221,20 @@ watch(
   <p v-if="storeError" class="app-error body-sm" role="alert">
     {{ storeError
     }}<Button variant="text" size="sm" @click="storeReload++">重试</Button>
+    <Button variant="text" size="sm" @click="router.push('/')">返回首页</Button>
   </p>
   <div v-if="store" class="sc-fill">
+    <p
+      v-if="store.status !== 'OPEN'"
+      class="store-unavailable body-sm"
+      role="status"
+    >
+      店铺休息中，暂时无法下单，已选商品仍保留
+    </p>
     <div class="sc-head">
-      <Thumb kind="logo" size="lg" :src="store.logo" :name="store.name" />
+      <Thumb kind="logo" :src="store.logo" :name="store.name" />
       <div class="sc-head__main">
-        <span class="title-lg">{{ store.name }}</span>
+        <span class="title-sm store-name">{{ store.name }}</span>
         <div class="app-row body-sm">
           <Tag :tone="storeStatuses[store.status].tone">{{
             storeStatuses[store.status].label
@@ -220,7 +250,7 @@ watch(
         </div>
         <div class="app-store-promotions">
           <Tag
-            v-for="promotion in store.promotions"
+            v-for="promotion in store.promotions?.slice(0, 2)"
             :key="promotion.thresholdCents"
             tone="brand"
             variant="outline"
@@ -239,18 +269,20 @@ watch(
       ]"
     />
     <div v-if="view === 'dishes'" class="sc-split">
-      <CategoryNav
-        :model-value="category"
-        @update:model-value="jump"
-        :items="[
-          { key: '', label: '全部菜品', count: categoryCount('') },
-          ...(store.dishCategories ?? []).map((c) => ({
-            key: c.id,
-            label: c.name,
-            count: categoryCount(c.id),
-          })),
-        ]"
-      />
+      <div ref="categoryPane" class="store-categories">
+        <CategoryNav
+          :model-value="category"
+          @update:model-value="jump"
+          :items="[
+            { key: '', label: '全部菜品', count: categoryCount('') },
+            ...(store.dishCategories ?? []).map((c) => ({
+              key: c.id,
+              label: c.name,
+              count: categoryCount(c.id),
+            })),
+          ]"
+        />
+      </div>
       <div ref="dishList" class="sc-split__list">
         <template
           v-for="group in groups.filter((g) =>
@@ -285,7 +317,7 @@ watch(
         </p>
       </div>
     </div>
-    <div v-if="view === 'reviews'" class="app-store-section">
+    <div v-if="view === 'reviews'" ref="section" class="app-store-section">
       <article v-for="review in reviews" :key="review.id" class="app-card">
         <p class="body-sm app-muted">评分 {{ review.rating }}</p>
         <p class="body">{{ review.content }}</p>
@@ -299,7 +331,7 @@ watch(
           variant="text"
           size="sm"
           :disabled="reviewLoading"
-          @click="loadReviews"
+          @click="loadReviews()"
           >重试</Button
         >
       </div>
@@ -314,23 +346,67 @@ watch(
         >加载更多</Button
       >
     </div>
-    <div v-if="view === 'store'" class="app-store-section app-card">
+    <div
+      v-if="view === 'store'"
+      ref="section"
+      class="app-store-section app-card"
+    >
       <h2 class="title-sm">商家信息</h2>
       <p class="body-sm">门店地址 {{ store.address }}</p>
       <p class="body-sm">营业时间 {{ store.openHours }}</p>
       <p class="body-sm">
-        起送 {{ money(store.minOrderCents) }} · 配送
-        {{ money(store.deliveryFeeCents) }}
+        起送 {{ money(store.minOrderCents) }} ·
+        {{
+          store.deliveryFeeCents
+            ? "配送 " + money(store.deliveryFeeCents)
+            : "免配送费"
+        }}
       </p>
+      <div class="app-store-promotions">
+        <Tag
+          v-for="p in store.promotions"
+          :key="p.thresholdCents"
+          tone="brand"
+          variant="outline"
+          >满 {{ money(p.thresholdCents) }} 减 {{ money(p.discountCents) }}</Tag
+        >
+      </div>
       <p class="body-sm">{{ store.notice || "暂无公告" }}</p>
     </div>
-    <p v-if="cart.quoteError" class="body-sm app-muted">
-      {{ cart.quoteError }}
-    </p>
   </div>
 </template>
 
 <style scoped>
+.store-unavailable {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+}
+.store-name {
+  overflow-wrap: anywhere;
+}
+.store-categories {
+  flex: none;
+  display: flex;
+  min-height: 0;
+}
+.sc-split__list {
+  overscroll-behavior: contain;
+  padding-bottom: var(--space-4);
+}
+.sc-split__list :deep(.xz-dish__name) {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+.sc-split__list :deep(.xz-dish__desc) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .app-store-section {
   flex: 1;
   min-height: 0;

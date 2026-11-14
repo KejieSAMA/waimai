@@ -18,6 +18,40 @@ function setup(append = false) {
   return { state, request, scope };
 }
 describe("首页请求", () => {
+  it("手机筛选失败保留旧内容和页码，成功后才发出回顶信号，不追加到旧筛选", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ list: [{ id: "old" }], total: 9 });
+    const scope = effectScope();
+    scopes.push(scope);
+    const state = scope.run(() =>
+      usePublicStores(request as CheckoutRequest, true, "", {
+        preserveOnSearch: true,
+      }),
+    )!;
+    await state.load();
+    const signal = state.filterRevision.value;
+    request.mockRejectedValueOnce(new Error("失败"));
+    state.category.value = "new";
+    await nextTick();
+    await nextTick();
+    expect(state.stores.value.map((s) => s.id)).toEqual(["old"]);
+    expect(state.page.value).toBe(1);
+    expect(state.filterRevision.value).toBe(signal);
+    request.mockResolvedValueOnce({ list: [{ id: "new" }], total: 2 });
+    await state.load();
+    expect(state.filterRevision.value).toBe(signal + 1);
+    expect(state.stores.value.map((s) => s.id)).toEqual(["new"]);
+    const saved = state.snapshot()!;
+    const restored = scope.run(() =>
+      usePublicStores(request as CheckoutRequest, true, "", {
+        snapshot: saved,
+      }),
+    )!;
+    expect(restored.category.value).toBe("new");
+    expect(restored.stores.value.map((s) => s.id)).toEqual(["new"]);
+    expect(restored.pending.value).toBe(false);
+  });
   it("初始为加载态，筛选后的旧响应与卸载响应被隔离", async () => {
     const { state, request, scope } = setup();
     expect(state.pending.value).toBe(true);

@@ -77,6 +77,7 @@ const backTo = () => {
       route.query.from === "merchants" ? "/admin/merchants" : "/admin/audit",
     );
   if (isStore.value) return router.push("/");
+  if (/^\/orders\/[^/]+$/.test(route.path)) return router.push("/orders");
   if (route.path === "/checkout")
     return router.push(
       cart.checkoutStoreId ? "/store/" + cart.checkoutStoreId : "/",
@@ -91,6 +92,19 @@ watch(
   },
 );
 const pageBody = ref<InstanceType<typeof MobilePage>>();
+watch(
+  () => route.path,
+  () => {
+    if (
+      route.path === "/" ||
+      route.path === "/checkout" ||
+      route.path === "/orders" ||
+      /^\/(store|orders)\/[^/]+$/.test(route.path)
+    )
+      pageBody.value?.scrollToTop();
+  },
+  { flush: "post" },
+);
 watch(
   () => route.query.storeId,
   () => {
@@ -321,6 +335,17 @@ const tabs = computed(() =>
           :quote="storeCart.quote"
           :updating="storeCart.quotePending"
         />
+        <p class="app-cart-status caption app-muted" role="status">
+          {{
+            !auth.tokens.USER
+              ? "登录后查看金额与优惠"
+              : storeCart.quotePending
+                ? "金额更新中"
+                : storeCart.quoteError
+                  ? "金额需重新计算"
+                  : "\u00a0"
+          }}
+        </p>
         <p v-if="storeCart.quoteError" class="app-error body-sm">
           {{ storeCart.quoteError
           }}<Button variant="text" @click="storeCart.refresh">重试</Button>

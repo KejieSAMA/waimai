@@ -47,14 +47,18 @@ const emit = defineEmits<{ checkout: []; open: [] }>();
                   ? "金额计算失败"
                   : "等待计算金额"
         }}</span
-      ><span v-if="deliveryFee != null" class="xz-cartbar__sub caption">{{
-        updating && total != null
+      ><span class="xz-cartbar__sub caption" role="status">{{
+        updating
           ? "金额更新中"
           : error
             ? "金额需重新计算"
-            : deliveryFee === 0
-              ? "免配送费"
-              : "配送 " + money(deliveryFee * 100)
+            : deliveryFee == null
+              ? !loggedIn && minOrder && !pickup
+                ? money(minOrder) + " 起送"
+                : "\u00a0"
+              : deliveryFee === 0
+                ? "免配送费"
+                : "配送 " + money(deliveryFee * 100)
       }}</span>
     </div>
     <button
@@ -79,6 +83,10 @@ const emit = defineEmits<{ checkout: []; open: [] }>();
 </template>
 
 <style scoped>
+.xz-cartbar__sub {
+  display: block;
+  min-height: 1.5em;
+}
 .app-cart-toggle {
   border: 0;
   padding: 0;
