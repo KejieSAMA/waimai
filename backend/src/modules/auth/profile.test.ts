@@ -18,7 +18,7 @@ async function identity(role: Role = "USER", extras = {}) {
     data: {
       username: "profile_" + ++serial,
       name: "旧昵称",
-      phone: "13912345678",
+      phone: "139" + String(serial).padStart(8, "0"),
       roles: { create: { role } },
       ...extras,
     },
@@ -93,9 +93,10 @@ describe("本人资料接口", () => {
     async (role) => {
       const { user, session } = await identity(role);
       const other = await identity();
+      const updatedPhone = "138" + String(serial).padStart(8, "0");
       const result = await update(session.accessToken, {
         name: "  新昵称  ",
-        phone: "13887654321",
+        phone: updatedPhone,
       });
       expect(result.status).toBe(200);
       expect(result.body.data).toMatchObject({
@@ -103,7 +104,7 @@ describe("本人资料接口", () => {
         user: {
           id: user.id,
           name: "新昵称",
-          phone: "13887654321",
+          phone: updatedPhone,
           roles: [role],
         },
       });
@@ -122,7 +123,7 @@ describe("本人资料接口", () => {
       ).toBe(200);
       expect(
         await db.user.findUnique({ where: { id: other.user.id } }),
-      ).toMatchObject({ name: "旧昵称", phone: "13912345678" });
+      ).toMatchObject({ name: "旧昵称", phone: other.user.phone });
       const logs = await db.auditLog.findMany({ where: { targetId: user.id } });
       expect(logs).toHaveLength(1);
       expect(logs[0]).toMatchObject({
@@ -131,7 +132,7 @@ describe("本人资料接口", () => {
         action: "account-profile",
         reason: null,
       });
-      expect(JSON.stringify(logs)).not.toContain("13887654321");
+      expect(JSON.stringify(logs)).not.toContain(updatedPhone);
     },
   );
   it("省略手机保留，空字符串或 null 清空，未变化不重复写审计", async () => {
@@ -139,7 +140,7 @@ describe("本人资料接口", () => {
     expect(
       (await update(session.accessToken, { name: "新名字" })).body.data.user
         .phone,
-    ).toBe("13912345678");
+    ).toBe(user.phone);
     expect(
       (await update(session.accessToken, { name: "新名字", phone: "" })).body
         .data.user.phone,

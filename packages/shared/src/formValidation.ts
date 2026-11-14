@@ -1,5 +1,16 @@
 import type { FieldErrors } from "./formFeedback";
 import type { AddressDraft } from "./index";
+export function registrationContactErrors(form: {
+  phone: string;
+  name?: string;
+}): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!/^1[3-9]\d{9}$/.test(form.phone.trim()))
+    errors.phone = "请填写有效的 11 位手机号";
+  if ((form.name?.trim().length ?? 0) > 30)
+    errors.name = "昵称不能超过 30 个字";
+  return errors;
+}
 export function passwordError(value: string) {
   const bytes = [...value].reduce(
     (n, c) =>

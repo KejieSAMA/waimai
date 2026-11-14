@@ -101,7 +101,7 @@ async function submit() {
             placeholder="选填，可留空"
           />
           <p class="body-sm app-muted">
-            联系手机不用于登录验证，修改后不会更改收货地址或门店联系电话。
+            手机号可用于密码登录，修改或清空后仍可使用账号登录；不会更改收货地址或门店联系电话。
           </p></template
         >
         <p v-if="error" class="app-error body-sm" role="alert">

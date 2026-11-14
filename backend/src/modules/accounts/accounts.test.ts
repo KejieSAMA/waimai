@@ -132,13 +132,19 @@ describe("正式账号、授权与会话", () => {
             username: "registered",
             password,
             name: "注册用户",
+            phone: "13923456781",
             roles: ["ADMIN"],
           })
       ).status,
     ).toBe(400);
     const result = await request(app)
       .post("/api/v1/auth/register")
-      .send({ username: "Registered", password, name: "注册用户" });
+      .send({
+        username: "Registered",
+        password,
+        name: "注册用户",
+        phone: "13923456781",
+      });
     expect(result.status).toBe(200);
     expect(result.body.data.user.roles).toEqual(["USER"]);
     expect(result.body.data.user.username).toBe("registered");
@@ -429,6 +435,7 @@ describe("正式账号、授权与会话", () => {
         username: "short_pw",
         password: "short",
         name: "短密码",
+        phone: "13923456782",
       }),
     ).rejects.toBeDefined();
     await expect(
@@ -436,6 +443,7 @@ describe("正式账号、授权与会话", () => {
         username: "long_bytes",
         password: "中".repeat(25),
         name: "多字节",
+        phone: "13923456783",
       }),
     ).rejects.toBeDefined();
     expect(

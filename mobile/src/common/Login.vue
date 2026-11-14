@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import {
   useFormFeedback,
   passwordError,
+  registrationContactErrors,
   type FieldErrors,
   clearLoginPassword,
   roleHome,
@@ -33,10 +34,10 @@ const feedback = useFormFeedback(() => {
   if (register.value) {
     const p = passwordError(password.value);
     if (p) e.password = p;
-    if (!name.value.trim() || name.value.trim().length > 30)
-      e.name = "昵称需为 1–30 个字";
-    if (phone.value && !/^1[3-9]\d{9}$/.test(phone.value))
-      e.phone = "请填写有效手机号，或留空";
+    Object.assign(
+      e,
+      registrationContactErrors({ name: name.value, phone: phone.value }),
+    );
   }
   return e;
 });
@@ -58,8 +59,8 @@ async function submit() {
         ? {
             username: username.value,
             password: password.value,
-            name: name.value,
-            phone: phone.value,
+            name: name.value.trim(),
+            phone: phone.value.trim(),
           }
         : {
             username: username.value,
@@ -110,11 +111,13 @@ async function submit() {
       name="username"
       :error="feedback.field('username')"
       @blur="feedback.blur('username')"
-      label="账号"
+      :label="register ? '账号' : '账号或手机号'"
       autocomplete="username"
       required
       maxlength="32"
-      placeholder="英文、数字、下划线或连字符"
+      :placeholder="
+        register ? '英文、数字、下划线或连字符' : '请输入账号或手机号'
+      "
       :disabled="pending"
     />
     <Input
@@ -129,26 +132,32 @@ async function submit() {
       :minlength="register ? 8 : undefined"
       :disabled="pending"
     />
-    <template v-if="register"
-      ><Input
+    <template v-if="register">
+      <Input
+        v-model="phone"
+        name="phone"
+        :error="feedback.field('phone')"
+        @blur="feedback.blur('phone')"
+        label="手机号"
+        type="tel"
+        inputmode="tel"
+        autocomplete="tel"
+        required
+        maxlength="11"
+        placeholder="请输入 11 位手机号"
+        :disabled="pending"
+      />
+      <Input
         v-model="name"
         name="name"
         :error="feedback.field('name')"
         @blur="feedback.blur('name')"
         label="昵称"
-        required
         maxlength="30"
-        :disabled="pending" /><Input
-        v-model="phone"
-        name="phone"
-        :error="feedback.field('phone')"
-        @blur="feedback.blur('phone')"
-        label="联系手机"
-        inputmode="tel"
-        maxlength="11"
-        placeholder="选填"
+        placeholder="选填，未填时使用手机号"
         :disabled="pending"
-    /></template>
+      />
+    </template>
     <p v-if="error" class="body-sm app-error" role="alert">{{ error }}</p>
     <Button type="submit" block :disabled="pending">{{
       pending ? "处理中" : register ? "注册账号" : "登录"

@@ -103,6 +103,7 @@ app.use(
       status?: number;
       code?: string;
       details?: { reason: string };
+      meta?: { target?: string | string[] };
     },
     _req: Request,
     res: Response,
@@ -137,7 +138,13 @@ app.use(
           : error instanceof ZodError
             ? "参数格式错误"
             : error.code === "P2002"
-              ? "数据已存在"
+              ? (
+                  Array.isArray(error.meta?.target)
+                    ? error.meta.target.includes("phone")
+                    : error.meta?.target?.includes("User_phone_key")
+                )
+                ? "该手机号已被使用"
+                : "数据已存在"
               : error.code === "P2003"
                 ? "关联数据仍在使用"
                 : conflict

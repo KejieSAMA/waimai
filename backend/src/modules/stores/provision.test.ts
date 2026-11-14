@@ -61,7 +61,7 @@ async function fixture(
         username: "merchant_new_" + serial,
         password,
         name: "负责人",
-        phone: "13811112222",
+        phone: "138" + String(serial).padStart(8, "0"),
       },
       store: {
         name: "新店_" + serial,
@@ -188,7 +188,7 @@ describe("管理员创建商家账号及店铺", () => {
     expect(account).not.toHaveProperty("passwordHash");
     const user = await db.user.findUniqueOrThrow({ where: { id: account.id } });
     expect(await bcrypt.compare(password, user.passwordHash!)).toBe(true);
-    expect(user.phone).toBe("13811112222");
+    expect(user.phone).toBe(f.body.account.phone);
     expect(store.contactPhone).toBe("13833334444");
     expect(
       await db.refreshSession.count({ where: { userId: account.id } }),
@@ -212,7 +212,7 @@ describe("管理员创建商家账号及店铺", () => {
       "store-create",
     ]);
     expect(JSON.stringify(logs)).not.toContain(password);
-    expect(JSON.stringify(logs)).not.toContain("13811112222");
+    expect(JSON.stringify(logs)).not.toContain(f.body.account.phone);
     const detail = await request(app)
       .get("/api/v1/admin/merchants/" + store.id)
       .auth(f.token, { type: "bearer" });

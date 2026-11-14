@@ -73,8 +73,8 @@ PC 后台列表采用固定页头、唯一主要纵向内容视口和固定底�
 
 ## 2. 账号与鉴权
 
-- 账号使用唯一 username（小写 3–32 位英文、数字、下划线或连字符），手机号选填；账号启用状态与角色授权分开保存，一个账号可拥有 USER／MERCHANT／ADMIN 中的多个角色。
-- 统一账号密码登录；公开注册仅 USER，商家角色由管理员授予，店铺仍走现有入驻审核。密码至少 8 字符且不超过 bcrypt 72 字节，服务端仅保存哈希。不提供短信和默认凭据。
+- 账号使用唯一 username（小写 3–32 位英文、数字、下划线或连字符），公开注册手机号必填且唯一，管理员创建账号时仍可留空；账号启用状态与角色授权分开保存，一个账号可拥有 USER／MERCHANT／ADMIN 中的多个角色。
+- 支持账号或唯一手机号配合密码登录；公开注册仅 USER，商家角色由管理员授予，店铺仍走现有入驻审核。密码至少 8 字符且不超过 bcrypt 72 字节，服务端仅保存哈希。不提供短信和默认凭据。
 - 一个浏览器使用 xz_refresh HttpOnly Cookie（7 天）与当前身份 access token（2 小时）；角色切换由服务端核验授权、增加会话版本并签发新凭据。refresh 仅恢复服务端当前身份，不接受客户端指定另一身份。旧角色 Cookie 失效并清理。
 - authenticate 每次读取会话、账号状态与授权，requireRole 验证当前身份，商家店铺归属只取登录态。临时密码首次登录须改密，仅允许身份查询、改密及退出；停用、改密、重置密码、角色变更撤销全部会话。
 - 管理端账号列表／详情、创建、修改资料、角色授权、状态、密码重置和审计，两端均有 /admin/accounts（手机含 /mobile 前缀）。保留固定分页与后台既有骨架。保护自身与最后管理员；商家停用／撤权冻结店铺，启用不自动解冻。
@@ -98,10 +98,10 @@ PC／手机首次会话核验完成前不显示账号及受保护内容；401 �
 
 用户 `user`
 
-- `POST /auth/register`：username、password、name、phone?，严格拒绝角色字段，只授予 USER。
-- `POST /auth/login`：username、password、role?；返回 accessToken、activeRole 和安全 user（含 roles、当前 role 兼容字段、mustChangePassword），角色未授权时拒绝。
+- `POST /auth/register`：username、password、phone 必填，name 选填；手机号为有效 11 位大陆手机号码且每号仅关联一个账号，昵称修剪后留空／省略时使用手机号，已填最多 30 字。严格拒绝角色字段，只授予 USER。
+- `POST /auth/login`：username（账号或手机号）、password、role?；优先匹配账号，其次唯一手机号；两种入口共用账号级失败次数，手机号不改变授权／启停用／强制改密限制。返回 accessToken、activeRole 和安全 user（含 roles、当前 role 兼容字段、mustChangePassword），角色未授权时拒绝。
 - `POST /auth/refresh`、`GET /auth/me`、`POST /auth/switch-role`（role）、`POST /auth/logout`、`POST /auth/password`（oldPassword、password）。旧短信及分角色登录／注册端点删除。
-- `PUT /auth/me`：仅接受本人 `{ name, phone? }`，昵称修剪后 1–30 字；省略手机保留，空字符串或 null 清空。拒绝任何额外字段，事务内重新核验会话、账号状态、当前授权及首次改密限制。返回 `{ user, activeRole }` 安全资料，不轮换凭据、不撤销正常会话；仅资料实际变化时记录 `account-profile` 审计，不含手机正文。
+- `PUT /auth/me`：仅接受本人 `{ name, phone? }`，昵称修剪后 1–30 字；省略手机保留，空字符串或 null 清空；非空手机不可与其他账号或已有数字账号名冲突，修改后新手机号可登录、原手机号不再用于本账号登录。拒绝任何额外字段，事务内重新核验会话、账号状态、当前授权及首次改密限制。返回 `{ user, activeRole }` 安全资料，不轮换凭据、不撤销正常会话；仅资料实际变化时记录 `account-profile` 审计，不含手机正文。
 - `GET /admin/accounts?keyword&role&status&page&pageSize`、`GET /admin/accounts/:id`、`GET /admin/accounts/:id/audit`。
 - `POST /admin/accounts`（username、name、phone?、password、roles）、`PUT /admin/accounts/:id`（name、phone?）、`PUT /admin/accounts/:id/roles|status|password`（分别 roles、status 或 password）。创建／重置设置首次改密；不提供物理删除。
 - `GET|POST|PUT|DELETE /user/addresses`

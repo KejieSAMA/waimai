@@ -16,6 +16,32 @@ import {
 } from "./schema";
 const digest = (token: string) =>
   createHash("sha256").update(token).digest("hex");
+export async function assertAccountIdentifiers(
+  tx: Prisma.TransactionClient,
+  input: { username?: string; phone?: string | null },
+  exceptId?: string,
+) {
+  if (input.phone) {
+    const used = await tx.user.findFirst({
+      where: {
+        id: exceptId ? { not: exceptId } : undefined,
+        OR: [{ phone: input.phone }, { username: input.phone }],
+      },
+      select: { id: true },
+    });
+    assert(!used, 409, "该手机号已被使用，请登录或更换手机号");
+  }
+  if (input.username && /^1[3-9]\d{9}$/.test(input.username)) {
+    const used = await tx.user.findFirst({
+      where: {
+        phone: input.username,
+        id: exceptId ? { not: exceptId } : undefined,
+      },
+      select: { id: true },
+    });
+    assert(!used, 409, "账号与已有手机号冲突，请更换账号");
+  }
+}
 export async function safeAccount(
   id: string,
   role: Role,
@@ -109,6 +135,8 @@ export async function updateProfile(
     assert(!session.user.mustChangePassword, 403, "请先修改密码");
     const phone = p.phone === undefined ? session.user.phone : p.phone || null;
     if (p.name !== session.user.name || phone !== session.user.phone) {
+      if (phone !== session.user.phone)
+        await assertAccountIdentifiers(tx, { phone }, actor.id);
       await tx.user.update({
         where: { id: actor.id },
         data: { name: p.name, phone },
@@ -166,27 +194,47 @@ export async function revokeSession(token: string) {
 const attempts = new Map<string, { count: number; until: number }>();
 export async function passwordLogin(input: unknown) {
   const p = loginSchema.parse(input);
-  const attempt = attempts.get(p.username);
+  const attempt = attempts.get("login:" + p.username);
   assert(
     !attempt || attempt.until < Date.now() || attempt.count < 10,
     429,
     "登录失败次数过多，请稍后重试",
   );
-  const user = await db.user.findUnique({
+  let user = await db.user.findUnique({
     where: { username: p.username },
     include: { roles: true },
   });
+  if (!user && /^1[3-9]\d{9}$/.test(p.username)) {
+    const matches = await db.user.findMany({
+      where: { phone: p.username },
+      include: { roles: true },
+      take: 2,
+    });
+    assert(matches.length < 2, 401, "该手机号关联多个账号，请使用账号登录");
+    user = matches[0] ?? null;
+  }
+  const accountKey = user ? "account:" + user.id : "login:" + p.username;
+  const accountAttempt = attempts.get(accountKey);
+  assert(
+    !accountAttempt ||
+      accountAttempt.until < Date.now() ||
+      accountAttempt.count < 10,
+    429,
+    "登录失败次数过多，请稍后重试",
+  );
   const valid =
     user?.passwordHash && (await bcrypt.compare(p.password, user.passwordHash));
   if (!valid || user?.status !== "ACTIVE") {
     if (attempts.size > 10000)
       for (const [key, entry] of attempts)
         if (entry.until < Date.now()) attempts.delete(key);
-    const previous = attempt && attempt.until > Date.now() ? attempt.count : 0;
-    attempts.set(p.username, {
-      count: previous + 1,
-      until: Date.now() + 15 * 60000,
-    });
+    for (const key of new Set(["login:" + p.username, accountKey])) {
+      const old = attempts.get(key);
+      attempts.set(key, {
+        count: (old && old.until > Date.now() ? old.count : 0) + 1,
+        until: Date.now() + 15 * 60000,
+      });
+    }
     assert(false, 401, "账号或密码错误，或账号未启用");
   }
   const role =
@@ -199,7 +247,9 @@ export async function passwordLogin(input: unknown) {
     403,
     "没有该身份权限",
   );
-  attempts.delete(p.username);
+  for (const identifier of [p.username, user.username, user.phone])
+    if (identifier) attempts.delete("login:" + identifier);
+  attempts.delete(accountKey);
   await db.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
@@ -208,14 +258,18 @@ export async function passwordLogin(input: unknown) {
 }
 export async function register(input: unknown) {
   const p = registerSchema.parse(input);
-  const user = await db.user.create({
-    data: {
-      username: p.username,
-      phone: p.phone || null,
-      name: p.name,
-      passwordHash: await bcrypt.hash(p.password, 12),
-      roles: { create: { role: "USER" } },
-    },
+  const passwordHash = await bcrypt.hash(p.password, 12);
+  const user = await db.$transaction(async (tx) => {
+    await assertAccountIdentifiers(tx, p);
+    return tx.user.create({
+      data: {
+        username: p.username,
+        phone: p.phone,
+        name: p.name || p.phone,
+        passwordHash,
+        roles: { create: { role: "USER" } },
+      },
+    });
   });
   return issueSession(user, "USER");
 }

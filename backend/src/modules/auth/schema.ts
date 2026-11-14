@@ -38,7 +38,13 @@ export const registerSchema = z
   .object({
     username: usernameSchema,
     password: passwordSchema,
-    name: z.string().trim().min(1).max(30),
-    phone: contactSchema,
+    name: z.string().trim().max(30, "昵称不能超过 30 个字").optional(),
+    phone: z
+      .string({
+        required_error: "请填写手机号",
+        invalid_type_error: "请填写有效的 11 位手机号",
+      })
+      .trim()
+      .pipe(phoneSchema),
   })
   .strict();

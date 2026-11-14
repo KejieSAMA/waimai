@@ -6,6 +6,7 @@ import { assert, pagination, pageResult } from "../../http";
 import { recordAudit, auditLogs } from "../audit/service";
 import { freezeForAccount } from "../stores/service";
 import { sessionChanged } from "../auth/events";
+import { assertAccountIdentifiers } from "../auth/service";
 import {
   roleSchema,
   usernameSchema,
@@ -49,6 +50,7 @@ export async function createAccountInTransaction(
   roles: ("USER" | "MERCHANT" | "ADMIN")[],
   actor: Actor,
 ) {
+  await assertAccountIdentifiers(tx, data);
   const user = await tx.user.create({
     data: {
       username: data.username,
@@ -168,6 +170,8 @@ export async function update(
       include: { roles: true },
     });
     assert(old, 404, "账号不存在");
+    if (edit?.phone && edit.phone !== old.phone)
+      await assertAccountIdentifiers(tx, edit, id);
     const previous = old.roles.map((r) => r.role);
     const nextRoles = [...new Set(roleList ?? previous)];
     const nextStatus = status ?? old.status;
